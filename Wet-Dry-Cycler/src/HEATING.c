@@ -13,8 +13,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <Board.h>
-#include "ADC.h"
+#include <ADC.h>
 #include <math.h>
+#include <HEATING.h>
+
 
 
 
@@ -56,41 +58,41 @@ void HEATING_Init(void) {
 }
 
 
-/** calculateMovingAverage(float newAdcValue)
- *
- * Implements a moving average filter for ADC readings
- *
- * @return  (float)  [Filtered Values]
- */
-float calculateMovingAverage(float newAdcValue)
-{
-    // If the buffer is full, reset it
-    if (samplesCollected >= MOVING_AVERAGE_WINDOW)
-    {
-        // Reset the buffer and sum
-        for (int i = 0; i < MOVING_AVERAGE_WINDOW; i++)
-        {
-            adcBuffer[i] = 0;
-        }
-        adcSum = 0;
-        adcIndex = 0;
-        samplesCollected = 0;
-    }
+// /** calculateMovingAverage(float newAdcValue)
+//  *
+//  * Implements a moving average filter for ADC readings
+//  *
+//  * @return  (float)  [Filtered Values]
+//  */
+// float calculateMovingAverage(float newAdcValue)
+// {
+//     // If the buffer is full, reset it
+//     if (samplesCollected >= MOVING_AVERAGE_WINDOW)
+//     {
+//         // Reset the buffer and sum
+//         for (int i = 0; i < MOVING_AVERAGE_WINDOW; i++)
+//         {
+//             adcBuffer[i] = 0;
+//         }
+//         adcSum = 0;
+//         adcIndex = 0;
+//         samplesCollected = 0;
+//     }
 
-    // Add the new value to the buffer and update the sum
-    adcSum -= adcBuffer[adcIndex];  // Subtract the oldest value
-    adcBuffer[adcIndex] = newAdcValue;  // Store the new value
-    adcSum += newAdcValue;  // Add the new value to the sum
+//     // Add the new value to the buffer and update the sum
+//     adcSum -= adcBuffer[adcIndex];  // Subtract the oldest value
+//     adcBuffer[adcIndex] = newAdcValue;  // Store the new value
+//     adcSum += newAdcValue;  // Add the new value to the sum
 
-    // Update the index for the next value
-    adcIndex = (adcIndex + 1) % MOVING_AVERAGE_WINDOW;
+//     // Update the index for the next value
+//     adcIndex = (adcIndex + 1) % MOVING_AVERAGE_WINDOW;
 
-    // Increment the sample counter
-    samplesCollected++;
+//     // Increment the sample counter
+//     samplesCollected++;
 
-    // Return the average
-    return adcSum / samplesCollected;
-}
+//     // Return the average
+//     return adcSum / samplesCollected;
+// }
 
 
 
@@ -114,7 +116,7 @@ int HEATING_Measure_Raw_ADC(void){
  * @return  (float)  [Volts]
  */
 float HEATING_Measure_Voltage(void){
-    float movingAverageAdc = calculateMovingAverage((float)HEATING_Measure_Voltage());
+    float movingAverageAdc = HEATING_Measure_Raw_ADC();
     float Voltage = (3.3 * (movingAverageAdc / 4096));
     return Voltage;
 }
