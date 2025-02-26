@@ -6,11 +6,10 @@
  * @author  Rafael Delwart
  * @date    20 Feb 2025
  *
- * @detail  This module uses the external interrupt peripheral to detect touch
- *          inputs. The peripheral is configured to generate an interrupt every
- *          rising edge of pin PB5 (ENC_B) which means that the difference of
- *          two interrupts gives you the period of the signal. Use the timers.h
- *          library for timing operations.
+ * @detail  This module controls the silicon heating pad using 
+ * simple bang bang feedback. It reads the thermistor on the heating 
+ * pad using the ADC, the raw ADC is convert to voltage then resistance
+ * then to temperature using the exponential fitting made expirementally. 
  * 
  *         
  *          

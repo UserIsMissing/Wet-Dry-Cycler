@@ -2,6 +2,8 @@
     "files.associations": {
         "math.h": "c",
         "stdint.h": "c",
-        "board.h": "c"
+        "board.h": "c",
+        "pwm.h": "c",
+        "mixing.h": "c"
     }
 }

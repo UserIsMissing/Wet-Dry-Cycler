@@ -24,16 +24,12 @@
 #define Temperature_Pin ADC_0
 
 // TESTS *********************************************************
-#define TESTING_TEMP
+// #define TESTING_TEMP
 
 // DEFINES *******************************************************
 #define MOVING_AVERAGE_WINDOW 80  // Number of samples for the moving average
 
 // VARIABLES *****************************************************
-float adcBuffer[MOVING_AVERAGE_WINDOW];  // Circular buffer for ADC readings
-int adcIndex = 0;  // Index for the circular buffer
-float adcSum = 0;  // Sum of the values in the buffer
-int samplesCollected = 0;  // Counter to track how many samples have been collected
 float R1 = 283000; // 283kOhm  float Resistance = 283000* (2-ADC_Read(Temperature_Pin))/ADC_Read(Temperature_Pin);
             
 
@@ -56,43 +52,6 @@ void HEATING_Init(void) {
     }
 
 }
-
-
-// /** calculateMovingAverage(float newAdcValue)
-//  *
-//  * Implements a moving average filter for ADC readings
-//  *
-//  * @return  (float)  [Filtered Values]
-//  */
-// float calculateMovingAverage(float newAdcValue)
-// {
-//     // If the buffer is full, reset it
-//     if (samplesCollected >= MOVING_AVERAGE_WINDOW)
-//     {
-//         // Reset the buffer and sum
-//         for (int i = 0; i < MOVING_AVERAGE_WINDOW; i++)
-//         {
-//             adcBuffer[i] = 0;
-//         }
-//         adcSum = 0;
-//         adcIndex = 0;
-//         samplesCollected = 0;
-//     }
-
-//     // Add the new value to the buffer and update the sum
-//     adcSum -= adcBuffer[adcIndex];  // Subtract the oldest value
-//     adcBuffer[adcIndex] = newAdcValue;  // Store the new value
-//     adcSum += newAdcValue;  // Add the new value to the sum
-
-//     // Update the index for the next value
-//     adcIndex = (adcIndex + 1) % MOVING_AVERAGE_WINDOW;
-
-//     // Increment the sample counter
-//     samplesCollected++;
-
-//     // Return the average
-//     return adcSum / samplesCollected;
-// }
 
 
 
@@ -150,8 +109,25 @@ float HEATING_Measure_Temp(void) {
 
 
 
+#ifdef TESTING_TEMP
 
+int main(void)
+{
+    BOARD_Init();
+    I2C_Init();
+    TIMER_Init();
+    ADC_Init();
+    HEATING_Init();
 
+    while (1)
+    {
+        printf(">Raw ADC: %d\n", HEATING_Measure_Raw_ADC());
+        printf(">Voltage: %0.3f\n", HEATING_Measure_Voltage());
+        printf(">Resistance: %0.3f\n", HEATING_Measure_Resistance() / 1000);    // kOhm
+        printf(">Temperature: %0.3f\n", HEATING_Measure_Temp());     // Celsius
+    }
+}
+#endif // TESTING_TEMP
 
 
 
