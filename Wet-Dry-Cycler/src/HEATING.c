@@ -21,8 +21,8 @@
 
 
 // PINOUTS *******************************************************
-#define Temperature_Pin ADC_0
-
+#define THERMISTOR_PIN ADC_0 //IO SHIELD:36 STM: PA0, GPIOA, GPIO PIN 0 
+//GND PIN IO SHIELD: 42
 // TESTS *********************************************************
 // #define TESTING_TEMP
 
@@ -64,7 +64,7 @@ void HEATING_Init(void) {
  * @return  (int)  [raw ADC]
  */
 int HEATING_Measure_Raw_ADC(void){
-    int rawAdcValue = ADC_Read(Temperature_Pin);
+    int rawAdcValue = ADC_Read(THERMISTOR_PIN);
     return rawAdcValue;
 }
 

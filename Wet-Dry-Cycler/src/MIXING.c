@@ -20,8 +20,8 @@
 
 
 // PINOUTS *******************************************************
-#define Mixing_Pin PWM_3
-
+#define MIXING_CONTROL_PIN PWM_3 //IO SHIELD:56 STM: PA11, GPIOA, GPIO PIN 11
+//GND PIN IO SHIELD: 59
 // TESTS *********************************************************
 #define TESTING_MIXING
 
@@ -40,8 +40,8 @@
 
 void MIXING_Init(void) {
     PWM_Init();
-    PWM_AddPin(Mixing_Pin);
-    PWM_SetDutyCycle(Mixing_Pin, 0);  // Initially motor is off
+    PWM_AddPin(MIXING_CONTROL_PIN);
+    PWM_SetDutyCycle(MIXING_CONTROL_PIN, 0);  // Initially motor is off
 }
 
 
@@ -55,7 +55,7 @@ void MIXING_Init(void) {
  * 
  * */
 void MIXING_Motor_On(void){
-    PWM_SetDutyCycle(Mixing_Pin, 100);  // Turn motor on (100% duty cycle)
+    PWM_SetDutyCycle(MIXING_CONTROL_PIN, 100);  // Turn motor on (100% duty cycle)
 }
 
 
@@ -68,7 +68,7 @@ void MIXING_Motor_On(void){
  * 
  * */
 void MIXING_Motor_Off(void){
-    PWM_SetDutyCycle(Mixing_Pin, 0);  // Turn motor off (0% duty cycle)
+    PWM_SetDutyCycle(MIXING_CONTROL_PIN, 0);  // Turn motor off (0% duty cycle)
 }
 
 #ifdef TESTING_MIXING
