@@ -15,6 +15,7 @@
 #include <Board.h>
 #include <ADC.h>
 #include <math.h>
+#include <PWM.h>
 #include <HEATING.h>
 
 
@@ -22,6 +23,7 @@
 
 // PINOUTS *******************************************************
 #define THERMISTOR_PIN ADC_0 //IO SHIELD:36 STM: PA0, GPIOA, GPIO PIN 0 
+#define HEATING_CONTROL_PIN PWM_4 //IO SHIELD:57 STM: PB6, GPIOB, GPIO PIN 6
 //GND PIN IO SHIELD: 42
 // TESTS *********************************************************
 // #define TESTING_TEMP
@@ -30,8 +32,16 @@
 #define MOVING_AVERAGE_WINDOW 80  // Number of samples for the moving average
 
 // VARIABLES *****************************************************
-float R1 = 283000; // 283kOhm  float Resistance = 283000* (2-ADC_Read(Temperature_Pin))/ADC_Read(Temperature_Pin);
-            
+float R1 = 4630; // 283kOhm  float Resistance = 283000* (2-ADC_Read(Temperature_Pin))/ADC_Read(Temperature_Pin);
+float VIn = 3.3; // 2V  Input voltage to the voltage divider 
+//MOVING AVERAGE
+static int adcBuffer[MOVING_AVERAGE_WINDOW] = {0};  // Circular buffer for ADC moving average
+static int adcIndex = 0;  // Index for circular buffer
+static int adcCount = 0;  // Track how many ADC samples have been collected
+
+static float tempBuffer[MOVING_AVERAGE_WINDOW] = {0};  // Circular buffer for temperature moving average
+static int tempIndex = 0;  // Index for circular buffer
+static int tempCount = 0;  // Track how many temperature samples have been collected
 
 /**
  * @function HEATING_Init()
@@ -43,13 +53,22 @@ float R1 = 283000; // 283kOhm  float Resistance = 283000* (2-ADC_Read(Temperatur
  * */
 
 void HEATING_Init(void) {
-    char initResult = ADC_Init();
-    if (initResult != TRUE){
+    char initADCResult = ADC_Init();
+    if (initADCResult != TRUE){
         printf("Initialization of Heating ADC failed, stopping here\r\n");
     }
     else{
         printf("Heating ADC Initialization succeeded\r\n");
     }
+    char initPWMResult = PWM_Init();
+    if (initPWMResult != TRUE){
+        printf("Initialization of Heating PWM failed, stopping here\r\n");
+    }
+    else{
+        printf("Heating PWM Initialization succeeded\r\n");
+    }
+    PWM_AddPin(HEATING_CONTROL_PIN);
+    PWM_SetDutyCycle(HEATING_CONTROL_PIN, 0);  // Initially Pad is off
 
 }
 
@@ -68,6 +87,31 @@ int HEATING_Measure_Raw_ADC(void){
     return rawAdcValue;
 }
 
+
+/**
+ * @function HEATING_Measure_Raw_ADC_Avg(void)
+ * @brief Returns the moving average of the raw ADC readings.
+ * @return (int) [raw ADC]
+ * @author Rafael Delwart, 1 Mar 2025
+ */
+int HEATING_Measure_Raw_ADC_Avg(void) {
+    int newAdc = HEATING_Measure_Raw_ADC();  // Get current ADC reading
+    adcBuffer[adcIndex] = newAdc;  // Store in buffer
+    adcIndex = (adcIndex + 1) % MOVING_AVERAGE_WINDOW;  // Update circular index
+
+    if (adcCount < MOVING_AVERAGE_WINDOW) {
+        adcCount++;  // Ensure we don't divide by zero before buffer fills up
+    }
+
+    // Compute moving average
+    int sum = 0;
+    for (int i = 0; i < adcCount; i++) {
+        sum += adcBuffer[i];
+    }
+    return sum / adcCount;
+}
+
+
 /** HEATING_Measure_Voltage(void)
  *
  * Returns the current temperature of the heating pad in degrees Celsius
@@ -75,8 +119,7 @@ int HEATING_Measure_Raw_ADC(void){
  * @return  (float)  [Volts]
  */
 float HEATING_Measure_Voltage(void){
-    float movingAverageAdc = HEATING_Measure_Raw_ADC();
-    float Voltage = (3.3 * (movingAverageAdc / 4096));
+    float Voltage = (3.3 * (float)((float)HEATING_Measure_Raw_ADC_Avg() / 4096));
     return Voltage;
 }
 
@@ -89,7 +132,7 @@ float HEATING_Measure_Voltage(void){
  */
 float HEATING_Measure_Resistance(void){
     float Voltage = HEATING_Measure_Voltage();
-    float Resistance = R1 * (2 - Voltage) / Voltage;
+    float Resistance = R1 * (VIn - Voltage) / Voltage;
     return Resistance;
 
 
@@ -108,6 +151,47 @@ float HEATING_Measure_Temp(void) {
 }
 
 
+/**
+ * @function HEATING_Measure_Temp_Avg(void)
+ * @brief Returns the moving average temperature of the heating pad
+ * @return (float) [degrees Celsius]
+ * @author Rafael Delwart, 1 Mar 2025
+ */
+float HEATING_Measure_Temp_Avg(void) {
+    float newTemp = HEATING_Measure_Temp();  // Get current temperature
+    tempBuffer[tempIndex] = newTemp;  // Store in buffer
+    tempIndex = (tempIndex + 1) % MOVING_AVERAGE_WINDOW;  // Update circular index
+
+    if (tempCount < MOVING_AVERAGE_WINDOW) {
+        tempCount++;  // Ensure we don't divide by zero before buffer fills up
+    }
+
+    // Compute moving average
+    float sum = 0;
+    for (int i = 0; i < tempCount; i++) {
+        sum += tempBuffer[i];
+    }
+    return sum / tempCount;
+}
+
+/**
+ * @function HEATING_Set_Temp(int Temp)
+ * @param Int
+ * @return  None
+ * @brief Implements simple bang bang control for the heating pad
+ * @author Rafael Delwart, 1 Mar 2025 */
+void HEATING_Set_Temp(int Temp){
+    if(HEATING_Measure_Temp_Avg() < (float)Temp){
+        PWM_SetDutyCycle(HEATING_CONTROL_PIN, 50);  // Turn Heating Pad on (100% duty cycle)
+        printf("Heating Pad Turned On");
+    }
+    else{
+        PWM_SetDutyCycle(HEATING_CONTROL_PIN, 0);  // Turn Heating Pad Off (0% duty cycle)
+        printf("Heating Pad Turned Off");
+    }
+}
+
+
 
 #ifdef TESTING_TEMP
 
@@ -122,9 +206,14 @@ int main(void)
     while (1)
     {
         printf(">Raw ADC: %d\n", HEATING_Measure_Raw_ADC());
+        printf(">Raw ADC: %d\n", HEATING_Measure_Raw_ADC());
+        printf(">ADC AVG: %d\n", HEATING_Measure_Raw_ADC_Avg());
         printf(">Voltage: %0.3f\n", HEATING_Measure_Voltage());
         printf(">Resistance: %0.3f\n", HEATING_Measure_Resistance() / 1000);    // kOhm
         printf(">Temperature: %0.3f\n", HEATING_Measure_Temp());     // Celsius
+        printf(">Temperature AVG: %0.3f\n", HEATING_Measure_Temp_Avg());     // Celsius
+
+        HEATING_Set_Temp(30);
     }
 }
 #endif // TESTING_TEMP

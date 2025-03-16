@@ -24,6 +24,7 @@
 #include <I2C.h>
 #include <math.h>
 #include <timers.h>
+#include <PWM.h>
 #include <ADC.h>
 
 
@@ -44,6 +45,14 @@ void HEATING_Init(void);
  */
 int HEATING_Measure_Raw_ADC(void);
 
+
+/** HEATING_Measure_Raw_ADC_Avg(void)
+ *
+ * Returns the moving average of the measured raw ADC.
+ *
+ * @return  (int)  [raw ADC]
+ */
+int HEATING_Measure_Raw_ADC_Avg(void);
 
 
 /** HEATING_Measure_Voltage(void)
@@ -74,6 +83,27 @@ float HEATING_Measure_Resistance(void);
  * @return  (float)  [degrees Celsius]
  */
 float HEATING_Measure_Temp(void);
+
+
+/** HEATING_Measure_Temp_Avg(void)
+ *  
+ * Implements a moving average filter on the the measured temperature
+ *  in order to get cleaner values
+ * 
+ * 
+ */
+float HEATING_Measure_Temp_Avg(void);
+
+
+/** HEATING_Set_Temp(int Temp)
+ *
+ * If the measured temperature is below the desired temperature then the heating pad control pin
+ * is set high, if the measured temperature is above the desired temperature then it turns the control pin low.
+ * 
+ *
+ * @return  nothing
+ */
+void HEATING_Set_Temp(int Temp);
 
 
 

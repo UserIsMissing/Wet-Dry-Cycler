@@ -39,7 +39,13 @@
  * */
 
 void MIXING_Init(void) {
-    PWM_Init();
+    char initPWMResult = PWM_Init();
+    if (initPWMResult != TRUE){
+        printf("Initialization of Mixing PWM failed, stopping here\r\n");
+    }
+    else{
+        printf("Mixing PWM Initialization succeeded\r\n");
+    }
     PWM_AddPin(MIXING_CONTROL_PIN);
     PWM_SetDutyCycle(MIXING_CONTROL_PIN, 0);  // Initially motor is off
 }
