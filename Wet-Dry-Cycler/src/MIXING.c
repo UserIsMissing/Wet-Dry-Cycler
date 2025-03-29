@@ -15,15 +15,15 @@
 #include <Board.h>
 #include <PWM.h>
 #include <MIXING.h>
+#include <I2C.h>
+#include <buttons.h>
 
 
 
 
-// PINOUTS *******************************************************
-#define MIXING_CONTROL_PIN PWM_3 //IO SHIELD:56 STM: PA11 - CN10_14, GPIOA, GPIO PIN 11
-//GND PIN IO SHIELD: 59
+
 // TESTS *********************************************************
-#define TESTING_MIXING
+// #define TESTING_MIXING
 
 
             
@@ -113,4 +113,3 @@ int main(void)
     }
 }
 #endif // TESTING_MIXING
-

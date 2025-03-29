@@ -24,6 +24,10 @@
 #include <MIXING.h>
 
 
+// PINOUTS *******************************************************
+#define MIXING_CONTROL_PIN PWM_3 //IO SHIELD:56 STM: PA11 - CN10_14, GPIOA, GPIO PIN 11
+//GND PIN IO SHIELD: 59
+
 
 /** HEATING_Init()
  *

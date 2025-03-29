@@ -9,9 +9,10 @@
 #include <MIXING.h>
 #include <PWM.h>
 #include <buttons.h>
+#include <GPIO.h>
 
 
-// #define TESTING_MAIN
+#define TESTING_MAIN
 
 // ***************************************************************
 
@@ -24,6 +25,7 @@ int main(void)
     I2C_Init();
     TIMER_Init();
     ADC_Init();
+    GPIO_Init();
 
     while(1){
 

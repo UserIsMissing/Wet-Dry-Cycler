@@ -20,15 +20,6 @@
 
 
 
-
-// PINOUTS *******************************************************
-<<<<<<< HEAD
-#define THERMISTOR_PIN ADC_0 //IO SHIELD:36 STM: PA0, GPIOA, GPIO PIN 0 
-#define HEATING_CONTROL_PIN PWM_4 //IO SHIELD:57 STM: PB6, GPIOB, GPIO PIN 6
-=======
-#define THERMISTOR_PIN ADC_0 //IO SHIELD:36 STM: PA0 - CN7_28, GPIOA, GPIO PIN 0 
->>>>>>> refs/remotes/origin/main
-//GND PIN IO SHIELD: 42
 // TESTS *********************************************************
 // #define TESTING_TEMP
 
