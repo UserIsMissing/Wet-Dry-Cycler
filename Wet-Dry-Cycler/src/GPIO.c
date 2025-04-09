@@ -10,6 +10,7 @@ static const struct {
     [PIN_0]  = {GPIOC, GPIO_PIN_0},
     [PIN_1]  = {GPIOC, GPIO_PIN_1},
     [PIN_2]  = {GPIOC, GPIO_PIN_2},
+    [PIN_3]  = {GPIOC, GPIO_PIN_3},
 };
 
 /**

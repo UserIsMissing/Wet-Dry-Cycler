@@ -9,6 +9,7 @@
 #define GPIO_0 PIN_0
 #define GPIO_1 PIN_1
 #define GPIO_2 PIN_2
+#define GPIO_3 PIN_3
 
 #define HIGH GPIO_PIN_SET
 #define LOW GPIO_PIN_RESET
@@ -20,6 +21,7 @@ typedef enum {
     GPIO_0,
     GPIO_1,
     GPIO_2,
+    GPIO_3,
     GPIO_2_NUM_PINS // keep this last as a “count” of pins
 } Gpio2Pin_t;
 
