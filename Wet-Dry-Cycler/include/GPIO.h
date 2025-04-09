@@ -32,7 +32,7 @@ void GPIO_Init(void);
  * @brief Write a High or Low state to the specified GPIO pin.
  *
  * @param pin   The pin from Gpio2Pin_t
- * @param state Either GPIO_PIN_SET or GPIO_PIN_RESET
+ * @param state Either HIGH or LOW
  */
 void GPIO_WritePin(Gpio2Pin_t pin, GPIO_PinState state);
 
