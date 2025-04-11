@@ -12,7 +12,7 @@
 #include <GPIO.h>
 
 
-#define TESTING_MAIN
+//#define TESTING_MAIN
 
 // ***************************************************************
 
