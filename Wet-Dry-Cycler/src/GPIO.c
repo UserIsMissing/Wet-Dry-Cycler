@@ -7,21 +7,24 @@ static const struct {
     GPIO_TypeDef *port;
     uint16_t      pin;
 } gpioPinTable[GPIO_2_NUM_PINS] = {
-    [PIN_C0]  = {GPIOC, GPIO_PIN_C0},
-    [PIN_C1]  = {GPIOC, GPIO_PIN_C1},
-    [PIN_C2]  = {GPIOC, GPIO_PIN_C2},
-    [PIN_C3]  = {GPIOC, GPIO_PIN_C3},
-    [PIN_C13]  = {GPIOC, GPIO_PIN_C13},
-    [PIN_C14]  = {GPIOC, GPIO_PIN_C14},
-    [PIN_C15]  = {GPIOC, GPIO_PIN_C15},
-    [PIN_B4]  = {GPIOB, GPIO_PIN_B4},
-    [PIN_B5]  = {GPIOB, GPIO_PIN_B5},
-    [PIN_B3]  = {GPIOB, GPIO_PIN_B3},
-    [PIN_A1]  = {GPIOA, GPIO_PIN_A1},
-    [PIN_A4]  = {GPIOA, GPIO_PIN_A4},
-    [PIN_B0]  = {GPIOB, GPIO_PIN_B0},
-    [PIN_A2]  = {GPIOA, GPIO_PIN_A2},
-    [PIN_A3]  = {GPIOA, GPIO_PIN_A3},
+    // REHYDRATION Motor
+    [PIN_C0]  = {GPIOC, GPIO_PIN_0},
+    [PIN_C1]  = {GPIOC, GPIO_PIN_1},
+    [PIN_C2]  = {GPIOC, GPIO_PIN_2},
+    [PIN_C3]  = {GPIOC, GPIO_PIN_3},
+    [PIN_C13]  = {GPIOC, GPIO_PIN_13},
+    [PIN_C14]  = {GPIOC, GPIO_PIN_14},
+    [PIN_C15]  = {GPIOC, GPIO_PIN_15},
+    // MOVEMENT Motor
+    [PIN_B4]  = {GPIOB, GPIO_PIN_4},
+    [PIN_B5]  = {GPIOB, GPIO_PIN_5},
+    [PIN_B3]  = {GPIOB, GPIO_PIN_3},
+    [PIN_A1]  = {GPIOA, GPIO_PIN_1},
+    [PIN_A4]  = {GPIOA, GPIO_PIN_4},
+    [PIN_B0]  = {GPIOB, GPIO_PIN_0},
+    // MOVEMENT Bumpers
+    [PIN_A2]  = {GPIOA, GPIO_PIN_2},
+    [PIN_A3]  = {GPIOA, GPIO_PIN_3},
 };
 
 /**
