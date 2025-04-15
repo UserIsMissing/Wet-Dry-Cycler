@@ -24,14 +24,21 @@
 #include <PWM.h>
 
 
-DRV8825_t movementMotor = {
-    .step_pin = PIN_1,
-    .dir_pin = PIN_3,
-    .fault_pin = PIN_0,
-    .mode0_pin = PIN_13,
-    .mode1_pin = PIN_14,
-    .mode2_pin = PIN_15
+MOVEMENT_t movementMotor = {
+    .step_pin = PIN_B4,
+    .dir_pin = PIN_B5,
+    .fault_pin = PIN_B3,
+    .mode0_pin = PIN_A1,
+    .mode1_pin = PIN_A4,
+    .mode2_pin = PIN_B0
 };
+
+BUMPER_t bumpers = {
+    .front_bumper_pin = PIN_A2,
+    .back_bumper_pin = PIN_A3
+};
+
+
 
 void MOVEMENT_Init(void)
 {
@@ -44,11 +51,11 @@ void MOVEMENT_Init(void)
 /**
  * @function CheckFAULT
  * @brief   Checks the fault line of the motor
- * @param   movementMotor Pointer to DRV8825_t struct
+ * @param   movementMotor Pointer to MOVEMENT_t struct
  * @return  int 1 if fault is detected, 0 otherwise
  * @details This function checks the fault line of the motor to determine if it is in a fault state.
  */
-int CheckFAULT(DRV8825_t *movementMotor)
+int CheckFAULT(MOVEMENT_t *movementMotor)
 {
     // Check if the motor is in a fault state
     if (GPIO_ReadPin(movementMotor->fault_pin) == 1)
@@ -62,11 +69,11 @@ int CheckFAULT(DRV8825_t *movementMotor)
 /**
  * @function CheckBumpers
  * @brief   Checks the bumpers to determine if the motor should stop
- * @param   movementMotor Pointer to DRV8825_t struct
+ * @param   movementMotor Pointer to MOVEMENT_t struct
  * @return  int 1 if front bumper pressed, 2 if back bumper pressed, 0 if no bumper pressed
  * @details This function checks the bumpers to determine if the motor should stop.
  */
-int CheckBumpers(DRV8825_t *movementMotor)
+int CheckBumpers(MOVEMENT_t *movementMotor)
 {
     // Check if the bumpers are pressed
     if (GPIO_ReadPin(movementMotor->front_bumper_pin) == 1)
@@ -88,7 +95,7 @@ int CheckBumpers(DRV8825_t *movementMotor)
  *
  * @param   movementMotor Pointer to the motor to be moved
  */
-void MOVEMENT_Forward(DRV8825_t *movementMotor)
+void MOVEMENT_Forward(MOVEMENT_t *movementMotor)
 {
     // Move the motor forward for a set amount of time
     DRV8825_Move(movementMotor, steps, DRV8825_FORWARD, 1000);
@@ -111,7 +118,7 @@ void MOVEMENT_Forward(DRV8825_t *movementMotor)
  *
  * @param   movementMotor Pointer to the motor to be moved
  */
-void MOVEMENT_Backward(DRV8825_t *movementMotor)
+void MOVEMENT_Backward(MOVEMENT_t *movementMotor)
 {
     // Move the motor backward for a set amount of time
     DRV8825_Move(movementMotor, steps, DRV8825_BACKWARD, 1000);
@@ -134,7 +141,7 @@ void MOVEMENT_Backward(DRV8825_t *movementMotor)
  *
  * @param   movementMotor Pointer to the motor to be stopped
  */
-void MOVEMENT_Stop(DRV8825_t *movementMotor)
+void MOVEMENT_Stop(MOVEMENT_t *movementMotor)
 {
     // Stop the motor by setting the step pin to low
     GPIO_WritePin(movementMotor->step_pin, LOW);

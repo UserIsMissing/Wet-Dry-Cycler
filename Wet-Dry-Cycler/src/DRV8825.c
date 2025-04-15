@@ -141,12 +141,12 @@
  
      // Rehydration configuration test for a single DRV8825 motor instance
      DRV8825_t rehydrationMotor = {
-         .step_pin = PIN_1,
-         .dir_pin = PIN_3,
-         .fault_pin = PIN_0,
-         .mode0_pin = PIN_13,
-         .mode1_pin = PIN_14,
-         .mode2_pin = PIN_15
+         .step_pin = PIN_C1,
+         .dir_pin = PIN_C3,
+         .fault_pin = PIN_C0,
+         .mode0_pin = PIN_C13,
+         .mode1_pin = PIN_C14,
+         .mode2_pin = PIN_C15
      };
  
      DRV8825_Init(&rehydrationMotor);

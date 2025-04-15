@@ -5,14 +5,24 @@
 
 
 #include "stm32f4xx_hal.h"
-
-#define GPIO_0 PIN_0
-#define GPIO_1 PIN_1
-#define GPIO_2 PIN_2
-#define GPIO_3 PIN_3
-#define GPIO_13 PIN_13
-#define GPIO_14 PIN_14
-#define GPIO_15 PIN_15
+// REHYDRATION MOTOR
+#define GPIO_C0 PIN_0
+#define GPIO_C1 PIN_1
+#define GPIO_C2 PIN_2
+#define GPIO_C3 PIN_3
+#define GPIO_C13 PIN_13
+#define GPIO_C14 PIN_14
+#define GPIO_C15 PIN_15
+// MOVEMENT Motor
+#define GPIO_B4 PIN_27
+#define GPIO_B5 PIN_29
+#define GPIO_B3 PIN_31
+#define GPIO_A1 PIN_30
+#define GPIO_A4 PIN_32
+#define GPIO_B0 PIN_34
+// MOVEMENT BUMPERS
+#define GPIO_A2 PIN_35
+#define GPIO_A3 PIN_37
 
 #define HIGH GPIO_PIN_SET
 #define LOW GPIO_PIN_RESET
@@ -21,13 +31,21 @@
  * @brief Enumerate each pin you want to manage in this driver.
  */
 typedef enum {
-    GPIO_0,
-    GPIO_1,
-    GPIO_2,
-    GPIO_3,
-    GPIO_13,
-    GPIO_14,
-    GPIO_15,
+    GPIO_C0,
+    GPIO_C1,
+    GPIO_C2,
+    GPIO_C3,
+    GPIO_C13,
+    GPIO_C14,
+    GPIO_C15,
+    GPIO_B4,
+    GPIO_B5,
+    GPIO_B3,
+    GPIO_A1,
+    GPIO_A4,
+    GPIO_B0,
+    GPIO_A2,
+    GPIO_A3,
     GPIO_2_NUM_PINS // keep this last as a “count” of pins
 } Gpio2Pin_t;
 
