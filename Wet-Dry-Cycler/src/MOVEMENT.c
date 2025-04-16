@@ -22,6 +22,8 @@
 #include <I2C.h>
 #include <buttons.h>
 
+int BUMPER_STATE = 0;
+
 DRV8825_t movementMotor = {
     .step_pin = PIN_B4,
     .dir_pin = PIN_B5,
@@ -197,26 +199,20 @@ int main(void)
 {
     BOARD_Init();
     TIMER_Init();
-    MOVEMENT_Init();
+    BUTTONS_Init();
+    GPIO_Init();
     DRV8825_Init(&movementMotor);
+    MOVEMENT_Init();
+
+    uint8_t buttonState = buttons_state();  // Get current button states
 
     while (1)
     {
         if ((buttonState & 0x08) == 0) // On board Blue user button pressed
         {
-            if (BUMPER_STATE == 0)
-            {
-                MOVEMENT_Move(&movementMotor, DRV8825_FORWARD); // Move forward
-                while (CheckBumpers(&movementMotor) == 0)
-                {
-                    CheckBumpers(&movementMotor);
-                    if ((CheckBumpers(&movementMotor) == 1) || (CheckBumpers(&movementMotor) == 2))
-                    {
-                        MOVEMENT_Stop(&movementMotor);
-                    }
-                }
-            }
+            MOVEMENT_Move(&movementMotor, 100, DRV8825_FORWARD);
         }
+
     }
 }
 #endif // TESTING_MOVEMENT
