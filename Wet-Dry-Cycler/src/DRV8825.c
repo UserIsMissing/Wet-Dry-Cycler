@@ -152,7 +152,7 @@ void DRV8825_Set_Step_Mode(DRV8825_t *motor, int mode)
     GPIO_WritePin(motor->mode2_pin, mode2);
 }
 
- #define DRV8825_REHYDRATION_TEST
+// #define DRV8825_REHYDRATION_TEST
 #ifdef DRV8825_REHYDRATION_TEST
 int main(void)
 {
