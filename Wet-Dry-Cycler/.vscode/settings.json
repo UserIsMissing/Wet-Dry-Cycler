@@ -4,6 +4,8 @@
         "stdint.h": "c",
         "board.h": "c",
         "pwm.h": "c",
-        "mixing.h": "c"
+        "mixing.h": "c",
+        "stm32f4xx_hal.h": "c",
+        "timers.h": "c"
     }
 }
