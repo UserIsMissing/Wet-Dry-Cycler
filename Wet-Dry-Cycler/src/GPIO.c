@@ -18,13 +18,14 @@ static const struct {
     // MOVEMENT Motor
     [PIN_B4]  = {GPIOB, GPIO_PIN_4},
     [PIN_B5]  = {GPIOB, GPIO_PIN_5},
-    [PIN_B3]  = {GPIOB, GPIO_PIN_3},
+    [PIN_A7]  = {GPIOA, GPIO_PIN_7},
     [PIN_A1]  = {GPIOA, GPIO_PIN_1},
     [PIN_A4]  = {GPIOA, GPIO_PIN_4},
     [PIN_B0]  = {GPIOB, GPIO_PIN_0},
     // MOVEMENT Bumpers
-    [PIN_A2]  = {GPIOA, GPIO_PIN_2},
-    [PIN_A3]  = {GPIOA, GPIO_PIN_3},
+    [PIN_A5]  = {GPIOA, GPIO_PIN_5},
+    [PIN_A6]  = {GPIOA, GPIO_PIN_6},
+    [PIN_B8]  = {GPIOB, GPIO_PIN_8},
 };
 
 /**

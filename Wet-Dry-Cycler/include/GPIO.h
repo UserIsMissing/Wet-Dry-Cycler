@@ -13,17 +13,17 @@
 #define GPIO_C13 PIN_C13
 #define GPIO_C14 PIN_C14
 #define GPIO_C15 PIN_C15
-// MOVEMENT Motor
+// // MOVEMENT Motor
 #define GPIO_B4 PIN_B4
 #define GPIO_B5 PIN_B5
-#define GPIO_B3 PIN_B3
+#define GPIO_A7 PIN_A7
 #define GPIO_A1 PIN_A1
 #define GPIO_A4 PIN_A4
 #define GPIO_B0 PIN_B0
 // MOVEMENT BUMPERS
-#define GPIO_A2 PIN_A2
-#define GPIO_A3 PIN_A3
-#define GPIO_B1 PIN_B1
+#define GPIO_A5 PIN_A5
+#define GPIO_A6 PIN_A6
+#define GPIO_B8 PIN_B8
 
 #define HIGH GPIO_PIN_SET
 #define LOW GPIO_PIN_RESET
@@ -43,14 +43,14 @@ typedef enum {
     // MOVEMENT Motor
     GPIO_B4,
     GPIO_B5,
-    GPIO_B3,
+    GPIO_A7,
     GPIO_A1,
     GPIO_A4,
     GPIO_B0,
     // MOVEMENT Bumpers
-    GPIO_A2,
-    GPIO_A3,
-    GPIO_B1,
+    GPIO_A5,
+    GPIO_A6,
+    GPIO_B8,
     
     GPIO_2_NUM_PINS // keep this last as a “count” of pins
 } Gpio2Pin_t;

@@ -30,16 +30,16 @@ int BUMPER_STATE = 0;
 DRV8825_t movementMotor = {
     .step_pin = PIN_B4,
     .dir_pin = PIN_B5,
-    .fault_pin = PIN_B3,
+    .fault_pin = PIN_A7,
     .mode0_pin = PIN_A1,
     .mode1_pin = PIN_A4,
     .mode2_pin = PIN_B0
 };
 
 BUMPER_t bumpers = {
-    .front_bumper_pin = PIN_A2,
-    .back_bumper_pin = PIN_A3,
-    .start_button_pin = PIN_B1
+    .front_bumper_pin = PIN_A5,
+    .back_bumper_pin = PIN_A6,
+    .start_button_pin = PIN_B8
 };
 
 /**
