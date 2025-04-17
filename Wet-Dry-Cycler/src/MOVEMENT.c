@@ -21,6 +21,9 @@
 #include <MOVEMENT.h>
 #include <I2C.h>
 #include <buttons.h>
+#include <stm32f4xx_hal.h>
+
+
 
 int BUMPER_STATE = 0;
 
@@ -30,11 +33,14 @@ DRV8825_t movementMotor = {
     .fault_pin = PIN_B3,
     .mode0_pin = PIN_A1,
     .mode1_pin = PIN_A4,
-    .mode2_pin = PIN_B0};
+    .mode2_pin = PIN_B0
+};
 
 BUMPER_t bumpers = {
     .front_bumper_pin = PIN_A2,
-    .back_bumper_pin = PIN_A3};
+    .back_bumper_pin = PIN_A3,
+    .start_button_pin = PIN_B1
+};
 
 /**
  * @function MOVEMENT_Init
@@ -47,11 +53,13 @@ BUMPER_t bumpers = {
 void MOVEMENT_Init(void)
 {
     // Initialize the GPIO pins for the stepper motor
-    GPIO_Init();
-    TIMER_Init();
+    // GPIO_Init();
+    // TIMER_Init();
+    HAL_Delay(5000); // Wait for 1 second
     DRV8825_Init(&movementMotor); // Initialize the motor
+    printf("MOVEMENT module initializing.\n");
 
-    CheckBumpers(&bumpers); // Initialize the bumpers
+    CheckBumpers(); // Initialize the bumpers
     if (BUMPER_STATE == 0)
     {
         DRV8825_Move(&movementMotor, 100, DRV8825_FORWARD, 1000); // Move forward slightly
@@ -59,7 +67,7 @@ void MOVEMENT_Init(void)
         {
             DRV8825_Set_Direction(&movementMotor, DRV8825_BACKWARD);
             DRV8825_Step(&movementMotor);
-            CheckBumpers(&bumpers);
+            CheckBumpers();
         }
         MOVEMENT_Stop(&movementMotor);
         // return;
@@ -71,7 +79,7 @@ void MOVEMENT_Init(void)
         {
             DRV8825_Set_Direction(&movementMotor, DRV8825_BACKWARD);
             DRV8825_Step(&movementMotor);
-            CheckBumpers(&bumpers);
+            CheckBumpers();
         }
         MOVEMENT_Stop(&movementMotor);
         // return;
@@ -83,7 +91,7 @@ void MOVEMENT_Init(void)
         {
             DRV8825_Set_Direction(&movementMotor, DRV8825_BACKWARD);
             DRV8825_Step(&movementMotor);
-            CheckBumpers(&bumpers);
+            CheckBumpers();
         }
         MOVEMENT_Stop(&movementMotor);
     }
@@ -116,20 +124,26 @@ int CheckFAULT(DRV8825_t *movementMotor)
  * @return  int 1 if front bumper pressed, 2 if back bumper pressed, 0 if no bumper pressed
  * @details This function checks the bumpers to determine if the motor should stop.
  */
-int CheckBumpers(BUMPER_t *bumpers)
+int CheckBumpers(void /* BUMPER_t *bumpers */)
 {
     // Check if the bumpers are pressed
-    if (GPIO_ReadPin(bumpers->front_bumper_pin) == 1)
+    if (GPIO_ReadPin(bumpers.front_bumper_pin) == 1)
     {
         printf("Front bumper pressed!\n");
         BUMPER_STATE = 1;
         return 1; // Bumper pressed
     }
-    if (GPIO_ReadPin(bumpers->back_bumper_pin) == 1)
+    if (GPIO_ReadPin(bumpers.back_bumper_pin) == 1)
     {
         printf("Back bumper pressed!\n");
         BUMPER_STATE = 2;
         return 2; // Bumper pressed
+    }
+    if (GPIO_ReadPin(bumpers.start_button_pin) == 1)
+    {
+        printf("Start button pressed!\n");
+        BUMPER_STATE = 3;
+        return 3; // Start button pressed
     }
     else
     {
@@ -154,14 +168,14 @@ void MOVEMENT_Move(DRV8825_t *movementMotor, int steps, int Direction)
 {
     // Move the motor forward for a set amount of time
     DRV8825_Set_Step_Mode(movementMotor, DRV8825_FULL_STEP);
-    CheckBumpers(&bumpers);
+    CheckBumpers();
     if (BUMPER_STATE == 1)
     {
         while (BUMPER_STATE != 2)
         {
             DRV8825_Set_Direction(movementMotor, DRV8825_FORWARD);
             DRV8825_Step(movementMotor);
-            CheckBumpers(&bumpers);
+            CheckBumpers();
         }
         return;
     }
@@ -171,7 +185,7 @@ void MOVEMENT_Move(DRV8825_t *movementMotor, int steps, int Direction)
         {
             DRV8825_Set_Direction(movementMotor, DRV8825_BACKWARD);
             DRV8825_Step(movementMotor);
-            CheckBumpers(&bumpers);
+            CheckBumpers();
         }
         return;
     }
@@ -194,23 +208,25 @@ void MOVEMENT_Stop(DRV8825_t *movementMotor)
     printf("Motor stopped.\n");
 }
 
-#define TESTING_MOVEMENT
+// #define TESTING_MOVEMENT
 #ifdef TESTING_MOVEMENT
 int main(void)
 {
     BOARD_Init();
     TIMER_Init();
-    BUTTONS_Init();
     GPIO_Init();
+    printf("MOVEMENT module initialized.\n");
     DRV8825_Init(&movementMotor);
     MOVEMENT_Init();
 
-    uint8_t buttonState = buttons_state();  // Get current button states
-
     while (1)
     {
-        if ((buttonState & 0x08) == 0) // On board Blue user button pressed
+        CheckBumpers();
+        if (CheckBumpers() == 3) // On board Blue user button pressed
         {
+            HAL_Delay(5000); // Wait for 5 seconds
+            printf("STARTING MOVEMENT TEST\n");
+            BUMPER_STATE = 0;
             MOVEMENT_Move(&movementMotor, 100, DRV8825_FORWARD);
         }
 

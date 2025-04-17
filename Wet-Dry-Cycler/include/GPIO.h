@@ -23,6 +23,7 @@
 // MOVEMENT BUMPERS
 #define GPIO_A2 PIN_A2
 #define GPIO_A3 PIN_A3
+#define GPIO_B1 PIN_B1
 
 #define HIGH GPIO_PIN_SET
 #define LOW GPIO_PIN_RESET
@@ -49,6 +50,8 @@ typedef enum {
     // MOVEMENT Bumpers
     GPIO_A2,
     GPIO_A3,
+    GPIO_B1,
+    
     GPIO_2_NUM_PINS // keep this last as a “count” of pins
 } Gpio2Pin_t;
 

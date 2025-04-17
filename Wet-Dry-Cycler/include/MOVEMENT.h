@@ -29,6 +29,7 @@ extern int BUMPER_STATE; // 0 = no bumper pressed, 1 = front bumper pressed, 2 =
 typedef struct {
     int front_bumper_pin; ///< Pin for front bumper switch
     int back_bumper_pin;  ///< Pin for back bumper switch
+    int start_button_pin; ///< Pin for start button
 } BUMPER_t;
 
 /** 
@@ -56,7 +57,7 @@ int CheckFAULT(DRV8825_t *motor);
  * @return  int 1 if front bumper pressed, 2 if back bumper pressed, 0 if no bumper pressed
  * @details This function checks the bumpers to determine if the motor should stop.
  */
-int CheckBumpers(BUMPER_t *bumpers);
+int CheckBumpers(void /* BUMPER_t *bumpers */);
 
 /**
  * @function MOVEMENT_Move
