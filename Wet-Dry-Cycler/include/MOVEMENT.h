@@ -63,14 +63,14 @@ int CheckBumpers(void /* BUMPER_t *bumpers */);
  * @function MOVEMENT_Move
  * @brief   Moves the stepper motor for a set amount of time
  * @param   movementMotor Pointer to the motor to be moved
- * @param   Direction Direction to move the motor (1 for forward, -1 for backward)
- * @param   steps Number of steps to move the motor
+//  * @param   Direction Direction to move the motor (1 for forward, -1 for backward)
+//  * @param   steps Number of steps to move the motor
  * @details This function moves the motor forward for a set amount of time.
  *          It checks for faults and stops the motor if a fault is detected.
  *          It also checks the bumpers to determine if the motor should stop.
  *          The function uses the DRV8825 driver to control the motor.
  */
-void MOVEMENT_Move(DRV8825_t *motor, int steps, int Direction);
+void MOVEMENT_Move(DRV8825_t *motor);
 // void MOVEMENT_Backward(DRV8825_t *motor);
 
 /**
