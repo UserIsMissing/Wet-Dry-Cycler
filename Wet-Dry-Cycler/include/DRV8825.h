@@ -45,6 +45,8 @@
      int mode0_pin;   ///< Pin for microstepping mode bit 0
      int mode1_pin;   ///< Pin for microstepping mode bit 1
      int mode2_pin;   ///< Pin for microstepping mode bit 2
+     int enable_pin;  ///< Pin used to enable the motor controller (active-low)
+
  } DRV8825_t;
  
  /**
@@ -59,6 +61,19 @@
   * @return 1 if fault is detected, 0 otherwise
   */
  int DRV8825_Check_Fault(DRV8825_t *motor);
+
+
+ /**
+ * @brief Enables the motor driver (active-low enable pin)
+ * @param motor Pointer to DRV8825_t struct
+ */
+void DRV8825_Enable(DRV8825_t *motor);
+
+/**
+ * @brief Disables the motor driver (active-low enable pin)
+ * @param motor Pointer to DRV8825_t struct
+ */
+void DRV8825_Disable(DRV8825_t *motor);
  
  /**
   * @brief Sets the motor direction (forward or backward)

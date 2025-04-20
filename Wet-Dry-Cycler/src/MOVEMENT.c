@@ -33,7 +33,8 @@ DRV8825_t movementMotor = {
     .fault_pin = PIN_A7,
     .mode0_pin = PIN_A1,
     .mode1_pin = PIN_A4,
-    .mode2_pin = PIN_B0
+    .mode2_pin = PIN_B0,
+    .enable_pin = PIN_C2 // added an enable pin to disable the motor when not in use (Rafael)
 };
 
 BUMPER_t bumpers = {
@@ -243,7 +244,7 @@ void MOVEMENT_Stop(DRV8825_t *movementMotor)
     printf("Motor stopped.\n");
 }
 
-#define TESTING_MOVEMENT
+// #define TESTING_MOVEMENT
 #ifdef TESTING_MOVEMENT
 int main(void)
 {

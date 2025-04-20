@@ -30,7 +30,7 @@
      GPIO_WritePin(motor->step_pin, LOW);
      GPIO_WritePin(motor->dir_pin, DRV8825_FORWARD);
      DRV8825_Set_Step_Mode(motor, DRV8825_FULL_STEP);
- 
+     DRV8825_Disable(motor);  // Ensure motor is not active on start up 
      if (DRV8825_Check_Fault(motor)) {
          printf("DRV8825 FAULT on INIT: Check wiring or overcurrent\n");
      }
@@ -47,6 +47,26 @@
      return (GPIO_ReadPin(motor->fault_pin) == 1); // Active-low
  }
  
+
+/**
+ * @function DRV8825_Enable
+ * @brief Enables the motor driver by setting the enable pin LOW
+ *
+ * @param motor Pointer to DRV8825_t struct
+ */
+void DRV8825_Enable(DRV8825_t *motor) {
+    GPIO_WritePin(motor->enable_pin, LOW); // Active-low enable
+}
+
+/**
+ * @function DRV8825_Disable
+ * @brief Disables the motor driver by setting the enable pin HIGH
+ *
+ * @param motor Pointer to DRV8825_t struct
+ */
+void DRV8825_Disable(DRV8825_t *motor) {
+    GPIO_WritePin(motor->enable_pin, HIGH); // Disable output
+}
  /**
   * @function DRV8825_Set_Direction
   * @brief Sets direction of stepper motor rotation
@@ -88,6 +108,7 @@
   * @param delay_us Delay between steps in microseconds
   */
  void DRV8825_Step_N(DRV8825_t *motor, int steps, int delay_us) {
+     DRV8825_Enable(motor);  // Ensure motor is active
      for (int i = 0; i < steps; i++) {
          if (DRV8825_Check_Fault(motor)) {
              printf("DRV8825 FAULT DETECTED: Motor stopped at step %d\n", i);
@@ -97,6 +118,8 @@
          uint32_t start = TIMERS_GetMicroSeconds();
          while ((TIMERS_GetMicroSeconds() - start) < delay_us);
      }
+     DRV8825_Disable(motor);  // Ensure motor is no longer active
+
  }
  
  /**
@@ -141,27 +164,24 @@
  
      // Rehydration configuration test for a single DRV8825 motor instance
      DRV8825_t rehydrationMotor = {
-         .step_pin = PIN_1,
-         .dir_pin = PIN_3,
-         .fault_pin = PIN_0,
-         .mode0_pin = PIN_13,
-         .mode1_pin = PIN_14,
-         .mode2_pin = PIN_15
+         .step_pin = PIN_C1,
+         .dir_pin = PIN_C3,
+         .fault_pin = PIN_C0,
+         .mode0_pin = PIN_C13,
+         .mode1_pin = PIN_C14,
+         .mode2_pin = PIN_C15,
+         .enable_pin = PIN_A15
      };
  
      DRV8825_Init(&rehydrationMotor);
  
      while (1) {
-         DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_THIRTYSECOND_STEP);
+         DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_FULL_STEP);
          printf("Moving forward...\n");
-         DRV8825_Move(&rehydrationMotor, 1000, DRV8825_FORWARD, DRV8825_DEFAULT_STEP_DELAY_US);
-         uint32_t delay_f = TIMERS_GetMicroSeconds();
+         DRV8825_Move(&rehydrationMotor, 100, DRV8825_FORWARD, DRV8825_DEFAULT_STEP_DELAY_US);
+         uint32_t delay_f = TIMERS_GetMilliSeconds();
          while ((TIMERS_GetMilliSeconds() - delay_f) < 2000);
- 
-         printf("Moving backward...\n");
-         DRV8825_Move(&rehydrationMotor, 200, DRV8825_BACKWARD, DRV8825_DEFAULT_STEP_DELAY_US);
-         uint32_t delay_b = TIMERS_GetMicroSeconds();
-         while ((TIMERS_GetMilliSeconds() - delay_b) < 2000);
+
      }
  }
  #endif
