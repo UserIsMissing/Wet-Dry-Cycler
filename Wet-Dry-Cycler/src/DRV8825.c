@@ -17,7 +17,6 @@
  #include "DRV8825.h"
  
 
- #define DRV8825_REHYDRATION_TEST
  /**
   * @function DRV8825_Init
   * @brief Initializes DRV8825 driver pins for a specific motor instance
@@ -86,7 +85,9 @@ void DRV8825_Disable(DRV8825_t *motor) {
  
  /**
   * @function DRV8825_Step
-  * @brief Sends a single step pulse to motor driver
+  * @brief Sends a single step pulse to motor driver 
+  * (In order to use a single step the motor needs to be enabled)
+  * Remember to disbale the motor after the step to eliminate unnecessary current draw
   *
   * @param motor Pointer to DRV8825_t struct
   */
@@ -156,7 +157,8 @@ void DRV8825_Disable(DRV8825_t *motor) {
      GPIO_WritePin(motor->mode1_pin, mode1);
      GPIO_WritePin(motor->mode2_pin, mode2);
  }
- 
+//  #define DRV8825_REHY DRATION_TEST
+
  #ifdef DRV8825_REHYDRATION_TEST
  int main(void) {
      BOARD_Init();

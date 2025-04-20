@@ -20,15 +20,17 @@
 
 
 
-// TESTS *********************************************************
-// #define TESTING_TEMP
 
 // DEFINES *******************************************************
 #define MOVING_AVERAGE_WINDOW 80  // Number of samples for the moving average
 
 // VARIABLES *****************************************************
+const float R0 = 100000.0;          // Resistance at T0 (25°C)
 float R1 = 4630; // 283kOhm  float Resistance = 283000* (2-ADC_Read(Temperature_Pin))/ADC_Read(Temperature_Pin);
 float VIn = 3.3; // 2V  Input voltage to the voltage divider 
+const float BETA = 3950.0;         // Beta value of thermistor
+const float T0 = 298.15;           // 25°C in Kelvin
+
 //MOVING AVERAGE
 static int adcBuffer[MOVING_AVERAGE_WINDOW] = {0};  // Circular buffer for ADC moving average
 static int adcIndex = 0;  // Index for circular buffer
@@ -134,16 +136,33 @@ float HEATING_Measure_Resistance(void){
 }
 
 
+// /**
+//  * @function HEATING_Measure_Temp(void)
+//  * @param None
+//  * @return  (float)  [degrees Celsius]
+//  * @brief Returns the current temperature of the heating pad in degrees Celsius
+//  * @author Rafael Delwart, 20 Feb 2025 */
+// float HEATING_Measure_Temp(void) {
+//     float Temperature = 106.91609 * exp(-0.00001378 * HEATING_Measure_Resistance());
+//     return Temperature;
+// }   OLD  FUNCTION USING MANUAL REGRESSION
+
 /**
  * @function HEATING_Measure_Temp(void)
  * @param None
  * @return  (float)  [degrees Celsius]
- * @brief Returns the current temperature of the heating pad in degrees Celsius
- * @author Rafael Delwart, 20 Feb 2025 */
+ * @brief Calculates the temperature using the BETA method with BETA = 3950.
+ *        Returns the current temperature of the heating pad in degrees Celsius.
+ * @author Rafael Delwart, 20 Feb 2025
+ */
 float HEATING_Measure_Temp(void) {
-    float Temperature = 106.91609 * exp(-0.00001378 * HEATING_Measure_Resistance());
-    return Temperature;
+
+    float tempK = 1.0 / ((1.0 / T0) + (1.0 / BETA) * log(HEATING_Measure_Resistance() / R0));
+    float tempC = tempK - 273.15;      // Convert to Celsius
+
+    return tempC;
 }
+
 
 
 /**
@@ -187,6 +206,7 @@ void HEATING_Set_Temp(int Temp){
 }
 
 
+// #define TESTING_TEMP
 
 #ifdef TESTING_TEMP
 
@@ -208,7 +228,7 @@ int main(void)
         printf(">Temperature: %0.3f\n", HEATING_Measure_Temp());     // Celsius
         printf(">Temperature AVG: %0.3f\n", HEATING_Measure_Temp_Avg());     // Celsius
 
-        HEATING_Set_Temp(30);
+        HEATING_Set_Temp(60);
     }
 }
 #endif // TESTING_TEMP

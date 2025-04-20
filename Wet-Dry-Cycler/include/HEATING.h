@@ -90,6 +90,9 @@ float HEATING_Measure_Resistance(void);
 float HEATING_Measure_Temp(void);
 
 
+
+
+
 /** HEATING_Measure_Temp_Avg(void)
  *  
  * Implements a moving average filter on the the measured temperature
