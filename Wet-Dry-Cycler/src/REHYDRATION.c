@@ -41,14 +41,14 @@
 #define LEADSCREW_TRAVEL_IN_PER_REV (1.0 / LEADSCREW_TPI)
 #define STEP_TRAVEL_IN (LEADSCREW_TRAVEL_IN_PER_REV / TOTAL_STEPS_PER_REV)
 #define INCH3_TO_UL 16387.064
+#define NUM_OUTPUT_PORTS 12
 
-// Compute microliters per step based on volume of cylinder
 static float calculate_uL_per_step(void) {
     float radius_in = SYRINGE_DIAMETER_IN / 2.0;
     float step_volume_in3 = M_PI * radius_in * radius_in * STEP_TRAVEL_IN;
-    return step_volume_in3 * INCH3_TO_UL;
+    float total_uL = step_volume_in3 * INCH3_TO_UL;
+    return total_uL / NUM_OUTPUT_PORTS;
 }
-
 /**
  * @function Rehydration_Init
  * @brief    Initializes the syringe pump motor for rehydration
@@ -61,7 +61,6 @@ void Rehydration_Init(void) {
 }
 
 /**
- /**
   * @function Rehydration_Push
   * @brief    Pushes liquid by rotating motor forward for calculated steps
   * @param    uL Volume to dispense in microliters
@@ -106,6 +105,7 @@ int main(void) {
     TIMER_Init();
 
     printf("Starting Rehydration Test...\n");
+    printf("uL per step %f.5 \n", calculate_uL_per_step());
     Rehydration_Init();
 
     HAL_Delay(1000); // Wait a second before starting
