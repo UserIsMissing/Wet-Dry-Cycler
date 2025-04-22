@@ -9,9 +9,9 @@
 #define GPIO_C0 PIN_C0
 #define GPIO_C1 PIN_C1
 #define GPIO_C3 PIN_C3
-#define GPIO_C13 PIN_C13
-#define GPIO_C14 PIN_C14
-#define GPIO_C15 PIN_C15
+#define GPIO_C10 PIN_C10
+#define GPIO_C11 PIN_C11
+#define GPIO_C12 PIN_C12
 #define GPIO_A15 PIN_A15
 // // MOVEMENT Motor
 #define GPIO_B4 PIN_B4
@@ -38,9 +38,9 @@ typedef enum {
     GPIO_C0,
     GPIO_C1,
     GPIO_C3,
-    GPIO_C13,
-    GPIO_C14,
-    GPIO_C15,
+    GPIO_C10,
+    GPIO_C11,
+    GPIO_C12,
     GPIO_A15,
 
     // MOVEMENT Motor
