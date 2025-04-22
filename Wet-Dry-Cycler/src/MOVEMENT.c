@@ -57,7 +57,9 @@ void MOVEMENT_Init(void)
     HAL_Delay(5000); // Wait for 5 second
     // DRV8825_Init(&movementMotor); // Initialize the motor
 
-    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP);
+    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP); // Set microstepping mode
+    // DRV8825_Move(&movementMotor, 10, DRV8825_BACKWARD, 1000); // Initialize the motor
+    // DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP); // Set microstepping mode
 
     printf("BUMPER_STATE: %d\n", BUMPER_STATE);
     CheckBumpers(); // Initialize the bumpers
@@ -73,18 +75,21 @@ void MOVEMENT_Init(void)
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                MOVEMENT_Stop(&movementMotor);
+                // MOVEMENT_Stop(&movementMotor);
+                DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        MOVEMENT_Stop(&movementMotor);
+        // MOVEMENT_Stop(&movementMotor);
+        DRV8825_Disable(&movementMotor);
         return;
     }
     else if (BUMPER_STATE == 1)
     {
         printf("BUMPER_STATE: %d\n", BUMPER_STATE);
         DRV8825_Move(&movementMotor, 500, DRV8825_FORWARD, 1000); // Initialize the motor
-        MOVEMENT_Stop(&movementMotor);
+        // MOVEMENT_Stop(&movementMotor);
+        DRV8825_Disable(&movementMotor);
         HAL_Delay(5000); // Wait for 5 seconds
         while (BUMPER_STATE != 1)
         {
@@ -92,11 +97,13 @@ void MOVEMENT_Init(void)
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                MOVEMENT_Stop(&movementMotor);
+                // MOVEMENT_Stop(&movementMotor);
+                DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        MOVEMENT_Stop(&movementMotor);
+        // MOVEMENT_Stop(&movementMotor);
+        DRV8825_Disable(&movementMotor);
         return;
     }
     else if (BUMPER_STATE == 2)
@@ -107,11 +114,13 @@ void MOVEMENT_Init(void)
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                MOVEMENT_Stop(&movementMotor);
+                // MOVEMENT_Stop(&movementMotor);
+                DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        MOVEMENT_Stop(&movementMotor);
+        // MOVEMENT_Stop(&movementMotor);
+        DRV8825_Disable(&movementMotor);
         return;
     }
     else
@@ -244,7 +253,7 @@ void MOVEMENT_Stop(DRV8825_t *movementMotor)
     printf("Motor stopped.\n");
 }
 
-// #define TESTING_MOVEMENT
+#define TESTING_MOVEMENT
 #ifdef TESTING_MOVEMENT
 int main(void)
 {
