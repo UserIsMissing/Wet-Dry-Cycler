@@ -28,7 +28,6 @@
      TIMER_Init();
      GPIO_WritePin(motor->step_pin, LOW);
      GPIO_WritePin(motor->dir_pin, DRV8825_FORWARD);
-     DRV8825_Set_Step_Mode(motor, DRV8825_FULL_STEP);
      DRV8825_Disable(motor);  // Ensure motor is not active on start up 
      if (DRV8825_Check_Fault(motor)) {
          printf("DRV8825 FAULT on INIT: Check wiring or overcurrent\n");
@@ -157,7 +156,7 @@ void DRV8825_Disable(DRV8825_t *motor) {
      GPIO_WritePin(motor->mode1_pin, mode1);
      GPIO_WritePin(motor->mode2_pin, mode2);
  }
-//  #define DRV8825_REHY DRATION_TEST
+//  #define DRV8825_REHYDRATION_TEST
 
  #ifdef DRV8825_REHYDRATION_TEST
  int main(void) {
@@ -169,20 +168,26 @@ void DRV8825_Disable(DRV8825_t *motor) {
          .step_pin = PIN_C1,
          .dir_pin = PIN_C3,
          .fault_pin = PIN_C0,
-         .mode0_pin = PIN_C13,
-         .mode1_pin = PIN_C14,
-         .mode2_pin = PIN_C15,
+         .mode0_pin = PIN_C10,
+         .mode1_pin = PIN_C11,
+         .mode2_pin = PIN_C12,
          .enable_pin = PIN_A15
      };
  
      DRV8825_Init(&rehydrationMotor);
  
      while (1) {
-         DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_FULL_STEP);
+         DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_THIRTYSECOND_STEP);
          printf("Moving forward...\n");
-         DRV8825_Move(&rehydrationMotor, 100, DRV8825_FORWARD, DRV8825_DEFAULT_STEP_DELAY_US);
-         uint32_t delay_f = TIMERS_GetMilliSeconds();
-         while ((TIMERS_GetMilliSeconds() - delay_f) < 2000);
+         DRV8825_Move(&rehydrationMotor, 128000, DRV8825_FORWARD, DRV8825_DEFAULT_STEP_DELAY_US);
+        //  uint32_t delay_f = TIMERS_GetMilliSeconds();
+        //  while ((TIMERS_GetMilliSeconds() - delay_f) < 2000);
+        while(1);
+        //  DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_FULL_STEP);
+        //  printf("Moving backwards...\n");
+        //  DRV8825_Move(&rehydrationMotor, 4000, DRV8825_BACKWARD, DRV8825_DEFAULT_STEP_DELAY_US);
+        //  uint32_t delay_f = TIMERS_GetMilliSeconds();
+        //  while ((TIMERS_GetMilliSeconds() - delay_f) < 2000);
 
      }
  }

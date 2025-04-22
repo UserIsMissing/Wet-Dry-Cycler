@@ -12,9 +12,9 @@ static const struct {
     [PIN_C1]  = {GPIOC, GPIO_PIN_1},
     [PIN_C2]  = {GPIOC, GPIO_PIN_2},
     [PIN_C3]  = {GPIOC, GPIO_PIN_3},
-    [PIN_C13]  = {GPIOC, GPIO_PIN_13},
-    [PIN_C14]  = {GPIOC, GPIO_PIN_14},
-    [PIN_C15]  = {GPIOC, GPIO_PIN_15},
+    [PIN_C10]  = {GPIOC, GPIO_PIN_10},
+    [PIN_C11]  = {GPIOC, GPIO_PIN_11},
+    [PIN_C12]  = {GPIOC, GPIO_PIN_12},
     [PIN_A15]  = {GPIOA, GPIO_PIN_15},
     // MOVEMENT Motor
     [PIN_B4]  = {GPIOB, GPIO_PIN_4},
