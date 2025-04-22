@@ -34,7 +34,7 @@
 #define STEPPER_STEPS_PER_REV 200     // Full steps per revolution
 #define MICROSTEPPING         32      // Microstepping mode (e.g. 1/32)
 #define LEADSCREW_TPI         20      // Threads per inch (TPI)
-#define SYRINGE_DIAMETER_IN   1    // Syringe barrel inner diameter in inches
+#define SYRINGE_DIAMETER_IN   0.5    // Syringe barrel inner diameter in inches
 
 // Derived constants
 #define TOTAL_STEPS_PER_REV (STEPPER_STEPS_PER_REV * MICROSTEPPING)
