@@ -1,22 +1,24 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "Board.h"
-#include <I2C.h>
-#include <math.h>
-#include <timers.h>
-#include <ADC.h>
-#include <PWM.h>
-#include <buttons.h>
-#include <GPIO.h>
-#include <stm32f4xx_hal.h>
-// #include <stm32f4xx_it.h>
+#include "main.h"
 
-#include <HEATING.h>
-#include <MIXING.h>
-#include <DRV8825.h>
-#include <REHYDRATION.h>
-#include <MOVEMENT.h>
-#include <main.h>
+#define WATER_INTERVAL 10000   // 1 second interval for water level check
+#define MIXING_INTERVAL 5000   // 5 seconds interval for mixing
+#define HEATING_INTERVAL 10000 // 10 seconds interval for heating
+
+static uint8_t toggle_movement_flag;
+static int prevState;
+
+
+typedef enum
+{
+    STATE_START,
+    STATE_REHYDRATING,
+    STATE_HEATING,
+    STATE_MIXING,
+    STATE_MOVING,
+    STATE_DONE
+} SystemState;
+
+SystemState state = STATE_START; // Initial state
 
 // ***************************************************************
 /**
@@ -31,23 +33,24 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     switch (GPIO_Pin)
     {
-    // case GPIO_PIN_5: // PA5 bumper
-    case PIN_A5:          // PA5 bumper
-        BUMPER_STATE = 1; // Set bumper state to indicate left bumper hit
-        printf("Left bumper hit!\r\n");
-        MOVEMENT_Stop(); // Stop movement motor
-        break;
-    // case GPIO_PIN_6: // PA6 bumper
-    case PIN_A6:          // PA6 bumper
-        BUMPER_STATE = 2; // Set bumper state to indicate right bumper hit
-        printf("Right bumper hit!\r\n");
-        MOVEMENT_Stop(); // Stop movement motor
-        break;
+    // // case GPIO_PIN_5: // PA5 bumper
+    // case PIN_A5:          // PA5 bumper
+    //     BUMPER_STATE = 1; // Set bumper state to indicate left bumper hit
+    //     printf("Left bumper hit!\r\n");
+    //     MOVEMENT_Stop(); // Stop movement motor
+    //     break;
+    // // case GPIO_PIN_6: // PA6 bumper
+    // case PIN_A6:          // PA6 bumper
+    //     BUMPER_STATE = 2; // Set bumper state to indicate right bumper hit
+    //     printf("Right bumper hit!\r\n");
+    //     MOVEMENT_Stop(); // Stop movement motor
+    //     break;
     // case GPIO_PIN_8: // PB8 Start Movement button
-    case PIN_B8:          // PB8 Start Movement button
-        BUMPER_STATE = 3; // Set bumper state to indicate rear bumper hit
+    case PIN_B8:              // PB8 Start Movement button
+        state = STATE_MOVING; // Change state to moving
+        BUMPER_STATE = 3;     // Set bumper state to indicate rear bumper hit
+        toggle_movement_flag ^= 1; // Toggle movement flag
         printf("Rear bumper hit!\r\n");
-        MOVEMENT_Move(); // Start movement motor
         break;
     default:
         // BUMPER_STATE = 0; // Reset bumper state if no bumper hit
@@ -68,64 +71,94 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
  *      2. Upon first use, system will rehydrate, mix, and heat the sample.
  *      3. Movement will only be called upon user input (button press).
  */
-#define TESTING_MAIN
+// #define TESTING_MAIN
 #ifdef TESTING_MAIN
-typedef enum {
-    STATE_MIXING,
-    STATE_HEATING,
-    STATE_MOVING,
-    STATE_DONE
-} SystemState;
-
-int main(void) {
+int main(void)
+{
     // Initialize hardware and modules
     BOARD_Init();
     HEATING_Init();
     MIXING_Init();
     MOVEMENT_Init();
 
-    SystemState state = STATE_HEATING;
+    uint32_t RecentTime = 0;
+    toggle_movement_flag = 0; // Initialize movement flag
+
     const int targetTemp = 50;
 
-    while (1) {
-        switch (state) {
+    while (1)
+    {
+        switch (state)
+        {
+        case STATE_START:
+            RecentTime = TIMERS_GetMilliSeconds();
+            printf("[STATE] START: Initializing system\r\n");
+            prevState = state;         // Store previous state
+            state = STATE_REHYDRATING; // Move to rehydration state
+            break;
 
-            case STATE_HEATING:
-                printf("[STATE] HEATING: Target = %d°C\r\n", targetTemp);
-                HEATING_Set_Temp(targetTemp);
+        case STATE_REHYDRATING:
+            Rehydration_Push(1000); // Push 1000 uL of fluid
+            printf("[STATE] REHYDRATING: Pushing fluid\r\n");
+            HAL_Delay(2000); // Wait for rehydration to complete
+            RecentTime = TIMERS_GetMilliSeconds();
+            prevState = state;    // Store previous state
+            state = STATE_MIXING; // Move to heating state
+            break;
 
-                float currentTemp = HEATING_Measure_Temp_Avg();
-                printf("Current Temp: %.2f°C\r\n", currentTemp);
-
-                if (currentTemp >= targetTemp - 0.5) {
-                    printf("Heating complete.\r\n");
-                    HAL_Delay(500);
-                    state = STATE_MIXING;
-                }
-                break;
-
-            case STATE_MIXING:
-                printf("[STATE] MIXING: Motors ON\r\n");
-                MIXING_AllMotors_On();
-                HAL_Delay(5000);
+        case STATE_MIXING:
+            printf("[STATE] MIXING: Motors ON\r\n");
+            MIXING_AllMotors_On();
+            if ((TIMERS_GetMilliSeconds() - RecentTime) > MIXING_INTERVAL)
+            {
                 MIXING_AllMotors_Off();
-                printf("Mixing complete.\r\n");
-                state = STATE_MOVING;
-                break;
+                printf("Mixing motors OFF\r\n");
+                RecentTime = TIMERS_GetMilliSeconds();
+                prevState = state; // Store previous state
+                state = STATE_HEATING;
+            }
+            break;
 
-            case STATE_MOVING:
-                printf("[STATE] MOVING: Starting motor movement\r\n");
-                MOVEMENT_Move(); // Assumes internal step target
-                printf("Movement complete.\r\n");
-                state = STATE_DONE;
-                break;
+        case STATE_HEATING:
+            printf("[STATE] HEATING: Target = %d°C\r\n", targetTemp);
+            HEATING_Set_Temp(targetTemp);
 
-            case STATE_DONE:
-                printf("[STATE] DONE: Process complete. System halting.\r\n");
-                while (1); // Halt
-                break;
+            float currentTemp = HEATING_Measure_Temp_Avg();
+            printf("Current Temp: %.2f°C\r\n", currentTemp);
+
+            if (currentTemp >= targetTemp - 0.5)
+            {
+                printf("Heating complete.\r\n");
+                HAL_Delay(500);
+            }
+            if ((TIMERS_GetMilliSeconds() - RecentTime) > HEATING_INTERVAL)
+            {
+                RecentTime = TIMERS_GetMilliSeconds();
+                prevState = state; // Store previous state
+                state = STATE_REHYDRATING;
+            }
+            break;
+
+        case STATE_MOVING:
+            printf("[STATE] MOVING: Starting motor movement\r\n");
+            MIXING_AllMotors_Off(); // Ensure all motors are off before moving
+            HEATING_Set_Temp(0);    // Turn off heating pad
+            MOVEMENT_Move();
+            printf("Movement complete.\r\n");
+            if (!toggle_movement_flag)
+            {
+                RecentTime = TIMERS_GetMilliSeconds();
+                prevState = state; // Store previous state
+                state = STATE_HEATING; // Move to done state
+            }
+            break;
+
+        case STATE_DONE:
+            printf("[STATE] DONE: Process complete. System halting.\r\n");
+            while (1)
+                ; // Halt
+            break;
         }
-
         HAL_Delay(100);
     }
 }

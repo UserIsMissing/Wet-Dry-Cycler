@@ -1,10 +1,12 @@
 #ifndef GPIO_H
 #define GPIO_H
 
-//Created a GPIO library to toggle LEDS
+// Created a GPIO library to toggle LEDS
 
-
+#pragma once
+#include "main.h"
 #include "stm32f4xx_hal.h"
+
 // REHYDRATION MOTOR
 #define GPIO_C0 PIN_C0
 #define GPIO_C1 PIN_C1
@@ -41,7 +43,8 @@
 /**
  * @brief Enumerate each pin you want to manage in this driver.
  */
-typedef enum {
+typedef enum
+{
     // REHYDRATION Motor
     GPIO_C0,
     GPIO_C1,
@@ -70,11 +73,9 @@ typedef enum {
     GPIO_C9,
     GPIO_B2,
 
-    // HEATING 
+    // HEATING
     GPIO_B1,
 
-        
-    
     GPIO_2_NUM_PINS // keep this last as a “count” of pins
 } Gpio2Pin_t;
 

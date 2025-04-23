@@ -10,14 +10,11 @@
  * @date    10 Apr 2025
  */
 
+#pragma once
+#include "main.h"
+ 
  #ifndef DRV8825_H
  #define DRV8825_H
- 
- #include <stdio.h>
- #include <stdlib.h>
- #include <Board.h>
- #include <timers.h>
- #include <GPIO.h>
  
  // Direction Constants
  #define DRV8825_FORWARD  1

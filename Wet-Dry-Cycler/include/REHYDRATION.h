@@ -10,10 +10,11 @@
  * @date    20 Apr 2025
  */
 
+#pragma once
+#include "main.h"
+
  #ifndef REHYDRATION_H
  #define REHYDRATION_H
- 
- #include <stdint.h>
  
  /**
   * @brief Initializes the syringe pump stepper motor

@@ -8,12 +8,8 @@
  * @date    14 Apr 2025
  */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <Board.h>
-#include <GPIO.h>
-#include <timers.h>
-#include <DRV8825.h>
+#pragma once
+#include "main.h"
 
 extern int BUMPER_STATE; // 0 = no bumper pressed, 1 = front bumper pressed, 2 = back bumper pressed
 
@@ -32,6 +28,7 @@ typedef struct {
     int start_button_pin; ///< Pin for start button
 } BUMPER_t;
 
+void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection);
 /** 
  * @function MOVEMENT_Init
  * @brief   Initializes the MOVEMENT module

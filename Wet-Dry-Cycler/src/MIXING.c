@@ -8,10 +8,8 @@
  * @date    22 Apr 2025
  */
 
- #include <stdio.h>
- #include <Board.h>
- #include <MIXING.h>
- #include <GPIO.h>
+#include <main.h>
+
 
  // Define the pins to control
  static const uint8_t motorPins[NUM_MOTOR_PINS] = {PIN_C8, PIN_C9, PIN_B1};

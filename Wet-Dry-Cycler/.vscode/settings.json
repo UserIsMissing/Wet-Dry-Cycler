@@ -6,6 +6,8 @@
         "pwm.h": "c",
         "mixing.h": "c",
         "stm32f4xx_hal.h": "c",
-        "timers.h": "c"
+        "timers.h": "c",
+        "main.h": "c",
+        "rehydration.h": "c"
     }
 }

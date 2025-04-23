@@ -15,17 +15,12 @@
  *          
  */
 
+#pragma once
+#include "main.h"
+
 #ifndef HEATING_H
 #define HEATING_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <Board.h>
-#include <I2C.h>
-#include <math.h>
-#include <timers.h>
-#include <PWM.h>
-#include <ADC.h>
 
 
 // PINOUTS *******************************************************

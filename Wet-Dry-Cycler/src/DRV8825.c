@@ -10,11 +10,7 @@
  * @date    10 Apr 2025
  */
 
- #include <stdio.h>
- #include <stdint.h>
- #include <GPIO.h>
- #include <timers.h>
- #include "DRV8825.h"
+ #include <main.h>
  
 
  /**

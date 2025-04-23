@@ -12,16 +12,9 @@
  *
  */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <Board.h>
-#include <GPIO.h>
-#include <timers.h>
-#include <DRV8825.h>
-#include <MOVEMENT.h>
-#include <I2C.h>
-#include <buttons.h>
-#include <stm32f4xx_hal.h>
+ #include <main.h>
+
+#define MOVEMENT_STEP_DELAY_US 1000 // Delay between steps in microseconds
 
 int BUMPER_STATE = 0;
 
@@ -40,6 +33,14 @@ BUMPER_t bumpers = {
     .back_bumper_pin = PIN_A6,
     .start_button_pin = PIN_B8};
 
+// Undo Direction because the motor need to move the opposite direction a tiny bit before aligning
+// This function helps start the motor for the first time using smaller steps to avoid getting stuck
+void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection)
+{
+    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP); // Set microstepping mode
+    DRV8825_Move(&movementMotor, InitialSmallSteps, UndoDirection, MOVEMENT_STEP_DELAY_US); // Move forward slightly
+    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP); // Set microstepping mode
+}
 /**
  * @function MOVEMENT_Init
  * @brief   Initializes the MOVEMENT module
@@ -50,75 +51,58 @@ BUMPER_t bumpers = {
  */
 void MOVEMENT_Init(void)
 {
-    // Initialize the GPIO pins for the stepper motor
-    HAL_Delay(5000); // Wait for 5 second
-    // DRV8825_Init(&movementMotor); // Initialize the motor
-
-    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP); // Set microstepping mode
-    // DRV8825_Move(&movementMotor, 10, DRV8825_BACKWARD, 1000); // Initialize the motor
-    // DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP); // Set microstepping mode
+    HAL_Delay(2000); // Wait for 2 seconds
+    DRV8825_Init(&movementMotor); // Initialize the motor driver
 
     printf("BUMPER_STATE: %d\n", BUMPER_STATE);
     CheckBumpers(); // Initialize the bumpers
     if (BUMPER_STATE == 0)
     {
-        // DRV8825_Move(&movementMotor, 100, DRV8825_FORWARD, 1000); // Move forward slightly
         printf("BUMPER_STATE: %d\n", BUMPER_STATE);
+        MOVEMENT_First_Steps(5, DRV8825_BACKWARD); 
         while (BUMPER_STATE == 0)
         {
-            // DRV8825_Set_Direction(&movementMotor, DRV8825_BACKWARD);
-            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, 1000); // Move forward slightly
-            // DRV8825_Step(&movementMotor);
+            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US); // Move forward slightly
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                // MOVEMENT_Stop();
                 DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        // MOVEMENT_Stop();
-        DRV8825_Disable(&movementMotor);
-        return;
+        // // MOVEMENT_Stop();
+        // DRV8825_Disable(&movementMotor);
+        // return;
     }
     else if (BUMPER_STATE == 1)
     {
         printf("BUMPER_STATE: %d\n", BUMPER_STATE);
-        DRV8825_Move(&movementMotor, 500, DRV8825_FORWARD, 1000); // Initialize the motor
-        // MOVEMENT_Stop();
-        DRV8825_Disable(&movementMotor);
-        HAL_Delay(5000); // Wait for 5 seconds
+        MOVEMENT_First_Steps(50, DRV8825_FORWARD); // Move forward slightly
         while (BUMPER_STATE != 1)
         {
-            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, 1000); // Move forward slightly
+            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US); // Move forward slightly
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                // MOVEMENT_Stop();
                 DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        // MOVEMENT_Stop();
-        DRV8825_Disable(&movementMotor);
-        return;
     }
     else if (BUMPER_STATE == 2)
     {
+        printf("BUMPER_STATE: %d\n", BUMPER_STATE);
+        MOVEMENT_First_Steps(50, DRV8825_BACKWARD); // Move backward slightly
         while (BUMPER_STATE != 1)
         {
-            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, 1000); // Move forward slightly
+            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US); // Move forward slightly
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                // MOVEMENT_Stop();
                 DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        // MOVEMENT_Stop();
-        DRV8825_Disable(&movementMotor);
-        return;
     }
     else
     {
@@ -203,7 +187,7 @@ void MOVEMENT_Move(void)
     {
         while (BUMPER_STATE != 2)
         {
-            DRV8825_Move(&movementMotor, 1, DRV8825_FORWARD, 1000); // Move forward slightly
+            DRV8825_Move(&movementMotor, 1, DRV8825_FORWARD, MOVEMENT_STEP_DELAY_US); // Move forward slightly
             CheckBumpers();
             if (BUMPER_STATE == 2)
             {
@@ -218,7 +202,7 @@ void MOVEMENT_Move(void)
     {
         while (BUMPER_STATE != 1)
         {
-            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, 1000); // Move forward slightly
+            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US); // Move forward slightly
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {

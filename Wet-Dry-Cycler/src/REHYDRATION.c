@@ -10,14 +10,7 @@
  * @date    20 Apr 2025
  */
 
- #include <stdio.h>
- #include <stdint.h>
- #include <DRV8825.h>
- #include <timers.h>
- #include <GPIO.h>
- #include "Rehydration.h"
- #include <Board.h>   
- #include <math.h>
+#include "main.h"
  
  // Global motor configuration for syringe pump
  DRV8825_t rehydrationMotor = {
