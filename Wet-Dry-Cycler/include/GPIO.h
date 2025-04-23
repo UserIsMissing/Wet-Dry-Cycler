@@ -27,6 +27,14 @@
 #define GPIO_A6 PIN_A6
 #define GPIO_B8 PIN_B8
 
+// MIXING PINS
+#define GPIO_C8 PIN_C8
+#define GPIO_C9 PIN_C9
+#define GPIO_B2 PIN_B2
+
+// HEATING PAD
+#define GPIO_B1 PIN_B1
+
 #define HIGH GPIO_PIN_SET
 #define LOW GPIO_PIN_RESET
 
@@ -56,6 +64,16 @@ typedef enum {
     GPIO_A5,
     GPIO_A6,
     GPIO_B8,
+
+    // MIXING Pins
+    GPIO_C8,
+    GPIO_C9,
+    GPIO_B2,
+
+    // HEATING 
+    GPIO_B1,
+
+        
     
     GPIO_2_NUM_PINS // keep this last as a “count” of pins
 } Gpio2Pin_t;

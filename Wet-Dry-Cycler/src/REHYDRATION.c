@@ -99,6 +99,8 @@ void Rehydration_Init(void) {
 
  
 //  #define TESTING_REHYDRATION
+// #define TESTING_REHYDRATION
+
 #ifdef TESTING_REHYDRATION
 
 int main(void) {

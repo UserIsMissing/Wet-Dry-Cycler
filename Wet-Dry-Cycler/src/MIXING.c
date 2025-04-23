@@ -1,115 +1,104 @@
-
 /**
- * @file    Heating.c
+ * @file    MIXING.c
  *
- * Silicon Heating Pad control module 
+ * Motor control using GPIO PWM pulses. This version uses a simplified
+ * software PWM interface where each pin is toggled with manual duty and frequency.
  *
  * @author  Rafael Delwart
- * @date    20 Feb 2025
- *       
- *          
+ * @date    22 Apr 2025
  */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <Board.h>
-#include <PWM.h>
-#include <MIXING.h>
-#include <I2C.h>
-#include <buttons.h>
+ #include <stdio.h>
+ #include <Board.h>
+ #include <MIXING.h>
+ #include <GPIO.h>
 
-
-
-
-
-// TESTS *********************************************************
-// #define TESTING_MIXING
-
-
-            
-
-/**
- * @function MIXING_Init()
- * 
- * @brief This function initializes the module for use. Initialization is done by initializing the PWM then
- * opening and configuring the PWM pin used to turn the FET on.
- * @author Rafael Delwart, 25 Feb 2025 
- * 
- * 
- * */
-
-void MIXING_Init(void) {
-    char initPWMResult = PWM_Init();
-    if (initPWMResult != TRUE){
-        printf("Initialization of Mixing PWM failed, stopping here\r\n");
+ // Define the pins to control
+ static const uint8_t motorPins[NUM_MOTOR_PINS] = {PIN_C8, PIN_C9, PIN_B1};
+ 
+ /**
+  * @function MIXING_Init()
+  * @brief Initializes the motor pins (optional GPIO config)
+  */
+ void MIXING_Init(void) {
+     // Optional: configure GPIO pins as output if needed here
+     for (int i = 0; i < NUM_MOTOR_PINS; i++) {
+        GPIO_WritePin(motorPins[i], LOW);
+     }
+ 
+     printf("All motors initialized and set to OFF.\r\n");
+ }
+ 
+ /**
+  * @function MIXING_Motor_OnPin(uint8_t pin)
+  * @brief Turns on the motor connected to the specified GPIO pin
+  */
+ void MIXING_Motor_OnPin(uint8_t pin){
+    GPIO_WritePin(pin, HIGH);  // Set pin HIGH
+ }
+ 
+ /**
+  * @function MIXING_Motor_OffPin(uint8_t pin)
+  * @brief Turns off the motor connected to the specified GPIO pin
+  */
+ void MIXING_Motor_OffPin(uint8_t pin){
+    GPIO_WritePin(pin, LOW);  // Set pin LOW
+ }
+ 
+ /**
+  * @function MIXING_AllMotors_On()
+  * @brief Turns on all defined motor pins
+  */
+ void MIXING_AllMotors_On(void){
+     for (int i = 0; i < NUM_MOTOR_PINS; i++) {
+        GPIO_WritePin(motorPins[i], HIGH);  // Set pins HIGH
     }
-    else{
-        printf("Mixing PWM Initialization succeeded\r\n");
-    }
-    PWM_AddPin(MIXING_CONTROL_PIN);
-    PWM_SetDutyCycle(MIXING_CONTROL_PIN, 0);  // Initially motor is off
-}
+ }
+ 
+ /**
+  * @function MIXING_AllMotors_Off()
+  * @brief Turns off all defined motor pins
+  */
+ void MIXING_AllMotors_Off(void){
+     for (int i = 0; i < NUM_MOTOR_PINS; i++) {
+        GPIO_WritePin(motorPins[i], LOW);  // Set pins LOW
+     }
+ }
+ 
+//  #define TESTING_MIXING 
+ #ifdef TESTING_MIXING
+ int main(void)
+ {
+     HAL_Init();         // Initialize HAL
+     BOARD_Init();       // Board-specific setup
+     MIXING_Init();      // Initialize motor pins
+ 
+     while (1)
+     {
+        // GPIO_WritePin(PIN_C8, HIGH);//  // Cycle through motors one at a time
+        // GPIO_WritePin(PIN_C9, HIGH);//  // Cycle through motors one at a time
+        // GPIO_WritePin(PIN_B2, HIGH);//  // Cycle through motors one at a time
 
-
-
-/**
- * @function MIXING_Motor_On(void)
- * @param None
- * @return None
- * @brief Turns on the mixing motor
- * @author Rafael Delwart, 25 Feb 2025 
- * 
- * */
-void MIXING_Motor_On(void){
-    PWM_SetDutyCycle(MIXING_CONTROL_PIN, 100);  // Turn motor on (100% duty cycle)
-}
-
-
-/**
- * @function MIXING_Motor_Off(void)
- * @param None
- * @return None
- * @brief Turns off the mixing motor
- * @author Rafael Delwart, 25 Feb 2025 
- * 
- * */
-void MIXING_Motor_Off(void){
-    PWM_SetDutyCycle(MIXING_CONTROL_PIN, 0);  // Turn motor off (0% duty cycle)
-}
-
-#ifdef TESTING_MIXING
-
-// Simple debounce function (waits for the button to settle)
-void debounce() {
-    // Small delay (typically 10-20ms) to debounce the button
-    for (volatile int i = 0; i < 100000; i++);  // Adjust this delay as needed
-}
-
-int main(void)
-{
-    BOARD_Init();
-    I2C_Init();
-    MIXING_Init();
-    BUTTONS_Init();
-
-    while (1)
-    {
-        uint8_t buttonState = buttons_state();  // Get current button states
-
-        // Check if Button 4 is pressed (bit 3 of the state)
-        if ((buttonState & 0x08) == 0)  // Button 4 pressed
-        {
-            MIXING_Motor_On();
-            printf("Motor is now ON with 100%% duty cycle.\n");
-            debounce();  // Add debounce delay to avoid multiple detections
-        }
-        // Check if Button 3 is pressed (bit 2 of the state)
-        else if ((buttonState & 0x04) == 0 )  // Button 3 pressed
-        {
-            MIXING_Motor_Off();           
-            printf("Motor is OFF.\n");
-            debounce();  // Add debounce delay to avoid multiple detections
-        }
-    }
-}
-#endif // TESTING_MIXING
+         for (int i = 0; i < NUM_MOTOR_PINS; i++) {
+             printf("Turning ON motor %d\r\n", i + 1);
+             MIXING_Motor_OnPin(motorPins[i]);
+             HAL_Delay(10000); // Delay 1 second
+ 
+             printf("Turning OFF motor %d\r\n", i + 1);
+             MIXING_Motor_OffPin(motorPins[i]);
+             HAL_Delay(5000);  // Delay 0.5 second
+         }
+ 
+         //Turn all motors ON and OFF
+         printf("Turning ALL motors ON\r\n");
+         MIXING_AllMotors_On();
+         HAL_Delay(20000);  // Delay 2 seconds
+ 
+         printf("Turning ALL motors OFF\r\n");
+         MIXING_AllMotors_Off();
+         HAL_Delay(20000);  // Delay 2 seconds
+     }
+ 
+     return 0;
+ }
+ #endif

@@ -1,5 +1,4 @@
 #include "GPIO.h"
-#include <main.h>
 
 /**
  * @brief Internal structure to map each Gpio2Pin_t enum to (port, pin).
@@ -30,11 +29,22 @@ static const struct {
     [PIN_A5]  = {GPIOA, GPIO_PIN_5},
     [PIN_A6]  = {GPIOA, GPIO_PIN_6},
     [PIN_B8]  = {GPIOB, GPIO_PIN_8},
+
+    // MIXING motors
+    [PIN_C8]  = {GPIOC, GPIO_PIN_8},
+    [PIN_C9]  = {GPIOC, GPIO_PIN_9},
+    [PIN_B1]  = {GPIOB, GPIO_PIN_1},
+
+        // HEATING pad
+    [PIN_B2]  = {GPIOB, GPIO_PIN_2},
+
 };
 
 // #define TESTING_ISR
 #ifndef TESTING_ISR
 // OLD VERSION
+
+
 /**
  * @brief Initializes all the pins (PA8, PA9, PA10, PA11, PB6, PB8) as general 
  *        purpose outputs, push-pull, no pull-ups. 
@@ -61,6 +71,7 @@ void GPIO_Init(void)
         HAL_GPIO_WritePin(gpioPinTable[i].port, gpioPinTable[i].pin, GPIO_PIN_RESET);
     }
 }
+
 #endif 
 
 
@@ -108,6 +119,7 @@ void GPIO_Init(void) {
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
 #endif // TESTING_ISR
+
 
 /**
  * @brief Write a logic state (SET or RESET) to the specified pin.

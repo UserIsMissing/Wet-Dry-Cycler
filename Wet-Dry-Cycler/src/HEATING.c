@@ -15,7 +15,7 @@
 #include <Board.h>
 #include <ADC.h>
 #include <math.h>
-#include <PWM.h>
+#include <GPIO.h>
 #include <HEATING.h>
 
 
@@ -196,18 +196,20 @@ float HEATING_Measure_Temp_Avg(void) {
  * @author Rafael Delwart, 1 Mar 2025 */
 void HEATING_Set_Temp(int Temp){
     if(HEATING_Measure_Temp_Avg() < (float)Temp){
-        PWM_SetDutyCycle(HEATING_CONTROL_PIN, 100);  // Turn Heating Pad on (100% duty cycle)
+        GPIO_WritePin(HEATING_CONTROL_PIN, HIGH); // Turn Heating Pad on (100% duty cycle)
         printf("Heating Pad Turned On");
     }
     else{
-        PWM_SetDutyCycle(HEATING_CONTROL_PIN, 0);  // Turn Heating Pad Off (0% duty cycle)
+        GPIO_WritePin(HEATING_CONTROL_PIN, LOW);  // Turn Heating Pad Off (0% duty cycle)
         printf("Heating Pad Turned Off");
     }
+
 }
 
 
 
-// #define TESTING_TEMP
+#define TESTING_TEMP
+
 #ifdef TESTING_TEMP
 
 int main(void)
@@ -228,7 +230,7 @@ int main(void)
         printf(">Temperature: %0.3f\n", HEATING_Measure_Temp());     // Celsius
         printf(">Temperature AVG: %0.3f\n", HEATING_Measure_Temp_Avg());     // Celsius
 
-        HEATING_Set_Temp(40);
+        HEATING_Set_Temp(50);
     }
 }
 #endif // TESTING_TEMP
