@@ -64,8 +64,7 @@ void HEATING_Init(void) {
     else{
         printf("Heating PWM Initialization succeeded\r\n");
     }
-    PWM_AddPin(HEATING_CONTROL_PIN);
-    PWM_SetDutyCycle(HEATING_CONTROL_PIN, 0);  // Initially Pad is off
+    GPIO_WritePin(HEATING_CONTROL_PIN, LOW);  // Turn Heating Pad Initially Off 
 
 }
 
@@ -208,7 +207,7 @@ void HEATING_Set_Temp(int Temp){
 
 
 
-#define TESTING_TEMP
+// #define TESTING_TEMP
 
 #ifdef TESTING_TEMP
 

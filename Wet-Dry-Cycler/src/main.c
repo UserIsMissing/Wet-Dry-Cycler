@@ -70,26 +70,63 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
  */
 #define TESTING_MAIN
 #ifdef TESTING_MAIN
-int main(void)
-{
+typedef enum {
+    STATE_MIXING,
+    STATE_HEATING,
+    STATE_MOVING,
+    STATE_DONE
+} SystemState;
+
+int main(void) {
+    // Initialize hardware and modules
     BOARD_Init();
-    I2C_Init();
-    TIMER_Init();
-    ADC_Init();
-    PWM_Init();
-    GPIO_Init();
+    HEATING_Init();
+    MIXING_Init();
+    MOVEMENT_Init();
 
-    // Set priorities and enable interrupts
-    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); // PA5, PA6, PB8 share EXTI5-9
-    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+    SystemState state = STATE_HEATING;
+    const int targetTemp = 50;
 
-    // MOVEMENT_Init();
-    // HEATING_Init();
-    // MIXING_Init();
-    // REHYDRATION_Init();
+    while (1) {
+        switch (state) {
 
-    while (1)
-    {
+            case STATE_HEATING:
+                printf("[STATE] HEATING: Target = %d°C\r\n", targetTemp);
+                HEATING_Set_Temp(targetTemp);
+
+                float currentTemp = HEATING_Measure_Temp_Avg();
+                printf("Current Temp: %.2f°C\r\n", currentTemp);
+
+                if (currentTemp >= targetTemp - 0.5) {
+                    printf("Heating complete.\r\n");
+                    HAL_Delay(500);
+                    state = STATE_MIXING;
+                }
+                break;
+
+            case STATE_MIXING:
+                printf("[STATE] MIXING: Motors ON\r\n");
+                MIXING_AllMotors_On();
+                HAL_Delay(5000);
+                MIXING_AllMotors_Off();
+                printf("Mixing complete.\r\n");
+                state = STATE_MOVING;
+                break;
+
+            case STATE_MOVING:
+                printf("[STATE] MOVING: Starting motor movement\r\n");
+                MOVEMENT_Move(); // Assumes internal step target
+                printf("Movement complete.\r\n");
+                state = STATE_DONE;
+                break;
+
+            case STATE_DONE:
+                printf("[STATE] DONE: Process complete. System halting.\r\n");
+                while (1); // Halt
+                break;
+        }
+
+        HAL_Delay(100);
     }
 }
 #endif // TESTING_MAIN
