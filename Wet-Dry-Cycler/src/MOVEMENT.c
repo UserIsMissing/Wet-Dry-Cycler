@@ -12,7 +12,7 @@
  *
  */
 
- #include <main.h>
+#include <main.h>
 
 #define MOVEMENT_STEP_DELAY_US 1000 // Delay between steps in microseconds
 
@@ -37,9 +37,9 @@ BUMPER_t bumpers = {
 // This function helps start the motor for the first time using smaller steps to avoid getting stuck
 void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection)
 {
-    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP); // Set microstepping mode
+    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP);                               // Set microstepping mode
     DRV8825_Move(&movementMotor, InitialSmallSteps, UndoDirection, MOVEMENT_STEP_DELAY_US); // Move forward slightly
-    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP); // Set microstepping mode
+    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP);                               // Set microstepping mode
 }
 /**
  * @function MOVEMENT_Init
@@ -51,7 +51,7 @@ void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection)
  */
 void MOVEMENT_Init(void)
 {
-    HAL_Delay(2000); // Wait for 2 seconds
+    HAL_Delay(2000);              // Wait for 2 seconds
     DRV8825_Init(&movementMotor); // Initialize the motor driver
 
     printf("BUMPER_STATE: %d\n", BUMPER_STATE);
@@ -59,7 +59,7 @@ void MOVEMENT_Init(void)
     if (BUMPER_STATE == 0)
     {
         printf("BUMPER_STATE: %d\n", BUMPER_STATE);
-        MOVEMENT_First_Steps(5, DRV8825_BACKWARD); 
+        MOVEMENT_First_Steps(5, DRV8825_BACKWARD);
         while (BUMPER_STATE == 0)
         {
             DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US); // Move forward slightly

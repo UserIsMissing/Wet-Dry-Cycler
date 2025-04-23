@@ -7,7 +7,6 @@
 static uint8_t toggle_movement_flag;
 static int prevState;
 
-
 typedef enum
 {
     STATE_START,
@@ -15,6 +14,7 @@ typedef enum
     STATE_HEATING,
     STATE_MIXING,
     STATE_MOVING,
+    STATE_MOVEMENT_WAITING, // Waiting for movement to complete
     STATE_DONE
 } SystemState;
 
@@ -46,9 +46,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     //     MOVEMENT_Stop(); // Stop movement motor
     //     break;
     // case GPIO_PIN_8: // PB8 Start Movement button
-    case PIN_B8:              // PB8 Start Movement button
-        state = STATE_MOVING; // Change state to moving
-        BUMPER_STATE = 3;     // Set bumper state to indicate rear bumper hit
+    case PIN_B8:                   // PB8 Start Movement button
+        state = STATE_MOVING;      // Change state to moving
+        BUMPER_STATE = 3;          // Set bumper state to indicate rear bumper hit
         toggle_movement_flag ^= 1; // Toggle movement flag
         printf("Rear bumper hit!\r\n");
         break;
@@ -145,18 +145,27 @@ int main(void)
             HEATING_Set_Temp(0);    // Turn off heating pad
             MOVEMENT_Move();
             printf("Movement complete.\r\n");
+            // if (toggle_movement_flag)
+            // {
+                RecentTime = TIMERS_GetMilliSeconds();
+                prevState = state;              // Store previous state
+                state = STATE_MOVEMENT_WAITING; // Move to done state
+            // }
+            break;
+
+        case STATE_MOVEMENT_WAITING:
+        MOVEMENT_Move(); // Move back to starting position
             if (!toggle_movement_flag)
             {
                 RecentTime = TIMERS_GetMilliSeconds();
-                prevState = state; // Store previous state
+                prevState = state;     // Store previous state
                 state = STATE_HEATING; // Move to done state
             }
             break;
 
         case STATE_DONE:
             printf("[STATE] DONE: Process complete. System halting.\r\n");
-            while (1)
-                ; // Halt
+            while (1); // Halt
             break;
         }
         HAL_Delay(100);
