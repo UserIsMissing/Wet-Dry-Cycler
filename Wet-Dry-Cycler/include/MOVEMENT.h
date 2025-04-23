@@ -71,7 +71,7 @@ int CheckBumpers(void /* BUMPER_t *bumpers */);
  *          The function uses the DRV8825 driver to control the motor.
  */
 // void MOVEMENT_Move(DRV8825_t *motor);
-void MOVEMENT_Backward(void);
+void MOVEMENT_Move(void);
 
 /**
  * @function MOVEMENT_Stop

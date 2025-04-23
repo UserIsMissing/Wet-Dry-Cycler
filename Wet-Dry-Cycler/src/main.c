@@ -49,11 +49,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         printf("Rear bumper hit!\r\n");
         MOVEMENT_Move(); // Start movement motor
         break;
+    default:
+        // BUMPER_STATE = 0; // Reset bumper state if no bumper hit
+        printf("Unknown GPIO interrupt: %d\r\n", GPIO_Pin);
+        break;
     }
-default:
-    // BUMPER_STATE = 0; // Reset bumper state if no bumper hit
-    printf("Unknown GPIO interrupt: %d\r\n", GPIO_Pin);
-    break;
 }
 
 /**
