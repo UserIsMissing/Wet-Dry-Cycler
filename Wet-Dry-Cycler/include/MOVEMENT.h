@@ -70,8 +70,8 @@ int CheckBumpers(void /* BUMPER_t *bumpers */);
  *          It also checks the bumpers to determine if the motor should stop.
  *          The function uses the DRV8825 driver to control the motor.
  */
-void MOVEMENT_Move(DRV8825_t *motor);
-// void MOVEMENT_Backward(DRV8825_t *motor);
+// void MOVEMENT_Move(DRV8825_t *motor);
+void MOVEMENT_Backward(void);
 
 /**
  * @function MOVEMENT_Stop
@@ -79,4 +79,5 @@ void MOVEMENT_Move(DRV8825_t *motor);
  * @param   movementMotor Pointer to the motor to be stopped
  * @details This function stops the stepper motor by setting the step pin to low.
  */
-void MOVEMENT_Stop(DRV8825_t *motor);
+// void MOVEMENT_Stop(DRV8825_t *motor);
+void MOVEMENT_Stop(void);

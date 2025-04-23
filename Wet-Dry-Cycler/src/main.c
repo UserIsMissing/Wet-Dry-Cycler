@@ -8,6 +8,8 @@
 #include <PWM.h>
 #include <buttons.h>
 #include <GPIO.h>
+#include <stm32f4xx_hal.h>
+// #include <stm32f4xx_it.h>
 
 #include <HEATING.h>
 #include <MIXING.h>
@@ -31,15 +33,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     {
     case GPIO_PIN_5: // PA5 bumper
         printf("Left bumper hit!\r\n");
-        MOVEMENT_Stop(&movementMotor); // Stop movement motor
+        MOVEMENT_Stop(); // Stop movement motor
         break;
     case GPIO_PIN_6: // PA6 bumper
         printf("Right bumper hit!\r\n");
-        MOVEMENT_Stop(&movementMotor); // Stop movement motor
+        MOVEMENT_Stop(); // Stop movement motor
         break;
     case GPIO_PIN_8: // PB8 Start Movement button
         printf("Rear bumper hit!\r\n");
-        MOVEMENT_Move();
+        MOVEMENT_Move(); // Start movement motor
         break;
     }
 }
@@ -78,7 +80,7 @@ int main(void)
 
     while (1)
     {
-        
+
     }
 }
 #endif // TESTING_MAIN

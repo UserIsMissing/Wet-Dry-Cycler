@@ -72,12 +72,12 @@ void MOVEMENT_Init(void)
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                // MOVEMENT_Stop(&movementMotor);
+                // MOVEMENT_Stop();
                 DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        // MOVEMENT_Stop(&movementMotor);
+        // MOVEMENT_Stop();
         DRV8825_Disable(&movementMotor);
         return;
     }
@@ -85,7 +85,7 @@ void MOVEMENT_Init(void)
     {
         printf("BUMPER_STATE: %d\n", BUMPER_STATE);
         DRV8825_Move(&movementMotor, 500, DRV8825_FORWARD, 1000); // Initialize the motor
-        // MOVEMENT_Stop(&movementMotor);
+        // MOVEMENT_Stop();
         DRV8825_Disable(&movementMotor);
         HAL_Delay(5000); // Wait for 5 seconds
         while (BUMPER_STATE != 1)
@@ -94,12 +94,12 @@ void MOVEMENT_Init(void)
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                // MOVEMENT_Stop(&movementMotor);
+                // MOVEMENT_Stop();
                 DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        // MOVEMENT_Stop(&movementMotor);
+        // MOVEMENT_Stop();
         DRV8825_Disable(&movementMotor);
         return;
     }
@@ -111,12 +111,12 @@ void MOVEMENT_Init(void)
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                // MOVEMENT_Stop(&movementMotor);
+                // MOVEMENT_Stop();
                 DRV8825_Disable(&movementMotor);
                 return;
             }
         }
-        // MOVEMENT_Stop(&movementMotor);
+        // MOVEMENT_Stop();
         DRV8825_Disable(&movementMotor);
         return;
     }
@@ -193,45 +193,45 @@ int CheckBumpers(void /* BUMPER_t *bumpers */)
  *          It also checks the bumpers to determine if the motor should stop.
  *          The function uses the DRV8825 driver to control the motor.
  */
-void MOVEMENT_Move(DRV8825_t *movementMotor)
+void MOVEMENT_Move(void)
 {
     // Move the motor forward for a set amount of time
-    DRV8825_Set_Step_Mode(movementMotor, DRV8825_FULL_STEP);
+    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP);
     CheckBumpers();
     printf("BUMPER_STATE: %d\n", BUMPER_STATE);
     if (BUMPER_STATE == 1)
     {
         while (BUMPER_STATE != 2)
         {
-            DRV8825_Move(movementMotor, 1, DRV8825_FORWARD, 1000); // Move forward slightly
+            DRV8825_Move(&movementMotor, 1, DRV8825_FORWARD, 1000); // Move forward slightly
             CheckBumpers();
             if (BUMPER_STATE == 2)
             {
-                MOVEMENT_Stop(movementMotor);
+                MOVEMENT_Stop();
                 return;
             }
         }
-        MOVEMENT_Stop(movementMotor);
+        MOVEMENT_Stop();
         return;
     }
     if (BUMPER_STATE == 2)
     {
         while (BUMPER_STATE != 1)
         {
-            DRV8825_Move(movementMotor, 1, DRV8825_BACKWARD, 1000); // Move forward slightly
+            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, 1000); // Move forward slightly
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
-                MOVEMENT_Stop(movementMotor);
+                MOVEMENT_Stop();
                 return;
             }
         }
-        MOVEMENT_Stop(movementMotor);
+        MOVEMENT_Stop();
         return;
     }
     else
     {
-        CheckFAULT(movementMotor);
+        CheckFAULT(&movementMotor);
     }
     return;
 }
@@ -242,10 +242,10 @@ void MOVEMENT_Move(DRV8825_t *movementMotor)
  *
  * @param   movementMotor Pointer to the motor to be stopped
  */
-void MOVEMENT_Stop(DRV8825_t *movementMotor)
+void MOVEMENT_Stop(void)
 {
     // Stop the motor by setting the step pin to low
-    GPIO_WritePin(movementMotor->step_pin, LOW);
+    GPIO_WritePin(movementMotor.step_pin, LOW);
     printf("Motor stopped.\n");
 }
 
@@ -274,7 +274,7 @@ int main(void)
             printf("BUMPER_STATE: %d\n", BUMPER_STATE);
             HAL_Delay(5000); // Wait for 5 seconds
             printf("STARTING MOVEMENT TEST\n");
-            MOVEMENT_Move(&movementMotor);
+            MOVEMENT_Move();
         }
     }
 }
