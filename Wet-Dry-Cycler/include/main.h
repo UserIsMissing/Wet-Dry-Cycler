@@ -1,0 +1,5 @@
+#define TESTING_ISR
+// #define TESTING_TEMP
+// #define TESTING_REHYDRATION
+// #define TESTING_MOVEMENT
+// #define TESTING_MIXING

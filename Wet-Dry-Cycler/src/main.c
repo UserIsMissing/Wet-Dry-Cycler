@@ -5,20 +5,59 @@
 #include <math.h>
 #include <timers.h>
 #include <ADC.h>
-#include <HEATING.h>
-#include <MIXING.h>
 #include <PWM.h>
 #include <buttons.h>
 #include <GPIO.h>
 
-
-//#define TESTING_MAIN
+#include <HEATING.h>
+#include <MIXING.h>
+#include <DRV8825.h>
+#include <REHYDRATION.h>
+#include <MOVEMENT.h>
+#include <main.h>
 
 // ***************************************************************
+/** 
+ * @function HAL_GPIO_EXTI_Callback
+ * @author Cole Schreiner
+ * @date   22 Apr 2025
+ * @brief  External interrupt callback for handling bumper triggers
+ * @details This function is called when any of the bumpers (PA5, PA6, PB8) are triggered.
+ *          It is used for triggering removal of the sample upon external user input
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    switch (GPIO_Pin)
+    {
+    case GPIO_PIN_5: // PA5 bumper
+        printf("Left bumper hit!\r\n");
+        MOVEMENT_Stop(&movementMotor); // Stop movement motor
+        break;
+    case GPIO_PIN_6: // PA6 bumper
+        printf("Right bumper hit!\r\n");
+        MOVEMENT_Stop(&movementMotor); // Stop movement motor
+        break;
+    case GPIO_PIN_8: // PB8 Start Movement button
+        printf("Rear bumper hit!\r\n");
+        MOVEMENT_Move();
+        break;
+    }
+}
 
+/**
+ *  @function main
+ *  @author Cole Schreiner
+ *  @date   22 Apr 2025
+ *  @brief  Main state machine for running the system
+ *  @details This function initializes all the modules and enters an infinite loop where it will
+ *  run the system.
+ *  @note Program flow:
+ *      1. Initialize the board and all modules.
+ *      2. Upon first use, system will rehydrate, mix, and heat the sample.
+ *      3. Movement will only be called upon user input (button press).
+ */
+#define TESTING_MAIN
 #ifdef TESTING_MAIN
-
-
 int main(void)
 {
     BOARD_Init();
@@ -26,19 +65,20 @@ int main(void)
     TIMER_Init();
     ADC_Init();
     PWM_Init();
-    PWM_AddPin(PWM_0);
-    PWM_SetFrequency(1000);
     GPIO_Init();
-    GPIO_WritePin(PIN_0, HIGH);
 
+    // Set priorities and enable interrupts
+    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); // PA5, PA6, PB8 share EXTI5-9
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-    while(1){
-        printf("printing\n");
-        PWM_SetDutyCycle(PWM_0, 90);
+    // MOVEMENT_Init();
+    // HEATING_Init();
+    // MIXING_Init();
+    // REHYDRATION_Init();
 
-        GPIO_WritePin(PIN_3, HIGH);
+    while (1)
+    {
+        
     }
 }
-
 #endif // TESTING_MAIN
-

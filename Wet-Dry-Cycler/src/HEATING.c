@@ -196,7 +196,7 @@ float HEATING_Measure_Temp_Avg(void) {
  * @author Rafael Delwart, 1 Mar 2025 */
 void HEATING_Set_Temp(int Temp){
     if(HEATING_Measure_Temp_Avg() < (float)Temp){
-        PWM_SetDutyCycle(HEATING_CONTROL_PIN, 50);  // Turn Heating Pad on (100% duty cycle)
+        PWM_SetDutyCycle(HEATING_CONTROL_PIN, 100);  // Turn Heating Pad on (100% duty cycle)
         printf("Heating Pad Turned On");
     }
     else{
@@ -206,8 +206,8 @@ void HEATING_Set_Temp(int Temp){
 }
 
 
-// #define TESTING_TEMP
 
+// #define TESTING_TEMP
 #ifdef TESTING_TEMP
 
 int main(void)
@@ -228,7 +228,7 @@ int main(void)
         printf(">Temperature: %0.3f\n", HEATING_Measure_Temp());     // Celsius
         printf(">Temperature AVG: %0.3f\n", HEATING_Measure_Temp_Avg());     // Celsius
 
-        HEATING_Set_Temp(60);
+        HEATING_Set_Temp(40);
     }
 }
 #endif // TESTING_TEMP

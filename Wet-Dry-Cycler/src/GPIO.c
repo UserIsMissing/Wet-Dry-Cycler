@@ -1,4 +1,5 @@
 #include "GPIO.h"
+#include <main.h>
 
 /**
  * @brief Internal structure to map each Gpio2Pin_t enum to (port, pin).
@@ -31,6 +32,9 @@ static const struct {
     [PIN_B8]  = {GPIOB, GPIO_PIN_8},
 };
 
+// #define TESTING_ISR
+#ifndef TESTING_ISR
+// OLD VERSION
 /**
  * @brief Initializes all the pins (PA8, PA9, PA10, PA11, PB6, PB8) as general 
  *        purpose outputs, push-pull, no pull-ups. 
@@ -57,6 +61,53 @@ void GPIO_Init(void)
         HAL_GPIO_WritePin(gpioPinTable[i].port, gpioPinTable[i].pin, GPIO_PIN_RESET);
     }
 }
+#endif 
+
+
+#ifdef TESTING_ISR
+ // NEW VERSION FOR ENABLING ISR
+/**
+ * @brief Initializes all the pins (PA8, PA9, PA10, PA11, PB6, PB8) as general 
+ *        purpose outputs, push-pull, no pull-ups. 
+ *
+ *        If you need input pins or pull-ups, adapt the config below.
+ */
+void GPIO_Init(void) {
+    // Enable clocks
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    // Default config for OUTPUT pins (motors, etc.)
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+
+    for (int i = 0; i < GPIO_2_NUM_PINS; i++) {
+        GPIO_InitStruct.Pin = gpioPinTable[i].pin;
+        // Skip bumper pins (configure them separately)
+        if (i == PIN_A5 || i == PIN_A6 || i == PIN_B8) continue;
+        HAL_GPIO_Init(gpioPinTable[i].port, &GPIO_InitStruct);
+    }
+
+    // Configure bumper pins as INPUTS with interrupts
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;  // Trigger on falling edge (active-low)
+    GPIO_InitStruct.Pull = GPIO_PULLUP;           // Internal pull-up (if bumper pulls to GND)
+
+    // PA5 (EXTI5)
+    GPIO_InitStruct.Pin = GPIO_PIN_5;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    // PA6 (EXTI6)
+    GPIO_InitStruct.Pin = GPIO_PIN_6;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    // PB8 (EXTI8)
+    GPIO_InitStruct.Pin = GPIO_PIN_8;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+#endif // TESTING_ISR
 
 /**
  * @brief Write a logic state (SET or RESET) to the specified pin.

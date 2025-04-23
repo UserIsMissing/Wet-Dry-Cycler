@@ -23,8 +23,6 @@
 #include <buttons.h>
 #include <stm32f4xx_hal.h>
 
-
-
 int BUMPER_STATE = 0;
 
 DRV8825_t movementMotor = {
@@ -40,8 +38,7 @@ DRV8825_t movementMotor = {
 BUMPER_t bumpers = {
     .front_bumper_pin = PIN_A5,
     .back_bumper_pin = PIN_A6,
-    .start_button_pin = PIN_B8
-};
+    .start_button_pin = PIN_B8};
 
 /**
  * @function MOVEMENT_Init
@@ -184,7 +181,6 @@ int CheckBumpers(void /* BUMPER_t *bumpers */)
     }
 }
 
-
 /**
  * @function MOVEMENT_Move
  * @brief   Moves the stepper motor for set ammount of time
@@ -253,13 +249,17 @@ void MOVEMENT_Stop(DRV8825_t *movementMotor)
     printf("Motor stopped.\n");
 }
 
-#define TESTING_MOVEMENT
+// #define TESTING_MOVEMENT
 #ifdef TESTING_MOVEMENT
 int main(void)
 {
     BOARD_Init();
     TIMER_Init();
     GPIO_Init();
+    // Set priorities and enable interrupts
+    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); // PA5, PA6, PB8 share EXTI5-9
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
     DRV8825_Init(&movementMotor);
     printf("MOVEMENT module initializing...\n");
     MOVEMENT_Init();
@@ -276,7 +276,6 @@ int main(void)
             printf("STARTING MOVEMENT TEST\n");
             MOVEMENT_Move(&movementMotor);
         }
-
     }
 }
 #endif // TESTING_MOVEMENT
