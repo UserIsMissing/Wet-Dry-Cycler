@@ -32,9 +32,9 @@
  
 // Rehydration Parameters (modifiable)
 #define STEPPER_STEPS_PER_REV 200     // Full steps per revolution
-#define MICROSTEPPING         32      // Microstepping mode (e.g. 1/32)
+#define MICROSTEPPING         16      // Microstepping mode (e.g. 1/32)
 #define LEADSCREW_TPI         20      // Threads per inch (TPI)
-#define SYRINGE_DIAMETER_IN   0.5    // Syringe barrel inner diameter in inches
+#define SYRINGE_DIAMETER_IN   1    // Syringe barrel inner diameter in inches
 
 // Derived constants
 #define TOTAL_STEPS_PER_REV (STEPPER_STEPS_PER_REV * MICROSTEPPING)
@@ -55,7 +55,7 @@ static float calculate_uL_per_step(void) {
  */
 void Rehydration_Init(void) {
     DRV8825_Init(&rehydrationMotor);
-    DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_THIRTYSECOND_STEP);
+    DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_SIXTEENTH_STEP);
     printf("Rehydration motor initialized.\n");
     printf("uL per step = %.5f\n", calculate_uL_per_step());
 }
@@ -66,7 +66,7 @@ void Rehydration_Init(void) {
   * @param    uL Volume to dispense in microliters
   */
  void Rehydration_Push(uint32_t uL) {
-     DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_THIRTYSECOND_STEP);
+     DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_SIXTEENTH_STEP);
      float uL_per_step = calculate_uL_per_step();
      uint32_t steps = (uint32_t)(uL / uL_per_step);
      printf("Pushing %lu uL (%lu steps)\n", uL, steps);
@@ -110,13 +110,13 @@ int main(void) {
     printf("uL per step %f.5 \n", calculate_uL_per_step());
     Rehydration_Init();
 
-    HAL_Delay(10000); // Wait 10 seconds before starting
+    HAL_Delay(2000); // Wait 10 seconds before starting
 
-    // Test: Push 50 uL of fluid
-    Rehydration_Push(4000);
+    // Test: Push 20 uL of fluid for one tube
+    // Rehydration_Push((1000)*12);
     HAL_Delay(2000); // Wait 2 seconds
 
-    // Rehydration_Pull(4000);
+    Rehydration_Pull(4000);
 
 
     // Stop the motor
