@@ -51,7 +51,7 @@ void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection)
  */
 void MOVEMENT_Init(void)
 {
-    HAL_Delay(2000);              // Wait for 2 seconds
+    HAL_Delay(500);              // Wait for 2 seconds
     DRV8825_Init(&movementMotor); // Initialize the motor driver
 
     printf("BUMPER_STATE: %d\n", BUMPER_STATE);
@@ -77,7 +77,11 @@ void MOVEMENT_Init(void)
     else if (BUMPER_STATE == 1)
     {
         printf("BUMPER_STATE: %d\n", BUMPER_STATE);
-        MOVEMENT_First_Steps(50, DRV8825_FORWARD); // Move forward slightly
+        MOVEMENT_First_Steps(5000, DRV8825_FORWARD); // Move forward slightly
+        MOVEMENT_First_Steps(1000, DRV8825_BACKWARD); // Move backwards slightly
+        DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP); // Set microstepping mode
+        HAL_Delay(2000);
+        CheckBumpers();
         while (BUMPER_STATE != 1)
         {
             DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US); // Move forward slightly
@@ -152,10 +156,10 @@ int CheckBumpers(void /* BUMPER_t *bumpers */)
         BUMPER_STATE = 2;
         return 2; // Bumper pressed
     }
-    if (GPIO_ReadPin(bumpers.start_button_pin) == 1)
+    if (GPIO_ReadPin(bumpers.start_button_pin) == 0)
     {
         printf("Start button pressed!\n");
-        // BUMPER_STATE = 3;
+        BUMPER_STATE = 3;
         return 3; // Start button pressed
     }
     else

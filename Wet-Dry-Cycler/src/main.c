@@ -50,11 +50,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         state = STATE_MOVING;      // Change state to moving
         BUMPER_STATE = 3;          // Set bumper state to indicate rear bumper hit
         toggle_movement_flag ^= 1; // Toggle movement flag
-        printf("Rear bumper hit!\r\n");
+        printf("START BUTTON hit!\r\n");
         break;
     default:
-        // BUMPER_STATE = 0; // Reset bumper state if no bumper hit
-        printf("Unknown GPIO interrupt: %d\r\n", GPIO_Pin);
+        BUMPER_STATE = 0; // Reset bumper state if no bumper hit
         break;
     }
 }
@@ -77,6 +76,11 @@ int main(void)
 {
     // Initialize hardware and modules
     BOARD_Init();
+    GPIO_Init();
+    // Enable EXTI8 interrupt for PB8
+    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0); // PB8 uses EXTI9_5_IRQn
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
     HEATING_Init();
     MIXING_Init();
     MOVEMENT_Init();
@@ -84,7 +88,7 @@ int main(void)
     uint32_t RecentTime = 0;
     toggle_movement_flag = 0; // Initialize movement flag
 
-    const int targetTemp = 50;
+    const int targetTemp = 40;
 
     while (1)
     {
@@ -147,14 +151,14 @@ int main(void)
             printf("Movement complete.\r\n");
             // if (toggle_movement_flag)
             // {
-                RecentTime = TIMERS_GetMilliSeconds();
-                prevState = state;              // Store previous state
-                state = STATE_MOVEMENT_WAITING; // Move to done state
+            RecentTime = TIMERS_GetMilliSeconds();
+            prevState = state;              // Store previous state
+            state = STATE_MOVEMENT_WAITING; // Move to done state
             // }
             break;
 
         case STATE_MOVEMENT_WAITING:
-        MOVEMENT_Move(); // Move back to starting position
+            MOVEMENT_Move(); // Move back to starting position
             if (!toggle_movement_flag)
             {
                 RecentTime = TIMERS_GetMilliSeconds();
@@ -165,7 +169,8 @@ int main(void)
 
         case STATE_DONE:
             printf("[STATE] DONE: Process complete. System halting.\r\n");
-            while (1); // Halt
+            while (1)
+                ; // Halt
             break;
         }
         HAL_Delay(100);

@@ -213,6 +213,12 @@ static int8_t Nucleo_ConfigPins(void)
     GPIO_InitStruct.Pin = GPIO_PIN_13;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+    // PB8  -> Start Movement Button.
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;  // Trigger on falling edge
+    GPIO_InitStruct.Pull = GPIO_PULLUP;           // Use pull-up if button connects to GND
+    GPIO_InitStruct.Pin = GPIO_PIN_8;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
     return SUCCESS;
 }
 
@@ -255,6 +261,9 @@ int8_t BOARD_Init() {
             return ERROR;
         }
         LEDS_Init();
+
+        HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);  // Highest priority
+        HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
         initStatus = TRUE;
     }
     return SUCCESS;

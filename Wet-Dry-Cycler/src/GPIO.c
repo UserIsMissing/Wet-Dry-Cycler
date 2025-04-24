@@ -39,7 +39,6 @@ static const struct
 
     // HEATING pad
     [PIN_B2] = {GPIOB, GPIO_PIN_2},
-
 };
 
 // #define TESTING_ISR
@@ -121,6 +120,10 @@ void GPIO_Init(void)
     // PB8 (EXTI8)
     GPIO_InitStruct.Pin = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    // Enable NVIC interrupts for EXTI9_5 (covers PB8)
+    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);  // Priority 0 (highest)
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 }
 #endif // TESTING_ISR
 
