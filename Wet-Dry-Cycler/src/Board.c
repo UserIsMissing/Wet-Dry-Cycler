@@ -1,6 +1,6 @@
 /**
  * @file    BOARD.c
- * 
+ *
  * Generic driver set up and clean up for functional testing for the UCSC Nucleo
  * I/O Shield connected to a Nucleo STM32F411RE development kit.
  *
@@ -14,7 +14,6 @@
 #include <Board.h>
 #include <leds.h>
 
-
 /*  PROTOTYPES  */
 static int8_t Nucleo_ConfigSysClk(void);
 static int8_t Nucleo_ConfigClks(void);
@@ -24,7 +23,6 @@ static int8_t Serial_ConfigPins(void);
 static int8_t Serial_Begin(void);
 static int8_t Serial_Init(void);
 void Error_Handler(void);
-
 
 /*  MODULE-LEVEL DEFINITIONS, MACROS    */
 static uint8_t initStatus = FALSE;
@@ -60,8 +58,7 @@ GETCHAR_PROTOTYPE
 }
 
 // Defaults.
-#define SERIAL_BAUDRATE ((uint32_t) 115200)
-
+#define SERIAL_BAUDRATE ((uint32_t)115200)
 
 /*  FUNCTIONS   */
 // Clock setup.
@@ -99,8 +96,7 @@ static int8_t Nucleo_ConfigSysClk(void)
     }
 
     // Initializes the CPU, AHB and APB buses clocks.
-    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-        |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
@@ -118,7 +114,7 @@ static int8_t Nucleo_ConfigSysClk(void)
  *
  * Set up all system clock and all GPIO clocks.
  * @note    Enabling clocks multiple times will not cause errors.
- * 
+ *
  * @return  (int8_t)    [SUCCESS, ERROR]
  */
 static int8_t Nucleo_ConfigClks(void)
@@ -131,7 +127,6 @@ static int8_t Nucleo_ConfigClks(void)
 
     return SUCCESS;
 }
-
 
 // Serial setup.
 /** Serial_ConfigPins()
@@ -149,7 +144,7 @@ static int8_t Serial_ConfigPins(void)
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-    GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3;
+    GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_3;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     return SUCCESS;
@@ -158,21 +153,22 @@ static int8_t Serial_ConfigPins(void)
 /** Serial_Begin()
  *
  * Open the serial connection between the Nucleo and a PC over USB.
- * 
+ *
  * @return  (int8_t)    [SUCCESS, ERROR]
  */
 static int8_t Serial_Begin(void)
 {
-    huart2.Instance          = USART2;
-    huart2.Init.BaudRate     = SERIAL_BAUDRATE; // 115200
-    huart2.Init.WordLength   = UART_WORDLENGTH_8B;
-    huart2.Init.StopBits     = UART_STOPBITS_1;
-    huart2.Init.Parity       = UART_PARITY_NONE;
-    huart2.Init.Mode         = UART_MODE_TX_RX;
-    huart2.Init.HwFlowCtl    = UART_HWCONTROL_NONE;
+    huart2.Instance = USART2;
+    huart2.Init.BaudRate = SERIAL_BAUDRATE; // 115200
+    huart2.Init.WordLength = UART_WORDLENGTH_8B;
+    huart2.Init.StopBits = UART_STOPBITS_1;
+    huart2.Init.Parity = UART_PARITY_NONE;
+    huart2.Init.Mode = UART_MODE_TX_RX;
+    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
     huart2.Init.OverSampling = UART_OVERSAMPLING_16;
 
-    if (HAL_UART_Init(&huart2) != HAL_OK) {
+    if (HAL_UART_Init(&huart2) != HAL_OK)
+    {
         Error_Handler();
     }
     return SUCCESS;
@@ -214,10 +210,12 @@ static int8_t Nucleo_ConfigPins(void)
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
     // PB8  -> Start Movement Button.
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;  // Trigger on falling edge
-    GPIO_InitStruct.Pull = GPIO_PULLUP;           // Use pull-up if button connects to GND
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // Trigger on falling edge
+    GPIO_InitStruct.Pull = GPIO_PULLUP;          // Use pull-up if button connects to GND
     GPIO_InitStruct.Pin = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    // Add manual fallback
+    EXTI->FTSR |= GPIO_PIN_8; // Ensure falling edge is enabled
 
     return SUCCESS;
 }
@@ -225,7 +223,7 @@ static int8_t Nucleo_ConfigPins(void)
 /** Nucleo_Init()
  *
  * Configure onboard Nucleo pins, i.e. the status LED and B^3 for usage.
- * 
+ *
  * @return  (int8_t)    [SUCCESS, ERROR]
  */
 static int8_t Nucleo_Init(void)
@@ -248,7 +246,8 @@ static int8_t Nucleo_Init(void)
  *
  * @return  (int8_t)    [SUCCESS, ERROR]
  */
-int8_t BOARD_Init() {
+int8_t BOARD_Init()
+{
     if (initStatus == FALSE)
     {
         HAL_Init();
@@ -262,7 +261,7 @@ int8_t BOARD_Init() {
         }
         LEDS_Init();
 
-        HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);  // Highest priority
+        HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0); // Highest priority
         HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
         initStatus = TRUE;
     }
@@ -287,7 +286,7 @@ int8_t BOARD_End(void)
 }
 
 /** Error_Handler()
- * 
+ *
  * Enter a state of blinking the status LED on-board the Nucleo, indefinitely.
  */
 void Error_Handler(void)
@@ -311,4 +310,3 @@ void Error_Handler(void)
         timer = 0;
     }
 }
-

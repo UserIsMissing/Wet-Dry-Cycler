@@ -18,7 +18,7 @@ typedef enum
     STATE_DONE
 } SystemState;
 
-SystemState state = STATE_START; // Initial state
+static SystemState state = STATE_START; // Initial state
 
 // ***************************************************************
 /**
@@ -45,8 +45,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     //     printf("Right bumper hit!\r\n");
     //     MOVEMENT_Stop(); // Stop movement motor
     //     break;
-    // case GPIO_PIN_8: // PB8 Start Movement button
-    case PIN_B8:                   // PB8 Start Movement button
+    case GPIO_PIN_8: // PB8 Start Movement button
+    // case PIN_B8:                   // PB8 Start Movement button
         state = STATE_MOVING;      // Change state to moving
         BUMPER_STATE = 3;          // Set bumper state to indicate rear bumper hit
         toggle_movement_flag ^= 1; // Toggle movement flag
@@ -88,7 +88,9 @@ int main(void)
     uint32_t RecentTime = 0;
     toggle_movement_flag = 0; // Initialize movement flag
 
-    const int targetTemp = 40;
+    const int targetTemp = 0;
+
+    printf("PB8 state: %d\n", HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8));
 
     while (1)
     {
