@@ -19,7 +19,7 @@
 const float R0 = 100000.0; // Resistance at T0 (25°C)
 float R1 = 4630;           // 283kOhm  float Resistance = 283000* (2-ADC_Read(Temperature_Pin))/ADC_Read(Temperature_Pin);
 float VIn = 3.3;           // 2V  Input voltage to the voltage divider
-const float BETA = 3950.0; // Beta value of thermistor
+const float BETA = 3850.0; // Beta value of thermistor
 const float T0 = 298.15;   // 25°C in Kelvin
 
 // MOVING AVERAGE
@@ -182,12 +182,12 @@ void HEATING_Set_Temp(int Temp)
     if (HEATING_Measure_Temp_Avg() < (float)Temp)
     {
         GPIO_WritePin(HEATING_CONTROL_PIN, HIGH); // Turn Heating Pad on (100% duty cycle)
-        printf("Heating Pad Turned On");
+        // printf("Heating Pad Turned On");
     }
     else
     {
         GPIO_WritePin(HEATING_CONTROL_PIN, LOW); // Turn Heating Pad Off (0% duty cycle)
-        printf("Heating Pad Turned Off");
+        // printf("Heating Pad Turned Off");
     }
 }
 

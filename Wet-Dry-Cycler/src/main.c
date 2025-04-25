@@ -48,9 +48,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     case GPIO_PIN_8: // PB8 Start Movement button
     // case PIN_B8:                   // PB8 Start Movement button
         state = STATE_MOVING;      // Change state to moving
-        BUMPER_STATE = 3;          // Set bumper state to indicate rear bumper hit
+        // BUMPER_STATE = 3;          // Set bumper state to indicate rear bumper hit
         toggle_movement_flag ^= 1; // Toggle movement flag
-        printf("START BUTTON hit!\r\n");
+        printf("Toggle movement flag: %d\r\n", toggle_movement_flag);
+        // printf("START BUTTON hit!\r\n");
         break;
     default:
         BUMPER_STATE = 0; // Reset bumper state if no bumper hit
@@ -83,12 +84,12 @@ int main(void)
 
     HEATING_Init();
     MIXING_Init();
-    MOVEMENT_Init();
+    // MOVEMENT_Init();
 
     uint32_t RecentTime = 0;
     toggle_movement_flag = 0; // Initialize movement flag
 
-    const int targetTemp = 0;
+    const int targetTemp = 40;
 
     printf("PB8 state: %d\n", HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8));
 
@@ -101,19 +102,19 @@ int main(void)
             printf("[STATE] START: Initializing system\r\n");
             prevState = state;         // Store previous state
             state = STATE_REHYDRATING; // Move to rehydration state
+            printf("[STATE] REHYDRATING: Pushing fluid\r\n");
             break;
 
         case STATE_REHYDRATING:
             Rehydration_Push(1000); // Push 1000 uL of fluid
-            printf("[STATE] REHYDRATING: Pushing fluid\r\n");
             HAL_Delay(2000); // Wait for rehydration to complete
             RecentTime = TIMERS_GetMilliSeconds();
             prevState = state;    // Store previous state
             state = STATE_MIXING; // Move to heating state
+            printf("[STATE] MIXING: Motors ON\r\n");
             break;
 
         case STATE_MIXING:
-            printf("[STATE] MIXING: Motors ON\r\n");
             MIXING_AllMotors_On();
             if ((TIMERS_GetMilliSeconds() - RecentTime) > MIXING_INTERVAL)
             {
@@ -122,11 +123,11 @@ int main(void)
                 RecentTime = TIMERS_GetMilliSeconds();
                 prevState = state; // Store previous state
                 state = STATE_HEATING;
+                printf("[STATE] HEATING: Target = %d°C\r\n", targetTemp);
             }
             break;
 
         case STATE_HEATING:
-            printf("[STATE] HEATING: Target = %d°C\r\n", targetTemp);
             HEATING_Set_Temp(targetTemp);
 
             float currentTemp = HEATING_Measure_Temp_Avg();
@@ -136,12 +137,15 @@ int main(void)
             {
                 printf("Heating complete.\r\n");
                 HAL_Delay(500);
-            }
-            if ((TIMERS_GetMilliSeconds() - RecentTime) > HEATING_INTERVAL)
-            {
                 RecentTime = TIMERS_GetMilliSeconds();
                 prevState = state; // Store previous state
                 state = STATE_REHYDRATING;
+            }
+            if ((TIMERS_GetMilliSeconds() - RecentTime) > HEATING_INTERVAL)
+            {
+                // RecentTime = TIMERS_GetMilliSeconds();
+                // prevState = state; // Store previous state
+                // state = STATE_REHYDRATING;
             }
             break;
 
@@ -155,12 +159,12 @@ int main(void)
             // {
             RecentTime = TIMERS_GetMilliSeconds();
             prevState = state;              // Store previous state
+            MOVEMENT_Move(); // Move back to starting position
             state = STATE_MOVEMENT_WAITING; // Move to done state
             // }
             break;
 
         case STATE_MOVEMENT_WAITING:
-            MOVEMENT_Move(); // Move back to starting position
             if (!toggle_movement_flag)
             {
                 RecentTime = TIMERS_GetMilliSeconds();

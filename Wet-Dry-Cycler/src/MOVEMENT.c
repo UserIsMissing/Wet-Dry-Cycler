@@ -146,19 +146,19 @@ int CheckBumpers(void /* BUMPER_t *bumpers */)
     // Check if the bumpers are pressed
     if (GPIO_ReadPin(bumpers.front_bumper_pin) == 0)
     {
-        printf("Front bumper pressed!\n");
+        // printf("Front bumper pressed!\n");
         BUMPER_STATE = 1;
         return 1; // Bumper pressed
     }
     if (GPIO_ReadPin(bumpers.back_bumper_pin) == 0)
     {
-        printf("Back bumper pressed!\n");
+        // printf("Back bumper pressed!\n");
         BUMPER_STATE = 2;
         return 2; // Bumper pressed
     }
     if (GPIO_ReadPin(bumpers.start_button_pin) == 0)
     {
-        printf("Start button pressed!\n");
+        // printf("Start button pressed!\n");
         BUMPER_STATE = 3;
         return 3; // Start button pressed
     }
