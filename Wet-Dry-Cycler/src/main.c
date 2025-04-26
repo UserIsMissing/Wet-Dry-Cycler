@@ -131,7 +131,7 @@ int main(void)
             HEATING_Set_Temp(targetTemp);
 
             float currentTemp = HEATING_Measure_Temp_Avg();
-            printf("Current Temp: %.2f°C\r\n", currentTemp);
+            // printf("Current Temp: %.2f°C\r\n", currentTemp);
 
             if (currentTemp >= targetTemp - 0.5)
             {
