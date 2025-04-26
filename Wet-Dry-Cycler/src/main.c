@@ -84,7 +84,7 @@ int main(void)
 
     HEATING_Init();
     MIXING_Init();
-    // MOVEMENT_Init();
+    MOVEMENT_Init();
 
     uint32_t RecentTime = 0;
     toggle_movement_flag = 0; // Initialize movement flag
@@ -143,9 +143,9 @@ int main(void)
             }
             if ((TIMERS_GetMilliSeconds() - RecentTime) > HEATING_INTERVAL)
             {
-                // RecentTime = TIMERS_GetMilliSeconds();
-                // prevState = state; // Store previous state
-                // state = STATE_REHYDRATING;
+                RecentTime = TIMERS_GetMilliSeconds();
+                prevState = state; // Store previous state
+                state = STATE_REHYDRATING;
             }
             break;
 
@@ -157,9 +157,9 @@ int main(void)
             printf("Movement complete.\r\n");
             // if (toggle_movement_flag)
             // {
-            RecentTime = TIMERS_GetMilliSeconds();
-            prevState = state;              // Store previous state
-            MOVEMENT_Move(); // Move back to starting position
+            // RecentTime = TIMERS_GetMilliSeconds();
+            // prevState = state;              // Store previous state
+            // MOVEMENT_Move(); // Move back to starting position
             state = STATE_MOVEMENT_WAITING; // Move to done state
             // }
             break;
@@ -167,7 +167,7 @@ int main(void)
         case STATE_MOVEMENT_WAITING:
             if (!toggle_movement_flag)
             {
-                RecentTime = TIMERS_GetMilliSeconds();
+                // RecentTime = TIMERS_GetMilliSeconds();
                 prevState = state;     // Store previous state
                 state = STATE_HEATING; // Move to done state
             }
