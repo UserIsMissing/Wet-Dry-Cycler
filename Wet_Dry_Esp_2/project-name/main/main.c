@@ -11,6 +11,7 @@
 #include "esp_http_client.h"
 #include "driver/gpio.h"
 #include "cJSON.h"
+#include "esp_adc/adc_oneshot.h"
 
 #define WIFI_SSID "DonnaHouse"
 #define WIFI_PASS "guessthepassword"
@@ -54,8 +55,61 @@ void wifi_init_sta(void) {
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     esp_wifi_start();
 }
+int read_adc_value(void);
 
-void poll_server(void *pvParameters) {
+int read_adc_value(void) {
+    static bool initialized = false;
+    static adc_oneshot_unit_handle_t adc_handle;
+    static adc_channel_t channel = ADC_CHANNEL_0; // GPIO4 on ADC1
+
+    if (!initialized) {
+        adc_oneshot_unit_init_cfg_t init_config = {
+            .unit_id = ADC_UNIT_1,
+        };
+        adc_oneshot_new_unit(&init_config, &adc_handle);
+
+        adc_oneshot_chan_cfg_t config = {
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+            .atten = ADC_ATTEN_DB_11,
+        };
+        adc_oneshot_config_channel(adc_handle, channel, &config);
+
+        initialized = true;
+    }
+
+    int adc_raw;
+    adc_oneshot_read(adc_handle, channel, &adc_raw);
+    return adc_raw;
+}
+
+
+void send_adc_reading(int adc_val);
+
+
+void send_adc_reading(int adc_val) {
+    char post_data[64];
+    snprintf(post_data, sizeof(post_data), "{\"adc\": %d}", adc_val);
+
+    esp_http_client_config_t config = {
+        .url = "http://10.0.0.166:5000/adc-data",
+        .method = HTTP_METHOD_POST,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        ESP_LOGI("ADC", "Sent ADC: %d", adc_val);
+    } else {
+        ESP_LOGE("ADC", "Failed to send: %s", esp_err_to_name(err));
+    }
+
+    esp_http_client_cleanup(client);
+}
+
+void poll_server_task(void *pvParameters) {
     while (!wifi_connected) {
         ESP_LOGI(TAG, "Waiting for WiFi...");
         vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -72,7 +126,6 @@ void poll_server(void *pvParameters) {
 
     while (1) {
         esp_http_client_set_method(client, HTTP_METHOD_GET);
-        esp_http_client_set_url(client, SERVER_URL);
 
         esp_err_t err = esp_http_client_open(client, 0);
         if (err == ESP_OK) {
@@ -89,46 +142,36 @@ void poll_server(void *pvParameters) {
 
             if (total_read > 0) {
                 buffer[total_read] = '\0';
-                ESP_LOGI(TAG, "Server response: '%s'", buffer);
+                ESP_LOGI(TAG, "Server response: %s", buffer);
 
-                // Trim whitespace
-                char *start = buffer;
-                while (*start == ' ' || *start == '\n' || *start == '\r') start++;
-                char *end = start + strlen(start) - 1;
-                while (end > start && (*end == ' ' || *end == '\n' || *end == '\r')) *end-- = '\0';
-
-                cJSON *root = cJSON_Parse(start);
-                if (root != NULL) {
-                    cJSON *led_val = cJSON_GetObjectItem(root, "led");
-                    if (cJSON_IsString(led_val) && led_val->valuestring != NULL) {
-                        ESP_LOGI(TAG, "LED Command: %s", led_val->valuestring);
-                        if (strcmp(led_val->valuestring, "on") == 0) {
-                            gpio_set_level(LED_GPIO, 1);                        
-                            ESP_LOGI(TAG, "Turned On LED");
-                        } else if (strcmp(led_val->valuestring, "off") == 0) {
-                            gpio_set_level(LED_GPIO, 0vbfcgf);
-                            ESP_LOGI(TAG, "Turned Off LED");
-
-                        } else {
-                            ESP_LOGW(TAG, "Unknown LED value: %s", led_val->valuestring);
+                cJSON *root = cJSON_Parse(buffer);
+                if (root) {
+                    cJSON *led = cJSON_GetObjectItem(root, "led");
+                    if (cJSON_IsString(led)) {
+                        if (strcmp(led->valuestring, "on") == 0) {
+                            gpio_set_level(LED_GPIO, 0);
+                            ESP_LOGI(TAG, "LED ON");
+                        } else if (strcmp(led->valuestring, "off") == 0) {
+                            gpio_set_level(LED_GPIO, 1);
+                            ESP_LOGI(TAG, "LED OFF");
                         }
-                    } else {
-                        ESP_LOGW(TAG, "Missing or invalid 'led' key in JSON");
                     }
                     cJSON_Delete(root);
                 } else {
-                    ESP_LOGW(TAG, "Failed to parse JSON response");
+                    ESP_LOGW(TAG, "Failed to parse JSON");
                 }
-            } else {
-                ESP_LOGW(TAG, "No data read from server");
             }
 
             esp_http_client_close(client);
         } else {
-            ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+            ESP_LOGE(TAG, "HTTP GET failed: %s", esp_err_to_name(err));
         }
 
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        // Send ADC reading to server
+        int adc_val = read_adc_value();
+        send_adc_reading(adc_val);
+
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }
 
@@ -147,5 +190,5 @@ void app_main(void) {
 
     nvs_flash_init();
     wifi_init_sta();
-    xTaskCreate(&poll_server, "poll_server", 8192, NULL, 5, NULL);
+    xTaskCreate(&poll_server_task, "poll_server", 8192, NULL, 5, NULL);
 }
