@@ -1,20 +1,21 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const PORT = 5000;
 
+// ✅ Middleware setup
+app.use(cors());
+app.use(express.json());
+app.use(bodyParser.json());
+
+// ✅ Simulated backend data
 let ledState = "off";
 let adcHistory = [];
 
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, '../client/build')));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
-
+// ✅ API Routes
 app.get('/led-state', (req, res) => {
   res.json({ led: ledState });
 });
@@ -40,6 +41,13 @@ app.route('/adc-data')
     res.json({ history: adcHistory });
   });
 
+// ✅ Static React frontend (moved to bottom)
+app.use(express.static(path.join(__dirname, '../client/build')));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+});
+
+// ✅ Start the server
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`✅ Server running at http://localhost:${PORT}`);
 });
