@@ -19,6 +19,6 @@
 #define TESTING_ISR
 // #define TESTING_TEMP
 // #define TESTING_REHYDRATION
-// #define TESTING_MOVEMENT
+#define TESTING_MOVEMENT
 // #define TESTING_MIXING
-#define TESTING_MAIN
+// #define TESTING_MAIN

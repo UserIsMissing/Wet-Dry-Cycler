@@ -45,9 +45,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     //     printf("Right bumper hit!\r\n");
     //     MOVEMENT_Stop(); // Stop movement motor
     //     break;
-    case GPIO_PIN_8: // PB8 Start Movement button
-    // case PIN_B8:                   // PB8 Start Movement button
-        state = STATE_MOVING;      // Change state to moving
+    case GPIO_PIN_8:          // PB8 Start Movement button
+                              // case PIN_B8:                   // PB8 Start Movement button
+        state = STATE_MOVING; // Change state to moving
         // BUMPER_STATE = 3;          // Set bumper state to indicate rear bumper hit
         toggle_movement_flag ^= 1; // Toggle movement flag
         printf("Toggle movement flag: %d\r\n", toggle_movement_flag);
@@ -78,6 +78,7 @@ int main(void)
     // Initialize hardware and modules
     BOARD_Init();
     GPIO_Init();
+    HAL_Delay(500); // Wait for 500ms to ensure everything is stable
     // Enable EXTI8 interrupt for PB8
     HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0); // PB8 uses EXTI9_5_IRQn
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
@@ -107,7 +108,7 @@ int main(void)
 
         case STATE_REHYDRATING:
             Rehydration_Push(1000); // Push 1000 uL of fluid
-            HAL_Delay(2000); // Wait for rehydration to complete
+            HAL_Delay(2000);        // Wait for rehydration to complete
             RecentTime = TIMERS_GetMilliSeconds();
             prevState = state;    // Store previous state
             state = STATE_MIXING; // Move to heating state
@@ -131,7 +132,7 @@ int main(void)
             HEATING_Set_Temp(targetTemp);
 
             float currentTemp = HEATING_Measure_Temp_Avg();
-            printf("Current Temp: %.2f°C\r\n", currentTemp);
+            // printf("Current Temp: %.2f°C\r\n", currentTemp);
 
             if (currentTemp >= targetTemp - 0.5)
             {
@@ -183,3 +184,55 @@ int main(void)
     }
 }
 #endif // TESTING_MAIN
+
+#ifdef TESTING_MOVEMENT
+int main(void)
+{
+    BOARD_Init();
+    TIMER_Init();
+    GPIO_Init();
+    HAL_Delay(5000); // Wait for 5 seconds
+    // Set priorities and enable interrupts
+    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); // PA5, PA6, PB8 share EXTI5-9
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+    uint32_t RecentTime = 0;
+    toggle_movement_flag = 0; // Initialize movement flag
+
+    printf("MOVEMENT module initializing...\n");
+    MOVEMENT_Init();
+    printf("MOVEMENT init Complete\n");
+    
+
+    while (1)
+    {
+        switch (state)
+        {
+        case STATE_START:
+            printf("[STATE] START: Initializing system\r\n");
+            break;
+        case STATE_MOVING:
+            printf("[STATE] MOVING: Starting motor movement\r\n");
+            MOVEMENT_Move();
+            printf("Movement complete.\r\n");
+            // if (toggle_movement_flag)
+            // {
+            // RecentTime = TIMERS_GetMilliSeconds();
+            // prevState = state;              // Store previous state
+            // MOVEMENT_Move(); // Move back to starting position
+            state = STATE_MOVEMENT_WAITING; // Move to done state
+            // }
+            break;
+
+        case STATE_MOVEMENT_WAITING:
+            if (!toggle_movement_flag)
+            {
+                // RecentTime = TIMERS_GetMilliSeconds();
+                prevState = state; // Store previous state
+                state = STATE_START;
+            }
+            break;
+        }
+    }
+}
+#endif // TESTING_MOVEMENT

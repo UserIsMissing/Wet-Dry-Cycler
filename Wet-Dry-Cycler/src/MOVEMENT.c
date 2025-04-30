@@ -13,6 +13,8 @@
  */
 
 #include <main.h>
+// #include "MOVEMENT.h"
+// #include "DRV8825.h"
 
 #define MOVEMENT_STEP_DELAY_US 1000 // Delay between steps in microseconds
 
@@ -51,11 +53,11 @@ void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection)
  */
 void MOVEMENT_Init(void)
 {
-    HAL_Delay(500);              // Wait for 2 seconds
+    HAL_Delay(500);               // Wait for 2 seconds
     DRV8825_Init(&movementMotor); // Initialize the motor driver
 
-    printf("BUMPER_STATE: %d\n", BUMPER_STATE);
     CheckBumpers(); // Initialize the bumpers
+    printf("BUMPER_STATE: %d\n", BUMPER_STATE);
     if (BUMPER_STATE == 0)
     {
         printf("BUMPER_STATE: %d\n", BUMPER_STATE);
@@ -66,7 +68,9 @@ void MOVEMENT_Init(void)
             CheckBumpers();
             if (BUMPER_STATE == 1)
             {
+                // MOVEMENT_Stop(); // Stop the motor if front bumper is pressed
                 DRV8825_Disable(&movementMotor);
+                printf("WAITING");
                 return;
             }
         }
@@ -77,8 +81,8 @@ void MOVEMENT_Init(void)
     else if (BUMPER_STATE == 1)
     {
         printf("BUMPER_STATE: %d\n", BUMPER_STATE);
-        MOVEMENT_First_Steps(5000, DRV8825_FORWARD); // Move forward slightly
-        MOVEMENT_First_Steps(1000, DRV8825_BACKWARD); // Move backwards slightly
+        MOVEMENT_First_Steps(5000, DRV8825_FORWARD);              // Move forward slightly
+        MOVEMENT_First_Steps(1000, DRV8825_BACKWARD);             // Move backwards slightly
         DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP); // Set microstepping mode
         HAL_Delay(2000);
         CheckBumpers();
@@ -89,7 +93,7 @@ void MOVEMENT_Init(void)
             if (BUMPER_STATE == 1)
             {
                 DRV8825_Disable(&movementMotor);
-                return;
+                // return;
             }
         }
     }
@@ -104,7 +108,7 @@ void MOVEMENT_Init(void)
             if (BUMPER_STATE == 1)
             {
                 DRV8825_Disable(&movementMotor);
-                return;
+                // return;
             }
         }
     }
@@ -156,12 +160,12 @@ int CheckBumpers(void /* BUMPER_t *bumpers */)
         BUMPER_STATE = 2;
         return 2; // Bumper pressed
     }
-    if (GPIO_ReadPin(bumpers.start_button_pin) == 0)
-    {
-        printf("Start button pressed!\n");
-        BUMPER_STATE = 3;
-        return 3; // Start button pressed
-    }
+    // if (GPIO_ReadPin(bumpers.start_button_pin) == 0)
+    // {
+    //     printf("Start button pressed!\n");
+    //     BUMPER_STATE = 3;
+    //     return 3; // Start button pressed
+    // }
     else
     {
         BUMPER_STATE = 0;
@@ -238,32 +242,32 @@ void MOVEMENT_Stop(void)
 }
 
 // #define TESTING_MOVEMENT
-#ifdef TESTING_MOVEMENT
-int main(void)
-{
-    BOARD_Init();
-    TIMER_Init();
-    GPIO_Init();
-    // Set priorities and enable interrupts
-    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); // PA5, PA6, PB8 share EXTI5-9
-    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+// #ifdef TESTING_MOVEMENT
+// int main(void)
+// {
+//     BOARD_Init();
+//     TIMER_Init();
+//     GPIO_Init();
+//     // Set priorities and enable interrupts
+//     HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); // PA5, PA6, PB8 share EXTI5-9
+//     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-    DRV8825_Init(&movementMotor);
-    printf("MOVEMENT module initializing...\n");
-    MOVEMENT_Init();
-    printf("MOVEMENT init Complete\n");
-    HAL_Delay(5000); // Wait for 5 seconds
+//     DRV8825_Init(&movementMotor);
+//     printf("MOVEMENT module initializing...\n");
+//     MOVEMENT_Init();
+//     printf("MOVEMENT init Complete\n");
+//     HAL_Delay(5000); // Wait for 5 seconds
 
-    while (1)
-    {
-        CheckBumpers();
-        if (GPIO_ReadPin(bumpers.start_button_pin) == 1) // Extraction button pressed
-        {
-            printf("BUMPER_STATE: %d\n", BUMPER_STATE);
-            HAL_Delay(5000); // Wait for 5 seconds
-            printf("STARTING MOVEMENT TEST\n");
-            MOVEMENT_Move();
-        }
-    }
-}
-#endif // TESTING_MOVEMENT
+//     while (1)
+//     {
+//         CheckBumpers();
+//         if (GPIO_ReadPin(bumpers.start_button_pin) == 1) // Extraction button pressed
+//         {
+//             printf("BUMPER_STATE: %d\n", BUMPER_STATE);
+//             HAL_Delay(5000); // Wait for 5 seconds
+//             printf("STARTING MOVEMENT TEST\n");
+//             MOVEMENT_Move();
+//         }
+//     }
+// }
+// #endif // TESTING_MOVEMENT
