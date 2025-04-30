@@ -14,7 +14,7 @@
 
 #define WIFI_SSID "DonnaHouse"
 #define WIFI_PASS "guessthepassword"
-#define LED_GPIO 2  // Replace with your actual LED GPIO pin
+#define LED_GPIO 2
 #define SERVER_URL "http://10.0.0.166:5000/led-state"
 
 static const char *TAG = "HTTP_LED";
@@ -73,62 +73,78 @@ void poll_server(void *pvParameters) {
     while (1) {
         esp_http_client_set_method(client, HTTP_METHOD_GET);
         esp_http_client_set_url(client, SERVER_URL);
-        esp_err_t err = esp_http_client_perform(client);
 
+        esp_err_t err = esp_http_client_open(client, 0);
         if (err == ESP_OK) {
-            int status_code = esp_http_client_get_status_code(client);
-            int content_length = esp_http_client_get_content_length(client);
-            ESP_LOGI(TAG, "HTTP Status = %d, content_length = %d", status_code, content_length);
+            esp_http_client_fetch_headers(client);
 
-            if (status_code == 200) {
-                char buffer[128] = {0};
-                int read_len = esp_http_client_read_response(client, buffer, sizeof(buffer) - 1);
+            char buffer[128] = {0};
+            int total_read = 0;
 
-                if (read_len >= 0) {
-                    buffer[read_len] = '\0';
-                    ESP_LOGI(TAG, "Server response: '%s'", buffer);
-                    ESP_LOG_BUFFER_HEXDUMP(TAG, buffer, read_len, ESP_LOG_INFO);
+            while (1) {
+                int len = esp_http_client_read(client, buffer + total_read, sizeof(buffer) - 1 - total_read);
+                if (len <= 0) break;
+                total_read += len;
+            }
 
-                    // Trim whitespace (optional but helpful for robustness)
-                    char *start = buffer;
-                    while (*start == ' ' || *start == '\n' || *start == '\r') start++;
-                    char *end = start + strlen(start) - 1;
-                    while (end > start && (*end == ' ' || *end == '\n' || *end == '\r')) *end-- = '\0';
+            if (total_read > 0) {
+                buffer[total_read] = '\0';
+                ESP_LOGI(TAG, "Server response: '%s'", buffer);
 
-                    cJSON *root = cJSON_Parse(start);
-                    if (root != NULL) {
-                        cJSON *led_val = cJSON_GetObjectItem(root, "led");
-                        if (cJSON_IsString(led_val) && led_val->valuestring != NULL) {
-                            ESP_LOGI(TAG, "Setting LED: %s", led_val->valuestring);
-                            if (strcmp(led_val->valuestring, "on") == 0) {
-                                gpio_set_level(LED_GPIO, 1);
-                            } else if (strcmp(led_val->valuestring, "off") == 0) {
-                                gpio_set_level(LED_GPIO, 0);
-                            } else {
-                                ESP_LOGW(TAG, "Unexpected LED value: %s", led_val->valuestring);
-                            }
+                // Trim whitespace
+                char *start = buffer;
+                while (*start == ' ' || *start == '\n' || *start == '\r') start++;
+                char *end = start + strlen(start) - 1;
+                while (end > start && (*end == ' ' || *end == '\n' || *end == '\r')) *end-- = '\0';
+
+                cJSON *root = cJSON_Parse(start);
+                if (root != NULL) {
+                    cJSON *led_val = cJSON_GetObjectItem(root, "led");
+                    if (cJSON_IsString(led_val) && led_val->valuestring != NULL) {
+                        ESP_LOGI(TAG, "LED Command: %s", led_val->valuestring);
+                        if (strcmp(led_val->valuestring, "on") == 0) {
+                            gpio_set_level(LED_GPIO, 1);                        
+                            ESP_LOGI(TAG, "Turned On LED");
+                        } else if (strcmp(led_val->valuestring, "off") == 0) {
+                            gpio_set_level(LED_GPIO, 0vbfcgf);
+                            ESP_LOGI(TAG, "Turned Off LED");
+
+                        } else {
+                            ESP_LOGW(TAG, "Unknown LED value: %s", led_val->valuestring);
                         }
-                        cJSON_Delete(root);
                     } else {
-                        ESP_LOGW(TAG, "Failed to parse JSON response");
+                        ESP_LOGW(TAG, "Missing or invalid 'led' key in JSON");
                     }
+                    cJSON_Delete(root);
                 } else {
-                    ESP_LOGW(TAG, "Failed to read response");
+                    ESP_LOGW(TAG, "Failed to parse JSON response");
                 }
             } else {
-                ESP_LOGW(TAG, "Non-200 response");
+                ESP_LOGW(TAG, "No data read from server");
             }
+
+            esp_http_client_close(client);
         } else {
-            ESP_LOGE(TAG, "HTTP GET failed: %s", esp_err_to_name(err));
+            ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
         }
 
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 }
 
 void app_main(void) {
-    gpio_reset_pin(LED_GPIO);
-    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+    esp_err_t ret;
+
+    ret = gpio_reset_pin(LED_GPIO);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to reset GPIO %d: %s", LED_GPIO, esp_err_to_name(ret));
+    }
+
+    ret = gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set GPIO %d as output: %s", LED_GPIO, esp_err_to_name(ret));
+    }
+
     nvs_flash_init();
     wifi_init_sta();
     xTaskCreate(&poll_server, "poll_server", 8192, NULL, 5, NULL);

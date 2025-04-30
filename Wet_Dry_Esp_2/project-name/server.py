@@ -32,7 +32,7 @@ def set_led():
 @app.route("/led-state", methods=["GET"])
 def get_led_state():
     global led_state
-    return jsonify({"led": led_state})  # ✅ ensures proper JSON output
+    return jsonify({"led": led_state})  
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
