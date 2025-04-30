@@ -8,6 +8,7 @@
         "stm32f4xx_hal.h": "c",
         "timers.h": "c",
         "main.h": "c",
-        "rehydration.h": "c"
+        "rehydration.h": "c",
+        "stm32f4xx_it.h": "c"
     }
 }

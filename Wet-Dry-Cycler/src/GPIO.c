@@ -71,25 +71,17 @@ void GPIO_Init(void)
         HAL_GPIO_Init(gpioPinTable[i].port, &GPIO_InitStruct);
     }
 
-    // Configure bumper pins as INPUTS with interrupts
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // Trigger on falling edge (active-low)
-    GPIO_InitStruct.Pull = GPIO_PULLUP;          // Internal pull-up (if bumper pulls to GND)
-
-    // PA5 (EXTI5)
-    GPIO_InitStruct.Pin = GPIO_PIN_5;
+    // Configure PA5/PA6 as REGULAR INPUTS (polled bumpers)
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;  // Use pull-up
+    GPIO_InitStruct.Pin = GPIO_PIN_5 | GPIO_PIN_6;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    // PA6 (EXTI6)
-    GPIO_InitStruct.Pin = GPIO_PIN_6;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    // PB8 (EXTI8)
-    // GPIO_InitStruct.Pin = GPIO_PIN_8;
-    // HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    // Enable NVIC interrupts for EXTI9_5 (covers PB8)
-    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);  // Priority 0 (highest)
-    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+    // Configure PB8 as INTERRUPT-ENABLED (start button)
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;  // Trigger on press
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Pin = GPIO_PIN_8;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
 // #endif // TESTING_ISR
 

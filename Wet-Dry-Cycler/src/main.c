@@ -31,31 +31,27 @@ static SystemState state = STATE_START; // Initial state
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    switch (GPIO_Pin)
-    {
-    // // case GPIO_PIN_5: // PA5 bumper
-    // case PIN_A5:          // PA5 bumper
-    //     BUMPER_STATE = 1; // Set bumper state to indicate left bumper hit
-    //     printf("Left bumper hit!\r\n");
-    //     MOVEMENT_Stop(); // Stop movement motor
-    //     break;
-    // // case GPIO_PIN_6: // PA6 bumper
-    // case PIN_A6:          // PA6 bumper
-    //     BUMPER_STATE = 2; // Set bumper state to indicate right bumper hit
-    //     printf("Right bumper hit!\r\n");
-    //     MOVEMENT_Stop(); // Stop movement motor
-    //     break;
-    case GPIO_PIN_8:          // PB8 Start Movement button
-                              // case PIN_B8:                   // PB8 Start Movement button
+    /*
+        switch (GPIO_Pin)
+        {
+        case GPIO_PIN_8:          // PB8 Start Movement button
+                                  // case PIN_B8:                   // PB8 Start Movement button
+            state = STATE_MOVING; // Change state to moving
+            // BUMPER_STATE = 3;          // Set bumper state to indicate rear bumper hit
+            toggle_movement_flag ^= 1; // Toggle movement flag
+            // printf("START BUTTON hit!\r\n");
+            break;
+        default:
+            BUMPER_STATE = 0; // Reset bumper state if no bumper hit
+            break;
+        }
+         */
+    if (GPIO_Pin == GPIO_PIN_8)
+    { // Start button
+        HAL_Delay(300); // Debounce delay
+        printf("Start button pressed!\n");
         state = STATE_MOVING; // Change state to moving
-        // BUMPER_STATE = 3;          // Set bumper state to indicate rear bumper hit
-        toggle_movement_flag ^= 1; // Toggle movement flag
-        printf("Toggle movement flag: %d\r\n", toggle_movement_flag);
-        // printf("START BUTTON hit!\r\n");
-        break;
-    default:
-        BUMPER_STATE = 0; // Reset bumper state if no bumper hit
-        break;
+        toggle_movement_flag ^= 1;
     }
 }
 
@@ -192,6 +188,7 @@ int main(void)
     TIMER_Init();
     GPIO_Init();
     HAL_Delay(5000); // Wait for 5 seconds
+
     // Set priorities and enable interrupts
     HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); // PA5, PA6, PB8 share EXTI5-9
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
@@ -202,7 +199,6 @@ int main(void)
     printf("MOVEMENT module initializing...\n");
     MOVEMENT_Init();
     printf("MOVEMENT init Complete\n");
-    
 
     while (1)
     {

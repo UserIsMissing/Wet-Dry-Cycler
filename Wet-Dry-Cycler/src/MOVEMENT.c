@@ -148,24 +148,20 @@ int CheckFAULT(DRV8825_t *movementMotor)
 int CheckBumpers(void /* BUMPER_t *bumpers */)
 {
     // Check if the bumpers are pressed
-    if (GPIO_ReadPin(bumpers.front_bumper_pin) == 0)
+    // if (GPIO_ReadPin(bumpers.front_bumper_pin) == 0)
+    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) == GPIO_PIN_RESET)
     {
         printf("Front bumper pressed!\n");
         BUMPER_STATE = 1;
         return 1; // Bumper pressed
     }
-    if (GPIO_ReadPin(bumpers.back_bumper_pin) == 0)
+    // if (GPIO_ReadPin(bumpers.back_bumper_pin) == 0)
+    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == GPIO_PIN_RESET)
     {
         printf("Back bumper pressed!\n");
         BUMPER_STATE = 2;
         return 2; // Bumper pressed
     }
-    // if (GPIO_ReadPin(bumpers.start_button_pin) == 0)
-    // {
-    //     printf("Start button pressed!\n");
-    //     BUMPER_STATE = 3;
-    //     return 3; // Start button pressed
-    // }
     else
     {
         BUMPER_STATE = 0;
