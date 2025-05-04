@@ -1,7 +1,8 @@
 @echo off
 REM Setup script for Wet Dry Cycling project
 
-echo Installing backend dependencies...
-cd Node_React_Server
-cd client
-npm start
+echo Starting backend server...
+start cmd /k "cd Node_React_Server\server && node server.js"
+
+echo Starting frontend client...
+start cmd /k "cd Node_React_Server\client && npm start"
