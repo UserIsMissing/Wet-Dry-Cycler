@@ -190,7 +190,7 @@ int main(void)
     HAL_Delay(5000); // Wait for 5 seconds
 
     // Set priorities and enable interrupts
-    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); // PA5, PA6, PB8 share EXTI5-9
+    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0); // PA5, PA6, PB8 share EXTI5-9
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
     uint32_t RecentTime = 0;
