@@ -10,5 +10,6 @@
         "main.h": "c",
         "rehydration.h": "c",
         "stm32f4xx_it.h": "c"
-    }
+    },
+    "idf.pythonInstallPath": "/usr/bin/python"
 }
