@@ -15,8 +15,8 @@
 #include "esp_adc/adc_oneshot.h"
 
 // Wi-Fi credentials
-#define WIFI_SSID "DonnaHouse"
-#define WIFI_PASS "guessthepassword"
+#define WIFI_SSID "UCSC-Devices"
+#define WIFI_PASS "yWgb5heH4zDwF9J9cU"
 
 // Hardware setup
 #define LED_GPIO 2                // GPIO controlling onboard LED
