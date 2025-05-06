@@ -6,27 +6,29 @@ const cors = require('cors');
 const app = express();
 const PORT = 5000;
 
-//  Middleware setup
+// === Middleware ===
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
-//  Simulated backend state
+// === Internal State ===
 let gpioStates = {
   led: "off",
   mix1: "off",
   mix2: "off",
   mix3: "off"
 };
-let adcHistory = [];
 
+let tempHistory = []; // <-- stores temperature readings
 
-// GET current GPIO states (e.g., for polling)
+// === Routes ===
+
+// GET current GPIO states (used by frontend to poll)
 app.get('/led-state', (req, res) => {
   res.json(gpioStates);
 });
 
-// POST to set any single GPIO state (led, mix1, mix2, mix3)
+// POST a GPIO change (e.g., turn LED/motor on or off)
 app.post('/set-led', (req, res) => {
   const { name, state } = req.body;
   if (!name || !state || !gpioStates.hasOwnProperty(name)) {
@@ -36,20 +38,25 @@ app.post('/set-led', (req, res) => {
   res.json({ [name]: state });
 });
 
+// POST or GET temperature data from the ESP32
 app.route('/adc-data')
   .post((req, res) => {
-    if (!req.body || typeof req.body.adc !== 'number') {
-      return res.status(400).json({ error: 'Expected JSON with "adc"' });
+    console.log("Received POST:", req.body);
+
+    if (!req.body || typeof req.body.temperature !== 'number') {
+      return res.status(400).json({ error: 'Expected JSON with "temperature"' });
     }
-    adcHistory.push(req.body.adc);
-    if (adcHistory.length > 50) adcHistory.shift();
-    res.json({ status: "ok", received: req.body.adc });
+
+    tempHistory.push(req.body.temperature);
+    if (tempHistory.length > 50) tempHistory.shift();
+
+    res.json({ status: "ok", received: req.body.temperature });
   })
   .get((req, res) => {
-    res.json({ history: adcHistory });
+    res.json({ history: tempHistory });
   });
 
-//  Static React frontend (moved to bottom)
+// === Static frontend ===
 app.use(express.static(path.join(__dirname, '../client/build')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build/index.html'));

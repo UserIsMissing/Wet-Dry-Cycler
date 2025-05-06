@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 
-// Wet-Dry Cycler Main App
 function App() {
   const [gpioStates, setGpioStates] = useState({
     led: "off",
@@ -14,7 +13,7 @@ function App() {
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
-  // Set GPIO state via POST request
+  // POST to toggle a GPIO device
   const setGPIO = async (name, state) => {
     if (gpioStates[name] === state) return;
 
@@ -38,30 +37,33 @@ function App() {
     }
   };
 
-  // Fetch ADC history and update chart
+  // Fetch latest temperature data and update the chart
   const updateChart = async () => {
     try {
       const res = await fetch('http://localhost:5000/adc-data');
       if (!res.ok) throw new Error('ESP32 not reachable');
+  
       const data = await res.json();
-
+  
+      // Update chart with new temperature history
       const labels = data.history.map((_, i) => i + 1);
       const values = data.history;
-
+  
       if (chartInstanceRef.current) {
         chartInstanceRef.current.data.labels = labels;
         chartInstanceRef.current.data.datasets[0].data = values;
         chartInstanceRef.current.update();
       }
-
+  
       setEspOnline(true);
     } catch (err) {
-      console.error('Failed to fetch ADC data:', err);
+      console.warn('ESP32 not responding — using cached data');
+      // Don't update the chart; just show ESP as offline
       setEspOnline(false);
     }
   };
 
-  // Chart setup + polling interval
+  // Setup the chart on first load and update every second
   useEffect(() => {
     const ctx = chartRef.current?.getContext('2d');
     if (!ctx) return;
@@ -73,10 +75,10 @@ function App() {
       data: {
         labels: [],
         datasets: [{
-          label: 'ADC Value',
+          label: 'Temperature (°C)',
           data: [],
-          borderColor: 'blue',
-          backgroundColor: 'lightblue',
+          borderColor: 'orange',
+          backgroundColor: 'moccasin',
           fill: false,
           tension: 0.3
         }]
@@ -86,7 +88,7 @@ function App() {
         scales: {
           y: {
             beginAtZero: true,
-            suggestedMax: 4095
+            suggestedMax: 100
           }
         }
       }
@@ -100,7 +102,7 @@ function App() {
     <div className="container mt-5">
       <h1 className="title is-3">Wet-Dry Cycler Interface</h1>
 
-      {/* ESP32 status indicator */}
+      {/* ESP32 connectivity status */}
       <div className="mb-4">
         <span
           className="tag is-medium"
@@ -111,7 +113,7 @@ function App() {
         </span>
       </div>
 
-      {/* GPIO controls */}
+      {/* GPIO control section */}
       <section className="columns is-multiline is-variable is-4">
         {[
           { id: 'led', label: 'LED', onText: 'Turn ON', offText: 'Turn OFF' },
@@ -144,12 +146,16 @@ function App() {
         ))}
       </section>
 
-      {/* ADC Graph */}
+      {/* Live Temperature Graph */}
       <section className="mt-6">
-        <h2 className="title is-4">Live ADC Data</h2>
+        <h2 className="title is-4">Live Temperature (°C)</h2>
         <canvas ref={chartRef} width="600" height="200"></canvas>
+        <p className="mt-2 is-size-7">
+          {espOnline ? "Live temperature data updating..." : "ESP32 offline – showing last known data."}
+        </p>
       </section>
     </div>
+
   );
 }
 
