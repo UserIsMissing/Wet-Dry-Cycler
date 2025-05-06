@@ -1,55 +1,49 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 
-// Main component for the Wet-Dry Cycler UI
+// Wet-Dry Cycler Main App
 function App() {
-  const [ledState, setLedState] = useState("off");           // LED state: "on" or "off"
-  const [espOnline, setEspOnline] = useState(false);          // ESP32 connection status
+  const [gpioStates, setGpioStates] = useState({
+    led: "off",
+    mix1: "off",
+    mix2: "off",
+    mix3: "off"
+  });
 
-  const chartRef = useRef(null);                              // Ref to canvas element
-  const chartInstanceRef = useRef(null);                      // Ref to Chart instance
+  const [espOnline, setEspOnline] = useState(false);
+  const chartRef = useRef(null);
+  const chartInstanceRef = useRef(null);
 
-  // Fetch LED state and determine if ESP32 is online
-  const fetchLedState = async () => {
-    try {
-      const res = await fetch('http://localhost:5000/led-state');
-      if (!res.ok) throw new Error('ESP32 not reachable');
-      const data = await res.json();
-      if (!data.led) throw new Error('Invalid LED data');
-      setLedState(data.led);
-      setEspOnline(true);
-    } catch (err) {
-      console.error('Failed to fetch LED state:', err);
-      setEspOnline(false);
-    }
-  };
+  // Set GPIO state via POST request
+  const setGPIO = async (name, state) => {
+    if (gpioStates[name] === state) return;
 
-  // Send command to turn LED on or off
-  const setLED = async (state) => {
     try {
       const res = await fetch('http://localhost:5000/set-led', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state })
+        body: JSON.stringify({ name, state })
       });
+
       if (!res.ok) throw new Error('ESP32 not reachable');
       const data = await res.json();
-      if (!data.led) throw new Error('Invalid LED response');
-      setLedState(data.led);
+
+      if (!data[name]) throw new Error('Invalid response from server');
+
+      setGpioStates(prev => ({ ...prev, [name]: data[name] }));
       setEspOnline(true);
     } catch (err) {
-      console.error('Failed to set LED state:', err);
+      console.error(`Failed to set ${name}:`, err);
       setEspOnline(false);
     }
   };
 
-  // Fetch and update ADC data to the chart
+  // Fetch ADC history and update chart
   const updateChart = async () => {
     try {
-      const response = await fetch('http://localhost:5000/adc-data');
-      if (!response.ok) throw new Error('ESP32 not reachable');
-      const data = await response.json();
-      if (!Array.isArray(data.history)) throw new Error('Invalid ADC data');
+      const res = await fetch('http://localhost:5000/adc-data');
+      if (!res.ok) throw new Error('ESP32 not reachable');
+      const data = await res.json();
 
       const labels = data.history.map((_, i) => i + 1);
       const values = data.history;
@@ -67,17 +61,13 @@ function App() {
     }
   };
 
-  // Initialize chart and start polling
+  // Chart setup + polling interval
   useEffect(() => {
-    if (!chartRef.current) return;
+    const ctx = chartRef.current?.getContext('2d');
+    if (!ctx) return;
 
-    const ctx = chartRef.current.getContext('2d');
+    if (chartInstanceRef.current) chartInstanceRef.current.destroy();
 
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.destroy();
-    }
-
-    // Create new chart
     chartInstanceRef.current = new Chart(ctx, {
       type: 'line',
       data: {
@@ -102,44 +92,61 @@ function App() {
       }
     });
 
-    fetchLedState(); // Initial ESP32 check
-    const interval = setInterval(updateChart, 1000); // Poll ADC every second
-
-    return () => clearInterval(interval); // Clean up on unmount
+    const interval = setInterval(updateChart, 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Style for ESP32 status indicator light
-  const statusDotStyle = {
-    display: 'inline-block',
-    width: '10px',
-    height: '10px',
-    borderRadius: '50%',
-    backgroundColor: espOnline ? 'green' : 'red',
-    marginRight: '8px'
-  };
-
-  // UI rendering
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
-      <h1>Wet-Dry Cycler Interface</h1>
+    <div className="container mt-5">
+      <h1 className="title is-3">Wet-Dry Cycler Interface</h1>
 
-      {/* ESP32 Connection Indicator */}
-      <p>
-        <span style={statusDotStyle}></span>
-        ESP32 Status: <strong>{espOnline ? "Connected" : "Disconnected"}</strong>
-      </p>
+      {/* ESP32 status indicator */}
+      <div className="mb-4">
+        <span
+          className="tag is-medium"
+          style={{ backgroundColor: espOnline ? "green" : "red" }}
+        ></span>
+        <span className="ml-2">
+          ESP32 Status: <strong>{espOnline ? "Connected" : "Disconnected"}</strong>
+        </span>
+      </div>
 
-      {/* LED State and Controls */}
-      <section>
-        <h2>LED Control</h2>
-        <p>Status: <strong>{ledState.toUpperCase()}</strong></p>
-        <button onClick={() => setLED('on')} style={{ marginRight: "10px" }}>Turn ON</button>
-        <button onClick={() => setLED('off')}>Turn OFF</button>
+      {/* GPIO controls */}
+      <section className="columns is-multiline is-variable is-4">
+        {[
+          { id: 'led', label: 'LED', onText: 'Turn ON', offText: 'Turn OFF' },
+          { id: 'mix1', label: 'Mixing Motor 1', onText: 'Start', offText: 'Stop' },
+          { id: 'mix2', label: 'Mixing Motor 2', onText: 'Start', offText: 'Stop' },
+          { id: 'mix3', label: 'Mixing Motor 3', onText: 'Start', offText: 'Stop' }
+        ].map(device => (
+          <div key={device.id} className="column is-half">
+            <div className="box p-4">
+              <h4 className="subtitle is-5">{device.label}</h4>
+              <p className="mb-2">
+                Status: <strong>{gpioStates[device.id]?.toUpperCase()}</strong>
+              </p>
+              <div className="buttons are-small">
+                <button
+                  className="button is-success"
+                  onClick={() => setGPIO(device.id, 'on')}
+                >
+                  {device.onText}
+                </button>
+                <button
+                  className="button is-danger"
+                  onClick={() => setGPIO(device.id, 'off')}
+                >
+                  {device.offText}
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
       </section>
 
-      {/* Real-Time ADC Graph */}
-      <section style={{ marginTop: "40px" }}>
-        <h2>Live ADC Data</h2>
+      {/* ADC Graph */}
+      <section className="mt-6">
+        <h2 className="title is-4">Live ADC Data</h2>
         <canvas ref={chartRef} width="600" height="200"></canvas>
       </section>
     </div>

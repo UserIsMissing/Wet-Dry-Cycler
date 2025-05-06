@@ -6,26 +6,34 @@ const cors = require('cors');
 const app = express();
 const PORT = 5000;
 
-// ✅ Middleware setup
+//  Middleware setup
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
-// ✅ Simulated backend data
-let ledState = "off";
+//  Simulated backend state
+let gpioStates = {
+  led: "off",
+  mix1: "off",
+  mix2: "off",
+  mix3: "off"
+};
 let adcHistory = [];
 
-// ✅ API Routes
+
+// GET current GPIO states (e.g., for polling)
 app.get('/led-state', (req, res) => {
-  res.json({ led: ledState });
+  res.json(gpioStates);
 });
 
+// POST to set any single GPIO state (led, mix1, mix2, mix3)
 app.post('/set-led', (req, res) => {
-  if (!req.body || typeof req.body.state !== 'string') {
-    return res.status(400).json({ error: 'Expected JSON with "state"' });
+  const { name, state } = req.body;
+  if (!name || !state || !gpioStates.hasOwnProperty(name)) {
+    return res.status(400).json({ error: 'Expected JSON with "name" and "state"' });
   }
-  ledState = req.body.state;
-  res.json({ led: ledState });
+  gpioStates[name] = state;
+  res.json({ [name]: state });
 });
 
 app.route('/adc-data')
@@ -41,7 +49,7 @@ app.route('/adc-data')
     res.json({ history: adcHistory });
   });
 
-// ✅ Static React frontend (moved to bottom)
+//  Static React frontend (moved to bottom)
 app.use(express.static(path.join(__dirname, '../client/build')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
