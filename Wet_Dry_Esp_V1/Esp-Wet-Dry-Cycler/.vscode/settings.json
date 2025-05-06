@@ -1,12 +1,12 @@
 {
     "C_Cpp.intelliSenseEngine": "default",
     "idf.espIdfPathWin": "C:\\Users\\Rafde\\esp\\v5.4.1\\esp-idf",
-    "idf.pythonInstallPath": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
+    "idf.pythonInstallPath": "C:\\Users\\Rafde\\.espressif\\tools\\idf-python\\3.11.2\\python.exe",
     "idf.openOcdConfigs": [
         "interface/ftdi/esp32_devkitj_v1.cfg",
         "target/esp32s3.cfg"
     ],
-    "idf.portWin": "COM7",
+    "idf.portWin": "COM5",
     "idf.toolsPathWin": "C:\\Users\\Rafde\\.espressif",
     "idf.flashType": "UART",
     "idf.customExtraVars": {
