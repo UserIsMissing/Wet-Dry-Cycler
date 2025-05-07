@@ -9,4 +9,5 @@ node server.js &
 
 echo "Starting frontend client..."
 cd ../client
+npm install
 npm start
