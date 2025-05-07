@@ -18,7 +18,7 @@ function App() {
     if (gpioStates[name] === state) return;
 
     try {
-      const res = await fetch('http://localhost:5000/set-led', {
+      const res = await fetch('http://10.0.0.166:5000/set-led', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, state })
@@ -40,7 +40,7 @@ function App() {
   // Fetch latest temperature data and update the chart
   const updateChart = async () => {
     try {
-      const res = await fetch('http://localhost:5000/adc-data');
+      const res = await fetch('http://10.0.0.166:5000/adc-data');
       if (!res.ok) throw new Error('ESP32 not reachable');
   
       const data = await res.json();
