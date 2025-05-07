@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
+import 'bulma/css/bulma.min.css';
+
 
 function App() {
   const [gpioStates, setGpioStates] = useState({
@@ -13,10 +15,10 @@ function App() {
   const [socket, setSocket] = useState(null);
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
-  const chartData = useRef([]); // store a rolling history
+  const chartData = useRef([]);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://10.0.0.167/ws'); // ← use ESP32 IP here
+    const ws = new WebSocket('ws://10.0.0.167/ws');
 
     ws.onopen = () => {
       console.log('WebSocket connected');
@@ -31,7 +33,7 @@ function App() {
         if (msg.type === 'temperature') {
           const value = msg.value;
           chartData.current.push(value);
-          if (chartData.current.length > 20) chartData.current.shift(); // keep chart short
+          if (chartData.current.length > 20) chartData.current.shift();
 
           const labels = chartData.current.map((_, i) => i + 1);
           chartInstanceRef.current.data.labels = labels;
@@ -62,6 +64,8 @@ function App() {
   const sendGPIOCommand = (name, state) => {
     if (socket && socket.readyState === WebSocket.OPEN && gpioStates[name] !== state) {
       socket.send(JSON.stringify({ name, state }));
+      // Optimistically update state before ESP32 confirms
+      setGpioStates(prev => ({ ...prev, [name]: state }));
     }
   };
 
@@ -111,13 +115,13 @@ function App() {
         {['led', 'mix1', 'mix2', 'mix3'].map(id => (
           <div key={id} className="column is-half">
             <div className="box p-4">
-              <h4 className="subtitle is-5">{id.toUpperCase()}</h4>
-              <p className="mb-2">
+              <h4 className="subtitle is-5 has-text-weight-semibold">{id.toUpperCase()}</h4>
+              <p className="mb-3">
                 Status: <strong>{gpioStates[id]?.toUpperCase()}</strong>
               </p>
-              <div className="buttons are-small">
-                <button className="button is-success" onClick={() => sendGPIOCommand(id, 'on')}>On</button>
-                <button className="button is-danger" onClick={() => sendGPIOCommand(id, 'off')}>Off</button>
+              <div className="buttons has-addons">
+                <button className="button is-small is-success" onClick={() => sendGPIOCommand(id, 'on')}>On</button>
+                <button className="button is-small is-danger" onClick={() => sendGPIOCommand(id, 'off')}>Off</button>
               </div>
             </div>
           </div>

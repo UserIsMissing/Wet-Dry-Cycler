@@ -10,8 +10,8 @@
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-const char* ssid = "DonnaHouse";
-const char* password = "guessthepassword";
+const char *ssid = "DonnaHouse";
+const char *password = "guessthepassword";
 
 // const char *ssid = "UCSC-Guest";
 // const char* password = "";
@@ -80,6 +80,13 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
       Serial0.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
 
       handleGpio(name, state);
+      StaticJsonDocument<100> response;
+      response["name"] = name;
+      response["state"] = state;
+
+      char jsonBuffer[100];
+      size_t len = serializeJson(response, jsonBuffer);
+      ws.textAll(jsonBuffer);
     }
     else
     {
