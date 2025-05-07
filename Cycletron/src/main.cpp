@@ -10,7 +10,10 @@
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-const char *ssid = "UCSC-Guest";
+const char* ssid = "DonnaHouse";
+const char* password = "guessthepassword";
+
+// const char *ssid = "UCSC-Guest";
 // const char* password = "";
 
 // GPIO pin definitions
@@ -120,7 +123,9 @@ void setup()
 
   // Wi-Fi connect
   Serial.println("Connecting to WiFi...");
-  WiFi.begin(ssid);
+  WiFi.begin(ssid, password);
+  // WiFi.begin(ssid);
+
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);

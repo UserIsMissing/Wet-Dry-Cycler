@@ -1,0 +1,6 @@
+@echo off
+echo Starting backend server...
+start "Backend" cmd /k node server/server.js
+
+echo Starting frontend (Vite)...
+start "Frontend" cmd /k npm run dev

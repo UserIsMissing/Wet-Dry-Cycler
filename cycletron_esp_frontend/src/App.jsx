@@ -13,9 +13,10 @@ function App() {
   const [socket, setSocket] = useState(null);
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
+  const chartData = useRef([]); // store a rolling history
 
   useEffect(() => {
-    const ws = new WebSocket('ws://169.233.112.251/ws');
+    const ws = new WebSocket('ws://10.0.0.167/ws'); // ← use ESP32 IP here
 
     ws.onopen = () => {
       console.log('WebSocket connected');
@@ -26,9 +27,19 @@ function App() {
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+
         if (msg.type === 'temperature') {
-          updateChart(msg.history);
-        } else if (msg.type === 'gpio') {
+          const value = msg.value;
+          chartData.current.push(value);
+          if (chartData.current.length > 20) chartData.current.shift(); // keep chart short
+
+          const labels = chartData.current.map((_, i) => i + 1);
+          chartInstanceRef.current.data.labels = labels;
+          chartInstanceRef.current.data.datasets[0].data = [...chartData.current];
+          chartInstanceRef.current.update();
+        }
+
+        if (msg.name && msg.state) {
           setGpioStates(prev => ({ ...prev, [msg.name]: msg.state }));
         }
       } catch (err) {
@@ -50,26 +61,7 @@ function App() {
 
   const sendGPIOCommand = (name, state) => {
     if (socket && socket.readyState === WebSocket.OPEN && gpioStates[name] !== state) {
-      socket.send(JSON.stringify({ type: 'gpio', name, state }));
-    }
-  };
-
-  const updateChart = async () => {
-    try {
-      const res = await fetch('http://localhost:5000/api/history');
-      const data = await res.json();
-      const labels = data.map((_, i) => i + 1);
-      const values = data.map(row => row.value);
-  
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.data.labels = labels;
-        chartInstanceRef.current.data.datasets[0].data = values;
-        chartInstanceRef.current.update();
-      }
-  
-      setEspOnline(true);
-    } catch {
-      setEspOnline(false);
+      socket.send(JSON.stringify({ name, state }));
     }
   };
 
@@ -116,25 +108,16 @@ function App() {
       </div>
 
       <section className="columns is-multiline is-variable is-4">
-        {[
-          { id: 'led', label: 'LED', onText: 'Turn ON', offText: 'Turn OFF' },
-          { id: 'mix1', label: 'Mixing Motor 1', onText: 'Start', offText: 'Stop' },
-          { id: 'mix2', label: 'Mixing Motor 2', onText: 'Start', offText: 'Stop' },
-          { id: 'mix3', label: 'Mixing Motor 3', onText: 'Start', offText: 'Stop' }
-        ].map(device => (
-          <div key={device.id} className="column is-half">
+        {['led', 'mix1', 'mix2', 'mix3'].map(id => (
+          <div key={id} className="column is-half">
             <div className="box p-4">
-              <h4 className="subtitle is-5">{device.label}</h4>
+              <h4 className="subtitle is-5">{id.toUpperCase()}</h4>
               <p className="mb-2">
-                Status: <strong>{gpioStates[device.id]?.toUpperCase()}</strong>
+                Status: <strong>{gpioStates[id]?.toUpperCase()}</strong>
               </p>
               <div className="buttons are-small">
-                <button className="button is-success" onClick={() => sendGPIOCommand(device.id, 'on')}>
-                  {device.onText}
-                </button>
-                <button className="button is-danger" onClick={() => sendGPIOCommand(device.id, 'off')}>
-                  {device.offText}
-                </button>
+                <button className="button is-success" onClick={() => sendGPIOCommand(id, 'on')}>On</button>
+                <button className="button is-danger" onClick={() => sendGPIOCommand(id, 'off')}>Off</button>
               </div>
             </div>
           </div>
