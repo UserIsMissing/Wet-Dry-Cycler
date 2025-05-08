@@ -6247,7 +6247,7 @@
 		)
 		(uuid "91bf7ef5-9577-471c-9d16-defb9c38c4ca")
 	)
-	(label "M0"
+	(label "EN"
 		(at 142.24 83.82 0)
 		(effects
 			(font
