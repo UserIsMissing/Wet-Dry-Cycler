@@ -1,4 +1,4 @@
-25210703854321481
+25212450544406980
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -101275,6 +101275,13 @@ Varistor VF
 0
 2
 2
+my_footprints
+DRV8825_Stepper_Carrier
+Pololu DRV8825 Stepper Motor Driver Carrier - 2x8 header footprint, 2.54mm pitch, 15.24mm spacing
+Pololu DRV8825 stepper driver header
+0
+16
+16
 my_footprints
 ESP32_DevKitC_Header_Mount
 ESP32 DevKitC dual header mount, 2x22, 2.54mm pitch, 25.4mm spacing
