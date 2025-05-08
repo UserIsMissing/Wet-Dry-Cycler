@@ -35,4 +35,4 @@ osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'\" && npm ru
 # === Open in Browser ===
 sleep 5
 open http://localhost:5000
-open http://localhost:5173
+open http://localhost:5174
