@@ -3939,16 +3939,6 @@
 	)
 	(wire
 		(pts
-			(xy 144.78 106.68) (xy 123.19 106.68)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "021411e8-59d6-4159-a9a9-25c3652a9956")
-	)
-	(wire
-		(pts
 			(xy 125.73 124.46) (xy 125.73 91.44)
 		)
 		(stroke
@@ -5789,6 +5779,16 @@
 	)
 	(wire
 		(pts
+			(xy 123.19 106.68) (xy 144.78 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d11e7993-866c-4a79-b947-308185ea0ab8")
+	)
+	(wire
+		(pts
 			(xy 124.46 24.13) (xy 129.54 24.13)
 		)
 		(stroke
@@ -6137,6 +6137,26 @@
 		)
 		(uuid "ff5c1429-fa96-4854-8947-27eb72d1dfda")
 	)
+	(label "M2"
+		(at 177.8 76.2 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0269247e-e4ce-438e-a8c7-50e3f395c62c")
+	)
+	(label "M0"
+		(at 177.8 71.12 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "11722b81-4fbe-4228-aefd-2183f35235ac")
+	)
 	(label "Mix2"
 		(at 140.97 99.06 0)
 		(effects
@@ -6156,6 +6176,16 @@
 			(justify left bottom)
 		)
 		(uuid "211a887c-421a-4c9f-ae1e-a985e9de7c56")
+	)
+	(label "STEP"
+		(at 176.53 63.5 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "223391ae-1e4c-4be5-9da5-013f17e08b42")
 	)
 	(label "Mix1"
 		(at 140.97 101.6 0)
@@ -6237,6 +6267,26 @@
 		)
 		(uuid "8556a7cf-d5b6-4dd1-ad4b-6db9ac48f38e")
 	)
+	(label "5V"
+		(at 140.97 106.68 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "85792853-6ca6-475e-94de-0433f4abe768")
+	)
+	(label "DIR"
+		(at 177.8 66.04 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8bdc4dc8-3d28-495e-871b-19a68ebfd62b")
+	)
 	(label "VD_o"
 		(at 140.97 63.5 0)
 		(effects
@@ -6288,6 +6338,26 @@
 		(uuid "b8331d4e-baa4-4e04-8c97-e8963adbdfc5")
 	)
 	(label "FLT"
+		(at 177.8 68.58 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c6981068-8d35-48c0-a2ca-8fcd6cf84ff4")
+	)
+	(label "EN"
+		(at 177.8 78.74 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c93c240c-a9a4-410e-b3ae-5623feb3fe6b")
+	)
+	(label "FLT"
 		(at 142.24 73.66 0)
 		(effects
 			(font
@@ -6296,6 +6366,16 @@
 			(justify left bottom)
 		)
 		(uuid "d605a9fe-8d27-41d1-b433-d593e22412b6")
+	)
+	(label "M1"
+		(at 177.8 73.66 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d7eda5d0-b747-46b9-a4fb-60622822ec64")
 	)
 	(label "STEP"
 		(at 140.97 68.58 0)
