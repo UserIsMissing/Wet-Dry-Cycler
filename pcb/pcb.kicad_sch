@@ -6207,6 +6207,16 @@
 		)
 		(uuid "4f509bf3-afcf-42b1-9c29-0f2d499488f0")
 	)
+	(label "R_F"
+		(at 177.8 83.82 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5133bdcb-db2a-4aa8-9505-458731a99978")
+	)
 	(label "M0"
 		(at 142.24 76.2 0)
 		(effects
@@ -6247,7 +6257,7 @@
 		)
 		(uuid "935806ca-a46e-4538-adf2-16199c62cb54")
 	)
-	(label "B_S"
+	(label "R_B"
 		(at 140.97 91.44 0)
 		(effects
 			(font
@@ -6378,7 +6388,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "1a820e54-389b-4d4a-9f6a-72dfe81f2856")
-		(property "Reference" "Rehydration_bumper1"
+		(property "Reference" "Rehydration_front"
 			(at 101.6 148.844 90)
 			(effects
 				(font
@@ -6435,7 +6445,7 @@
 		(instances
 			(project ""
 				(path "/5b8f4b4b-fd94-4673-8b66-f0a593fc8259"
-					(reference "Rehydration_bumper1")
+					(reference "Rehydration_front")
 					(unit 1)
 				)
 			)
@@ -6592,7 +6602,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "33a73403-f0ff-49d9-98c4-64174acc9424")
-		(property "Reference" "MovingBumperStart1"
+		(property "Reference" "Rehydration_back"
 			(at 149.606 147.828 90)
 			(effects
 				(font
@@ -6649,7 +6659,7 @@
 		(instances
 			(project "pcb"
 				(path "/5b8f4b4b-fd94-4673-8b66-f0a593fc8259"
-					(reference "MovingBumperStart1")
+					(reference "Rehydration_back")
 					(unit 1)
 				)
 			)
