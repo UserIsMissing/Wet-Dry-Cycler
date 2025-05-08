@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# === Frontend Dependencies ===
+echo "Checking frontend dependencies..."
+if [ -d "node_modules" ]; then
+  echo "Frontend node_modules found, skipping install"
+else
+  echo "Frontend node_modules not found, running npm install..."
+  npm install
+fi
+
+# === Backend Dependencies ===
+echo "Checking backend dependencies..."
+cd "$SCRIPT_DIR/server"
+if [ -d "node_modules" ]; then
+  echo "Backend node_modules found, skipping install"
+else
+  echo "Backend node_modules not found, running npm install..."
+  npm install
+fi
+cd "$SCRIPT_DIR"
+
+# === Start Backend Server ===
+echo "Starting backend server on port 5000..."
+osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'/server\" && node server.js"'
+
+# === Start Frontend Vite Dev Server ===
+echo "Starting frontend (Vite) on default port..."
+osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'\" && npm run dev"'
+
+# === Open in Browser ===
+sleep 5
+open http://localhost:5000
+open http://localhost:5174

@@ -6,6 +6,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,       // exposes the server to your local network
-    port: 5173,       // optional, makes sure it's always the same port
+    port: 5174,       // optional, makes sure it's always the same port
   }
 });
