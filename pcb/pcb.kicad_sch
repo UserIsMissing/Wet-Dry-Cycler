@@ -3503,16 +3503,6 @@
 		)
 		(uuid "517bca34-f562-4059-8068-f7bbdc3d915c")
 	)
-	(text "Rehydration\n"
-		(exclude_from_sim no)
-		(at 220.726 42.418 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "5a997a41-053b-4460-85f5-f7fa8b24cea5")
-	)
 	(text "3v3"
 		(exclude_from_sim no)
 		(at 157.48 138.684 0)
@@ -3542,16 +3532,6 @@
 			)
 		)
 		(uuid "82a1c184-b5fa-4618-aa7f-e415ec445fc3")
-	)
-	(text "Moving\n"
-		(exclude_from_sim no)
-		(at 222.504 88.9 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "837a04b4-792b-4c72-9d83-0f04dd62d63a")
 	)
 	(text "M2_+"
 		(exclude_from_sim no)
@@ -7322,7 +7302,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "52c094d0-4dc2-41d3-abf0-5d341e56b78d")
-		(property "Reference" "J6"
+		(property "Reference" "Thermistor1"
 			(at 55.88 39.37 0)
 			(effects
 				(font
@@ -7380,7 +7360,7 @@
 		(instances
 			(project ""
 				(path "/5b8f4b4b-fd94-4673-8b66-f0a593fc8259"
-					(reference "J6")
+					(reference "Thermistor1")
 					(unit 1)
 				)
 			)
@@ -7396,7 +7376,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "539c2114-0e34-4f14-a270-329774b14eb9")
-		(property "Reference" "A2"
+		(property "Reference" "Moving1"
 			(at 229.4733 86.36 0)
 			(effects
 				(font
@@ -7493,7 +7473,7 @@
 		(instances
 			(project "pcb"
 				(path "/5b8f4b4b-fd94-4673-8b66-f0a593fc8259"
-					(reference "A2")
+					(reference "Moving1")
 					(unit 1)
 				)
 			)
@@ -7724,7 +7704,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "704ed997-143a-4cfc-8032-fc36c9f9f15c")
-		(property "Reference" "A1"
+		(property "Reference" "Rehydration1"
 			(at 228.2033 41.91 0)
 			(effects
 				(font
@@ -7821,7 +7801,7 @@
 		(instances
 			(project ""
 				(path "/5b8f4b4b-fd94-4673-8b66-f0a593fc8259"
-					(reference "A1")
+					(reference "Rehydration1")
 					(unit 1)
 				)
 			)
@@ -7837,7 +7817,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "7364d582-507c-4c4f-9f95-c0ccd915545f")
-		(property "Reference" "ExtraTerminalBlock1"
+		(property "Reference" "Debug_ports1"
 			(at 190.5 148.59 90)
 			(effects
 				(font
@@ -7895,7 +7875,7 @@
 		(instances
 			(project ""
 				(path "/5b8f4b4b-fd94-4673-8b66-f0a593fc8259"
-					(reference "ExtraTerminalBlock1")
+					(reference "Debug_ports1")
 					(unit 1)
 				)
 			)
@@ -8205,7 +8185,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a3315926-b459-44fa-9535-d1191edb359f")
-		(property "Reference" "J5"
+		(property "Reference" "Mixing1"
 			(at 60.96 73.66 0)
 			(effects
 				(font
@@ -8269,7 +8249,7 @@
 		(instances
 			(project ""
 				(path "/5b8f4b4b-fd94-4673-8b66-f0a593fc8259"
-					(reference "J5")
+					(reference "Mixing1")
 					(unit 1)
 				)
 			)
