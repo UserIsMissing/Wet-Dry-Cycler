@@ -4,13 +4,7 @@ import 'bulma/css/bulma.min.css';
 
 
 function App() {
-  // const [gpioStates, setGpioStates] = useState({
-  //   led: "off",
-  //   mix1: "off",
-  //   mix2: "off",
-  //   mix3: "off",
-  //   extract: "off"
-  // });
+  const [isCycleActive, setIsCycleActive] = useState(false); // Track if a cycle is active
 
   const [currentTemp, setCurrentTemp] = useState(null); // Text Box for current temperature (next to chart)
 
@@ -142,6 +136,24 @@ function App() {
       console.error('WebSocket is not connected.');
     }
   };
+
+  const handleGoButton = () => {
+    sendParameters(); // Send parameters to the backend
+    setIsCycleActive(true); // Lock the "Set Parameters" tab
+    setActiveTab('controls'); // Switch to the "Controls" tab
+  };
+
+  const handleEndCycleButton = () => {
+    setIsCycleActive(false); // Unlock the "Set Parameters" tab
+    console.log('Cycle ended.');
+  
+    // Temporarily turn the button green
+    setButtonStates((prev) => ({ ...prev, endCycle: true }));
+    setTimeout(() => {
+      setButtonStates((prev) => ({ ...prev, endCycle: false })); // Reset the button state after 3 seconds
+    }, 1000);
+  };
+  
 
   const sendButtonCommand = (buttonName) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
@@ -315,7 +327,14 @@ function App() {
       <div className="tabs is-toggle is-fullwidth">
         <ul>
           <li className={activeTab === 'parameters' ? 'is-active' : ''}>
-            <a onClick={() => setActiveTab('parameters')}>Set Parameters</a>
+            <a
+              onClick={() => {
+                if (!isCycleActive) setActiveTab('parameters');
+              }}
+              style={{ pointerEvents: isCycleActive ? 'none' : 'auto', opacity: isCycleActive ? 0.5 : 1 }}
+            >
+              Set Parameters
+            </a>
           </li>
           <li className={activeTab === 'controls' ? 'is-active' : ''}>
             <a onClick={() => setActiveTab('controls')}>Controls</a>
@@ -385,10 +404,7 @@ function App() {
               <div className="control">
                 <button
                   className="button is-primary"
-                  onClick={() => {
-                    sendParameters(); // Send parameters to the backend
-                    setActiveTab('controls'); // Switch to the controls tab
-                  }}
+                  onClick={handleGoButton}
                 >
                   Go
                 </button>
@@ -417,20 +433,17 @@ function App() {
             <div className="buttons are-medium is-flex is-flex-wrap-wrap is-justify-content-space-between">
               {[
                 { id: 'startCycle', label: 'Start Cycle' },
-                { id: 'pauseCycle', label: 'Pause Cycle' },
+                { id: 'pauseCycle', label: buttonStates['pauseCycle'] ? 'Resume Cycle' : 'Pause Cycle' },
                 { id: 'endCycle', label: 'End Cycle' },
                 { id: 'extract', label: 'Extract (Pause/Continue)' },
                 { id: 'refill', label: 'Refill Syringe (Pause/Continue)' },
                 { id: 'logCycle', label: 'Log Cycle' },
-                { id: 'mix all now', label: 'Mix All Now' },
-                { id: 'mix1', label: 'Mix Zone 1' },
-                { id: 'mix2', label: 'Mix Zone 2' },
-                { id: 'mix3', label: 'Mix Zone 3' },
               ].map(({ id, label }) => (
                 <button
                   key={id}
                   className={`button ${buttonStates[id] ? 'is-success' : 'is-light'} m-2`}
                   onClick={() => {
+                    if (id === 'endCycle') handleEndCycleButton(); // Unlock "Set Parameters" on "End Cycle"
                     const newState = !buttonStates[id];
                     setButtonStates((prev) => ({ ...prev, [id]: newState }));
 
@@ -442,6 +455,11 @@ function App() {
                       console.error('WebSocket is not connected.');
                     }
                   }}
+                  disabled={
+                    (id !== 'extract' && id !== 'refill' && (buttonStates['extract'] || buttonStates['refill'])) || // Disable other buttons if Extract or Refill is active
+                    (id === 'extract' && buttonStates['refill']) || // Disable Extract if Refill is active
+                    (id === 'refill' && buttonStates['extract'])    // Disable Refill if Extract is active
+                  }
                 >
                   {label}
                 </button>
