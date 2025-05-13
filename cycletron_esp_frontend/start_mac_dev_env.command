@@ -4,6 +4,30 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# === Check for Node.js and npm ===
+echo "Checking for Node.js and npm..."
+if ! command -v node &> /dev/null; then
+  echo "Node.js is not installed. Installing Node.js..."
+  # Install Node.js using Homebrew
+  if command -v brew &> /dev/null; then
+    brew install node
+  else
+    echo "Homebrew is not installed. Please install Homebrew first: https://brew.sh/"
+    exit 1
+  fi
+else
+  echo "Node.js is already installed. Version: $(node -v)"
+fi
+
+if ! command -v npm &> /dev/null; then
+  echo "npm is not installed. Installing npm..."
+  # npm comes with Node.js, so this should rarely be needed
+  echo "Please check your Node.js installation."
+  exit 1
+else
+  echo "npm is already installed. Version: $(npm -v)"
+fi
+
 # === Frontend Dependencies ===
 echo "Checking frontend dependencies..."
 if [ -d "node_modules" ]; then
