@@ -51,7 +51,7 @@ function App() {
     let reconnectTimeout;
 
     const connectWebSocket = () => {
-      ws = new WebSocket('ws://10.0.0.229/ws');
+      ws = new WebSocket('ws://169.233.112.228/ws');
 
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -284,7 +284,7 @@ function App() {
   // WebSocket message handling
   useEffect(() => {
     const connectWebSocket = () => {
-      const ws = new WebSocket('ws://10.0.0.229/ws');
+      const ws = new WebSocket('ws://169.233.112.228/ws');
 
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -351,7 +351,7 @@ function App() {
       <div className="columns">
         {/* Tabs Section */}
         <div className="column is-three-quarters">
-          <div className="tabs is-toggle is-fullwidth" style={{ maxWidth: '600px', margin: '0' }}>
+          <div className="tabs is-toggle is-fullwidth" style={{ maxWidth: '700px', margin: '0' }}>
             <ul>
               <li className={activeTab === 'parameters' ? 'is-active' : ''}>
                 <a
@@ -369,7 +369,7 @@ function App() {
             </ul>
           </div>
 
-          <div className="box" style={{ maxWidth: '600px', margin: '0' }}>
+          <div className="box" style={{ maxWidth: '700px', margin: '0' }}>
             {/* Existing Tab Content */}
             {activeTab === 'parameters' && (
               <section className="mt-4">
@@ -498,7 +498,7 @@ function App() {
 
         {/* Outputs Section */}
         <div className="column is-one-quarter">
-          <div className="box" style={{ maxWidth: '200px', margin: '0' }}>
+          <div className="box" style={{ maxWidth: '400px', margin: '0' }}>
             <h2 className="title is-5">ESP32 Outputs</h2>
             <div className="columns is-full is-multiline">
               {/* Temperature Data */}

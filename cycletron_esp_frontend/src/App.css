@@ -20,7 +20,8 @@ body {
 }
 
 .column.is-one-quarter {
-  flex: 0 0 40%; /* Adjust the width of the "ESP32 Outputs" column */
+  flex: 0 0 30%; /* Adjust the width of the "ESP32 Outputs" column */
+  margin-left: -5rem;
 }
 
 .column.is-three-quarters {
