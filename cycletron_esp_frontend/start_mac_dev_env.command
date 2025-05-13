@@ -13,6 +13,14 @@ else
   npm install
 fi
 
+# Ensure Bulma is installed
+if ! grep -q '"bulma"' package.json; then
+  echo "Bulma not found in dependencies, installing Bulma..."
+  npm install bulma
+else
+  echo "Bulma is already installed."
+fi
+
 # === Backend Dependencies ===
 echo "Checking backend dependencies..."
 cd "$SCRIPT_DIR/server"

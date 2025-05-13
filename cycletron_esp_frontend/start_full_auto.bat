@@ -10,6 +10,16 @@ if exist node_modules (
   npm install
 )
 
+REM Ensure Bulma is installed
+echo Checking if Bulma is installed...
+findstr /C:"\"bulma\"" package.json >nul
+if %errorlevel% neq 0 (
+  echo Bulma not found in dependencies, installing Bulma...
+  npm install bulma
+) else (
+  echo Bulma is already installed.
+)
+
 REM === Backend Dependencies ===
 echo Checking backend dependencies...
 cd server
