@@ -1,3 +1,4 @@
+import './App.css';
 import React, { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import 'bulma/css/bulma.min.css';
@@ -57,6 +58,29 @@ function App() {
         setEspOnline(true);
         setSocket(ws);
       };
+      // const connectWebSocket = () => {
+      //   const esp32Ip = process.env.REACT_APP_ESP32_IP;
+      //   const esp32Port = process.env.REACT_APP_ESP32_PORT;
+      //   const wsUrl = `ws://${esp32Ip}:${esp32Port}/ws`;
+
+      //   const ws = new WebSocket(wsUrl);
+
+      //   ws.onopen = () => {
+      //     console.log('WebSocket connected to:', wsUrl);
+      //     setEspOnline(true);
+      //     setSocket(ws);
+      //   };
+
+      //   ws.onclose = () => {
+      //     console.log('WebSocket disconnected');
+      //     setEspOnline(false);
+      //   };
+
+      //   ws.onerror = (err) => {
+      //     console.error('WebSocket error:', err);
+      //     setEspOnline(false);
+      //   };
+      // };
 
       ws.onmessage = (event) => {
         try {
@@ -313,8 +337,9 @@ function App() {
   }, [isChartInitialized]);
 
   return (
-    <div className="container mt-5">
-      <h1 className="title is-3" style={{ marginTop: '0' }}>Wet-Dry Cycler Interface</h1>
+    // <div className="container mt-5">
+    <div className="container">
+      <h1 className="title is-2" style={{ marginTop: '0' }}>Wet-Dry Cycler Interface</h1>
 
       <div className="mb-4">
         <span className="tag is-medium" style={{ backgroundColor: espOnline ? "green" : "red" }}></span>
@@ -326,8 +351,7 @@ function App() {
       <div className="columns">
         {/* Tabs Section */}
         <div className="column is-three-quarters">
-          {/* Existing Tabs and Content */}
-          <div className="tabs is-toggle is-fullwidth">
+          <div className="tabs is-toggle is-fullwidth" style={{ maxWidth: '600px', margin: '0' }}>
             <ul>
               <li className={activeTab === 'parameters' ? 'is-active' : ''}>
                 <a
@@ -345,11 +369,11 @@ function App() {
             </ul>
           </div>
 
-          <div className="box" style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <div className="box" style={{ maxWidth: '600px', margin: '0' }}>
             {/* Existing Tab Content */}
             {activeTab === 'parameters' && (
-              <section className="mt-6">
-                <h2 className="title is-4">Set Parameters</h2>
+              <section className="mt-4">
+                {/* <h2 className="title is-4">Set Parameters</h2> */}
                 <div className="columns is-multiline">
                   {[
                     { label: "Volume Added Per Cycle (mL)", key: "volumeAddedPerCycle", placeholder: "e.g., 10" },
@@ -417,10 +441,10 @@ function App() {
             )}
 
             {activeTab === 'controls' && (
-              <section className="mt-6">
+              <section className="mt-4">
                 {/* <h2 className="title is-4">Controls</h2> */}
                 <div className="mb-4">
-                  <h3 className="title is-5">Live Temperature (°C)</h3>
+                  {/* <h3 className="title is-5">Live Temperature (°C)</h3>
                   <input
                     type="text"
                     className="input is-small"
@@ -430,7 +454,7 @@ function App() {
                   />
                   <p className="mt-2 is-size-7">
                     {espOnline ? "Live temperature data updating..." : "ESP32 offline – showing last known data."}
-                  </p>
+                  </p> */}
                 </div>
                 <div className="buttons are-medium is-flex is-flex-wrap-wrap is-justify-content-space-between">
                   {[
@@ -474,9 +498,9 @@ function App() {
 
         {/* Outputs Section */}
         <div className="column is-one-quarter">
-          <div className="box">
+          <div className="box" style={{ maxWidth: '200px', margin: '0' }}>
             <h2 className="title is-5">ESP32 Outputs</h2>
-            <div className="columns is-multiline">
+            <div className="columns is-full is-multiline">
               {/* Temperature Data */}
               <div className="column is-full">
                 <label className="label is-small">Temperature Data</label>

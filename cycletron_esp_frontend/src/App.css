@@ -1,8 +1,37 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   padding: 2rem;
-  text-align: center;
+  text-align: left;
+}
+
+html, body {
+  margin: 0; /* Remove default margin */
+  padding: 0; /* Remove default padding */
+  height: 100%; /* Ensure full height */
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Align content to the top */
+  align-items: flex-start; /* Align content to the left */
+}
+
+.column.is-one-quarter {
+  flex: 0 0 40%; /* Adjust the width of the "ESP32 Outputs" column */
+}
+
+.column.is-three-quarters {
+  flex: 0 0 75%; /* Adjust the width of the tabs column */
+  /* text-align: left; Align text to the left */
+  /* padding-left: none; Add some padding to the left */
+}
+
+.container {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }
 
 .logo {
@@ -11,9 +40,11 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -22,6 +53,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -34,7 +66,7 @@
 }
 
 .card {
-  padding: 2em;
+  padding: 0em;
 }
 
 .read-the-docs {
