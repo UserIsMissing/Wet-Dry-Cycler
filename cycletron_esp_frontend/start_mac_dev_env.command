@@ -8,21 +8,20 @@ cd "$SCRIPT_DIR"
 echo "Checking for Node.js and npm..."
 if ! command -v node &> /dev/null; then
   echo "Node.js is not installed. Installing Node.js..."
-  # Install Node.js using Homebrew
-  if command -v brew &> /dev/null; then
-    brew install node
-  else
-    echo "Homebrew is not installed. Please install Homebrew first: https://brew.sh/"
-    exit 1
-  fi
+  # Download and install Node.js directly
+  NODE_VERSION="18.17.1" # Specify the desired Node.js version
+  NODE_DISTRO="node-v$NODE_VERSION-darwin-x64"
+  curl -O "https://nodejs.org/dist/v$NODE_VERSION/$NODE_DISTRO.tar.gz"
+  tar -xzf "$NODE_DISTRO.tar.gz"
+  mv "$NODE_DISTRO" "$SCRIPT_DIR/node"
+  export PATH="$SCRIPT_DIR/node/bin:$PATH"
+  echo "Node.js installed. Version: $(node -v)"
 else
   echo "Node.js is already installed. Version: $(node -v)"
 fi
 
 if ! command -v npm &> /dev/null; then
-  echo "npm is not installed. Installing npm..."
-  # npm comes with Node.js, so this should rarely be needed
-  echo "Please check your Node.js installation."
+  echo "npm is not installed. Please check your Node.js installation."
   exit 1
 else
   echo "npm is already installed. Version: $(npm -v)"
