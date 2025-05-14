@@ -51,7 +51,7 @@ function App() {
     let reconnectTimeout;
 
     const connectWebSocket = () => {
-      ws = new WebSocket('ws://10.0.0.229/ws');
+      ws = new WebSocket('ws://169.233.112.228/ws');
 
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -284,7 +284,7 @@ function App() {
   // WebSocket message handling
   useEffect(() => {
     const connectWebSocket = () => {
-      const ws = new WebSocket('ws://10.0.0.229/ws');
+      const ws = new WebSocket('ws://169.233.112.228/ws');
 
       ws.onopen = () => {
         console.log('WebSocket connected');
