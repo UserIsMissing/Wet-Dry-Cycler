@@ -3,6 +3,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import 'bulma/css/bulma.min.css';
 
+const TAB_WIDTH = 690; // Define a constant
+const ESP32_IP = '169.233.116.104'; // Define the IP address at the top of the file
+
 
 function App() {
   const [isCycleActive, setIsCycleActive] = useState(false); // Track if a cycle is active
@@ -16,6 +19,7 @@ function App() {
   const [cycleProgress, setCycleProgress] = useState(0); // Cycle progress as a percentage
   const [syringeUsed, setSyringeUsed] = useState(0); // Syringe usage as a percentage
 
+  // For GPIO states
   const [espOnline, setEspOnline] = useState(false);
   const [lastMessageTime, setLastMessageTime] = useState(Date.now());
   const [socket, setSocket] = useState(null);
@@ -34,6 +38,7 @@ function App() {
     numberOfCycles: ''
   });
 
+
   const [activeTab, setActiveTab] = useState('parameters'); // Default to the "parameters" tab
   const [isChartInitialized, setIsChartInitialized] = useState(false);
 
@@ -49,9 +54,8 @@ function App() {
   useEffect(() => {
     let ws;
     let reconnectTimeout;
-
     const connectWebSocket = () => {
-      ws = new WebSocket('ws://169.233.112.228/ws');
+      ws = new WebSocket(`ws://${ESP32_IP}/ws`);
 
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -176,12 +180,13 @@ function App() {
 
   const handleEndCycleButton = () => {
     setIsCycleActive(false); // Unlock the "Set Parameters" tab
+    setActiveTab('parameters'); // Switch to the "Set Parameters" tab
     console.log('Cycle ended.');
 
     // Temporarily turn the button green
     setButtonStates((prev) => ({ ...prev, endCycle: true }));
     setTimeout(() => {
-      setButtonStates((prev) => ({ ...prev, endCycle: false })); // Reset the button state after 3 seconds
+      setButtonStates((prev) => ({ ...prev, endCycle: false })); // Reset the button state after 1 second
     }, 1000);
   };
 
@@ -194,6 +199,14 @@ function App() {
       // Send the button state to the ESP32
       socket.send(JSON.stringify({ type: 'button', name: buttonName, state: newState ? 'on' : 'off' }));
       console.log(`Button ${buttonName} sent with state: ${newState ? 'on' : 'off'}`);
+
+      // Temporarily turn the button green for "Start Cycle" and "Log Cycle"
+      if (buttonName === 'startCycle' || buttonName === 'logCycle') {
+        setButtonStates((prev) => ({ ...prev, [buttonName]: true }));
+        setTimeout(() => {
+          setButtonStates((prev) => ({ ...prev, [buttonName]: false })); // Reset the button state after 1 second
+        }, 1000);
+      }
     } else {
       console.error('WebSocket is not connected.');
     }
@@ -284,7 +297,7 @@ function App() {
   // WebSocket message handling
   useEffect(() => {
     const connectWebSocket = () => {
-      const ws = new WebSocket('ws://169.233.112.228/ws');
+      const ws = new WebSocket(`ws://${ESP32_IP}/ws`);
 
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -351,7 +364,7 @@ function App() {
       <div className="columns">
         {/* Tabs Section */}
         <div className="column is-three-quarters">
-          <div className="tabs is-toggle is-fullwidth" style={{ maxWidth: '700px', margin: '0' }}>
+          <div className="tabs is-toggle is-fullwidth" style={{ maxWidth: TAB_WIDTH, margin: '0' }}>
             <ul>
               <li className={activeTab === 'parameters' ? 'is-active' : ''}>
                 <a
@@ -364,12 +377,19 @@ function App() {
                 </a>
               </li>
               <li className={activeTab === 'controls' ? 'is-active' : ''}>
-                <a onClick={() => setActiveTab('controls')}>Controls</a>
+                <a
+                  onClick={() => {
+                    if (isCycleActive) setActiveTab('controls');
+                  }}
+                  style={{ pointerEvents: isCycleActive ? 'auto' : 'none', opacity: isCycleActive ? 1 : 0.5 }}
+                >
+                  Controls
+                </a>
               </li>
             </ul>
           </div>
 
-          <div className="box" style={{ maxWidth: '700px', margin: '0' }}>
+          <div className="box" style={{ maxWidth: TAB_WIDTH, margin: '0' }}>
             {/* Existing Tab Content */}
             {activeTab === 'parameters' && (
               <section className="mt-4">
@@ -470,18 +490,10 @@ function App() {
                       className={`button ${buttonStates[id] ? 'is-success' : 'is-light'} m-2`}
                       onClick={() => {
                         if (id === 'endCycle') handleEndCycleButton(); // Unlock "Set Parameters" on "End Cycle"
-                        const newState = !buttonStates[id];
-                        setButtonStates((prev) => ({ ...prev, [id]: newState }));
-
-                        // Send the button state to the ESP32
-                        if (socket && socket.readyState === WebSocket.OPEN) {
-                          socket.send(JSON.stringify({ type: 'button', name: id, state: newState ? 'on' : 'off' }));
-                          console.log(`Button ${id} sent with state: ${newState ? 'on' : 'off'}`);
-                        } else {
-                          console.error('WebSocket is not connected.');
-                        }
+                        sendButtonCommand(id); // Handle button logic
                       }}
                       disabled={
+                        (id !== 'pauseCycle' && buttonStates['pauseCycle']) || // Disable all other buttons if "Pause Cycle" is active
                         (id !== 'extract' && id !== 'refill' && (buttonStates['extract'] || buttonStates['refill'])) || // Disable other buttons if Extract or Refill is active
                         (id === 'extract' && buttonStates['refill']) || // Disable Extract if Refill is active
                         (id === 'refill' && buttonStates['extract'])    // Disable Refill if Extract is active

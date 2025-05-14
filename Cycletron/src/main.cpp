@@ -7,15 +7,14 @@
 #define Serial0 Serial
 
 // Wi-Fi credentials
-const char* ssid = "UCSC-Devices";
-const char* password = "o9ANAjrZ9zkjYKy2yL";
+// const char* ssid = "UCSC-Devices";
+// const char* password = "o9ANAjrZ9zkjYKy2yL";
 
 // const char *ssid = "DonnaHouse";
 // const char *password = "guessthepassword";
 
-
-// const char *ssid = "UCSC-Guest";
-// const char* password = "";
+const char *ssid = "UCSC-Guest";
+const char* password = "";
 
 // GPIO pin definitions
 const int LED_PIN = 2;
