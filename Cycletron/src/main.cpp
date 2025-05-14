@@ -9,6 +9,8 @@
 // Wi-Fi credentials
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
+// const char* ssid = "UCSC-Devices";
+// const char* password = "o9ANAjrZ9zkjYKy2yL";
 
 // const char *ssid = "DonnaHouse";
 // const char *password = "guessthepassword";
@@ -16,31 +18,78 @@
 const char *ssid = "UCSC-Guest";
 const char* password = "";
 
-// GPIO pin definitions
-const int LED_PIN = 2;
-const int MIX1_GPIO = 11;
-const int MIX2_GPIO = 12;
-const int MIX3_GPIO = 13;
+// === State Machine ===
+enum class SystemState {
+  IDLE,
+  READY,
+  RUNNING,
+  REFILLING,
+  EXTRACTING,
+  LOGGING,
+  PAUSED,
+  ENDED,
+  ERROR
+};
 
+SystemState currentState = SystemState::IDLE;
+SystemState previousState = SystemState::IDLE;
+
+// === Web Server & WebSocket ===
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-void handleGpio(const String &name, const String &state)
-{
-  int level = (state == "on") ? HIGH : LOW;
-
-  if (name == "led")
-    digitalWrite(LED_PIN, level);
-  else if (name == "mix1")
-    digitalWrite(MIX1_GPIO, level);
-  else if (name == "mix2")
-    digitalWrite(MIX2_GPIO, level);
-  else if (name == "mix3")
-    digitalWrite(MIX3_GPIO, level);
-
-  Serial.printf("Set %s to %s\n", name.c_str(), state.c_str());
+// === State Handling ===
+void handleStateCommand(const String& name, const String& state) {
+  // Block all state changes if system is still in IDLE
+  if (currentState == SystemState::IDLE) {
+    Serial.println("System is IDLE — cannot process commands until parameters are received.");
+    return;
+  }
+   // Allow commands only from READY or RUNNING (or related intermediate) states
+  if (name == "startCycle" && state == "on") {
+    currentState = SystemState::RUNNING;
+    Serial.println("State changed to RUNNING");
+  } 
+  else if (name == "pauseCycle") {
+    if (state == "on") {
+      currentState = SystemState::PAUSED;
+      Serial.println("State changed to PAUSED");
+    } else if (state == "off") {
+      currentState = SystemState::RUNNING;
+      Serial.println("State changed to RESUMED (RUNNING)");
+    }
+  } 
+  else if (name == "endCycle" && state == "on") {
+    currentState = SystemState::ENDED;
+    Serial.println("State changed to ENDED");
+  } 
+  else if (name == "extract") {
+    if (state == "on") {
+      currentState = SystemState::EXTRACTING;
+      Serial.println("State changed to EXTRACTING");
+    } else if (state == "off") {
+      currentState = SystemState::RUNNING;
+      Serial.println("Extraction ended — resuming RUNNING");
+    }
+  } 
+  else if (name == "refill") {
+    if (state == "on") {
+      currentState = SystemState::REFILLING;
+      Serial.println("State changed to REFILLING");
+    } else if (state == "off") {
+      currentState = SystemState::RUNNING;
+      Serial.println("Refill ended — resuming RUNNING");
+    }
+  } 
+  else if (name == "logCycle" && state == "on") {
+    previousState = currentState;  // Save current state
+    currentState = SystemState::LOGGING;
+    Serial.println("State changed to LOGGING");
+  }
+  else {
+    Serial.printf("Unknown or ignored command: %s with state: %s\n", name.c_str(), state.c_str());
+  }
 }
-
 void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                       AwsEventType type, void *arg, uint8_t *data, size_t len)
 {
@@ -72,6 +121,17 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
       return;
     }
 
+    // Handle 'parameters' packet
+    if (doc["type"] == "parameters" && doc["data"].is<JsonObject>()) {
+      if (currentState == SystemState::IDLE) {
+        currentState = SystemState::READY;
+        Serial.println("Received parameters — transitioning to READY state");
+      } else {
+        Serial.println("Received parameters, but system is not in IDLE");
+      }
+      return;
+    }
+    // Handle regular control command
     if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
     {
       String name = doc["name"].as<String>();
@@ -79,7 +139,7 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
 
       Serial0.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
 
-      handleGpio(name, state);
+      handleStateCommand(name, state);
       StaticJsonDocument<100> response;
       response["name"] = name;
       response["state"] = state;
@@ -115,16 +175,6 @@ void setup()
   Serial.begin(115200);
   delay(2000); // Allow USB Serial to connect
 
-  // GPIO init
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(MIX1_GPIO, OUTPUT);
-  pinMode(MIX2_GPIO, OUTPUT);
-  pinMode(MIX3_GPIO, OUTPUT);
-
-  digitalWrite(LED_PIN, LOW);
-  digitalWrite(MIX1_GPIO, LOW);
-  digitalWrite(MIX2_GPIO, LOW);
-  digitalWrite(MIX3_GPIO, LOW);
 
   HEATING_Init();
 
@@ -153,12 +203,57 @@ void setup()
 
 unsigned long lastSent = 0;
 
-void loop()
-{
+void loop() {
   unsigned long now = millis();
-  if (now - lastSent >= 1000)
-  { // Send temperature every 1s
-    sendTemperature();
-    lastSent = now;
+
+  switch (currentState) {
+    case SystemState::IDLE:
+      // Wait for parameter packet
+      break;
+
+    case SystemState::READY:
+      // Await user input (startCycle)
+      break;
+
+    case SystemState::RUNNING:
+      // Send temperature periodically
+      if (now - lastSent >= 1000) {
+        sendTemperature();
+        lastSent = now;
+      }
+      break;
+
+    case SystemState::PAUSED:
+      // System is paused — do nothing
+      break;
+
+    case SystemState::ENDED:
+      // System ended — could power down, stop all tasks, etc.
+      currentState = SystemState::IDLE;
+      break;
+
+    case SystemState::REFILLING:
+      Serial.println("Refilling...");
+      // Optional: trigger refill hardware here
+      currentState = SystemState::PAUSED;
+      break;
+
+    case SystemState::EXTRACTING:
+      Serial.println("Extracting...");
+      // Optional: trigger extract hardware here
+      currentState = SystemState::PAUSED;
+      break;
+
+      case SystemState::LOGGING:
+      Serial.println("Logging data...");
+      // [Optional: insert actual logging logic here]
+      currentState = previousState;  // Resume previous state
+      break;
+
+      break;
+
+    case SystemState::ERROR:
+      Serial.println("System error — awaiting reset or external command.");
+      break;
   }
 }
