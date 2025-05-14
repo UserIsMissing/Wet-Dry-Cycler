@@ -4,7 +4,7 @@ import Chart from 'chart.js/auto';
 import 'bulma/css/bulma.min.css';
 
 const TAB_WIDTH = 690; // Define a constant
-const ESP32_IP = '169.233.116.104'; // Define the IP address at the top of the file
+const ESP32_IP = '10.0.0.167'; // Define the IP address at the top of the file
 
 
 function App() {
@@ -396,9 +396,9 @@ function App() {
                 {/* <h2 className="title is-4">Set Parameters</h2> */}
                 <div className="columns is-multiline">
                   {[
-                    { label: "Volume Added Per Cycle (mL)", key: "volumeAddedPerCycle", placeholder: "e.g., 10" },
+                    { label: "Volume Added Per Cycle (uL)", key: "volumeAddedPerCycle", placeholder: "e.g., 10" },
                     { label: "Duration of Rehydration (seconds)", key: "durationOfRehydration", placeholder: "e.g., 30" },
-                    { label: "Syringe Diameter (mm)", key: "syringeDiameter", placeholder: "e.g., 5" },
+                    { label: "Syringe Diameter (in)", key: "syringeDiameter", placeholder: "e.g., 5" },
                     { label: "Desired Heating Temperature (°C)", key: "desiredHeatingTemperature", placeholder: "e.g., 90" },
                     { label: "Duration of Heating (seconds)", key: "durationOfHeating", placeholder: "e.g., 120" },
                     { label: "Duration of Mixing (seconds)", key: "durationOfMixing", placeholder: "e.g., 15" },

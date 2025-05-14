@@ -9,7 +9,7 @@
  * Compatible with ESP32 and Arduino platforms.
  *
  * @author  Rafael Delwart
- * @date    13 May 2025
+ * @date    25 Feb 2025 adapted for ESP 13 May 2025
  */
 
  #ifndef MIXING_H
