@@ -4,7 +4,7 @@ import Chart from 'chart.js/auto';
 import 'bulma/css/bulma.min.css';
 
 const TAB_WIDTH = 690; // Define a constant
-const ESP32_IP = '10.0.0.167'; // Define the IP address at the top of the file
+const ESP32_IP = '10.0.0.229'; // Define the IP address at the top of the file
 
 
 function App() {
@@ -14,7 +14,7 @@ function App() {
 
   // For ESP outputs and progress bars
   const [syringeLimit, setSyringeLimit] = useState(0); // Syringe limit as a percentage
-  const [movementLimits, setMovementLimits] = useState('N/A'); // Movement limits as text
+  const [extractioReady, setExtractionReady] = useState('N/A'); // Extraction Ready as text
   const [cyclesCompleted, setCyclesCompleted] = useState(0); // Number of cycles completed
   const [cycleProgress, setCycleProgress] = useState(0); // Cycle progress as a percentage
   const [syringeUsed, setSyringeUsed] = useState(0); // Syringe usage as a percentage
@@ -317,10 +317,13 @@ function App() {
 
           if (msg.type === 'status') {
             if (msg.syringeLimit !== undefined) setSyringeLimit(msg.syringeLimit);
-            if (msg.movementLimits !== undefined) setMovementLimits(msg.movementLimits);
+            if (msg.extractioReady !== undefined) setExtractionReady(msg.extractioReady);
             if (msg.cyclesCompleted !== undefined) setCyclesCompleted(msg.cyclesCompleted);
             if (msg.cycleProgress !== undefined) setCycleProgress(msg.cycleProgress);
             if (msg.syringeUsed !== undefined) setSyringeUsed(msg.syringeUsed);
+          }
+          if (msg.type === "status" && msg.extractioReady !== undefined) {
+            setExtractionReady(msg.extractioReady);
           }
         } catch (err) {
           console.error("Malformed WebSocket message:", event.data);
@@ -536,15 +539,20 @@ function App() {
                 </progress>
               </div>
 
-              {/* Movement Limits */}
+              {/* Extraction Ready */}
               <div className="column is-full">
-                <label className="label is-small">Movement Limits</label>
-                <input
-                  type="text"
-                  className="input is-small"
-                  value={movementLimits}
-                  readOnly
-                />
+                <label className="label is-small">Extraction Ready</label>
+                <div className="field">
+                  <span
+                    className="tag is-medium"
+                    style={{
+                      backgroundColor: extractioReady === "ready" ? "green" : "red",
+                      color: "white",
+                    }}
+                  >
+                    {extractioReady === "ready" ? "Extraction Ready" : "Not Ready"}
+                  </span>
+                </div>
               </div>
 
               {/* # Cycles Completed */}

@@ -42,6 +42,6 @@ start "Frontend" cmd /k npm run dev
 REM === Open in Browser ===
 timeout /t 5 >nul
 start http://localhost:5000
-start http://localhost:5173
+start http://localhost:5174
 
 endlocal
