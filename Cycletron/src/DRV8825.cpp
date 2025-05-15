@@ -13,7 +13,7 @@
  #include <Arduino.h>
  #include "DRV8825.h"
  
- // === API IMPLEMENTATION ===
+ #define DRV8825_TEST
  
  /**
   * @brief Initializes all GPIO pins used by the DRV8825 motor driver.
@@ -139,3 +139,39 @@
    digitalWrite(motor->mode2_pin, (mode >> 2) & 0x01);  // MSB
  }
  
+ 
+
+
+#ifdef DRV8825_TEST
+
+#include <Arduino.h>
+#include "DRV8825.h"  // Ensure this header matches your ESP32 driver
+
+// Rehydration motor instance
+DRV8825_t rehydrationMotor = {
+    .step_pin = 1,     // Replace with your actual ESP32 GPIOs
+    .dir_pin = 2,
+    .fault_pin = 42,
+    .mode0_pin = 41,
+    .mode1_pin = 40,
+    .mode2_pin = 39,
+    .enable_pin = 38
+};
+
+void setup() {
+  Serial.begin(115200);
+  DRV8825_Init(&rehydrationMotor);
+  DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_THIRTYSECOND_STEP);
+
+  Serial.println("Moving forward...");
+  DRV8825_Move(&rehydrationMotor, 128000, DRV8825_FORWARD, DRV8825_DEFAULT_STEP_DELAY_US);
+
+  // Optional: Hold after move
+  while (true);
+}
+
+void loop() {
+  // Empty because all actions are handled in setup()
+}
+
+#endif // DRV8825_TEST
