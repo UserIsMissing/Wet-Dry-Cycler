@@ -182,30 +182,29 @@ function App() {
     setIsCycleActive(false); // Unlock the "Set Parameters" tab
     setActiveTab('parameters'); // Switch to the "Set Parameters" tab
     console.log('Cycle ended.');
-
-    // Temporarily turn the button green
+  
+    // Reset the "Start Cycle" button state
+    setButtonStates((prev) => ({ ...prev, startCycle: false }));
+  
+    // Temporarily turn the "End Cycle" button green
     setButtonStates((prev) => ({ ...prev, endCycle: true }));
     setTimeout(() => {
-      setButtonStates((prev) => ({ ...prev, endCycle: false })); // Reset the button state after 1 second
+      setButtonStates((prev) => ({ ...prev, endCycle: false })); // Reset the "End Cycle" button state after 1 second
     }, 1000);
   };
-
 
   const sendButtonCommand = (buttonName) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       const newState = !buttonStates[buttonName];
       setButtonStates((prev) => ({ ...prev, [buttonName]: newState }));
-
+  
       // Send the button state to the ESP32
       socket.send(JSON.stringify({ type: 'button', name: buttonName, state: newState ? 'on' : 'off' }));
       console.log(`Button ${buttonName} sent with state: ${newState ? 'on' : 'off'}`);
-
-      // Temporarily turn the button green for "Start Cycle" and "Log Cycle"
-      if (buttonName === 'startCycle' || buttonName === 'logCycle') {
-        setButtonStates((prev) => ({ ...prev, [buttonName]: true }));
-        setTimeout(() => {
-          setButtonStates((prev) => ({ ...prev, [buttonName]: false })); // Reset the button state after 1 second
-        }, 1000);
+  
+      // Keep "Start Cycle" green and disable it after being pressed
+      if (buttonName === 'startCycle') {
+        setButtonStates((prev) => ({ ...prev, [buttonName]: true })); // Keep it green
       }
     } else {
       console.error('WebSocket is not connected.');
@@ -489,10 +488,11 @@ function App() {
                       key={id}
                       className={`button ${buttonStates[id] ? 'is-success' : 'is-light'} m-2`}
                       onClick={() => {
-                        if (id === 'endCycle') handleEndCycleButton(); // Unlock "Set Parameters" on "End Cycle"
+                        if (id === 'endCycle') handleEndCycleButton(); // Reset "Start Cycle" on "End Cycle"
                         sendButtonCommand(id); // Handle button logic
                       }}
                       disabled={
+                        (id === 'startCycle' && buttonStates['startCycle']) || // Disable "Start Cycle" after being pressed
                         (id !== 'pauseCycle' && buttonStates['pauseCycle']) || // Disable all other buttons if "Pause Cycle" is active
                         (id !== 'extract' && id !== 'refill' && (buttonStates['extract'] || buttonStates['refill'])) || // Disable other buttons if Extract or Refill is active
                         (id === 'extract' && buttonStates['refill']) || // Disable Extract if Refill is active
