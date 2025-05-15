@@ -12,21 +12,26 @@
 
  #include <Arduino.h>
  #include "HEATING.h"
+
  #include <math.h>
  
  #define Serial0 Serial
  
  // === CONFIG ===
- #define HEATING_GPIO 14         // GPIO to control heater
+ #define HEATING_GPIO 5         // GPIO to control heater
  #define THERMISTOR_PIN 4        // ADC1_CHANNEL_0 = GPIO4 (ESP32-S3)
- #define MOVING_AVERAGE_WINDOW 80
- #define VREF 3.3                // ADC reference voltage
+ #define MOVING_AVERAGE_WINDOW 1000 // Size of moving average window
+ #define VREF 3.28                // ADC reference voltage
  #define ADC_RESOLUTION 4095.0   // 12-bit ADC = 4096 levels
- 
+
+
+
+ #define TESTING_TEMP
+
  // === Thermistor constants ===
  const float R0   = 100000.0;     // Resistance at 25°C (reference temp)
  const float R1   = 4630.0;       // Fixed series resistor in voltage divider
- const float BETA = 3850.0;       // Beta value of thermistor
+ const float BETA = 3950.0;       // Beta value of thermistor
  const float T0   = 298.15;       // Reference temp in Kelvin (25°C)
  
  // === Buffers for Moving Average ===
@@ -90,7 +95,8 @@
   */
  float HEATING_Measure_Voltage() {
    int avg_adc = HEATING_Measure_Raw_ADC_Avg();
-   return (VREF * avg_adc) / ADC_RESOLUTION;
+   return (((VREF * avg_adc) / ADC_RESOLUTION)+ 0.029);
+  // return(analogReadMilliVolts(THERMISTOR_PIN));
  }
  
  /**
@@ -155,3 +161,31 @@
    }
  }
  
+
+
+
+#ifdef TESTING_TEMP
+
+#include <Arduino.h>
+#include "HEATING.h"
+
+void setup() {
+  Serial.begin(115200);
+  HEATING_Init();
+}
+
+void loop() {
+  Serial.println(">Raw ADC: " + String(HEATING_Measure_Raw_ADC()));
+  Serial.println(">Raw ADC: " + String(HEATING_Measure_Raw_ADC()));
+  Serial.println(">ADC AVG: " + String(HEATING_Measure_Raw_ADC_Avg()));
+  Serial.println(">Voltage: " + String(HEATING_Measure_Voltage(), 3));
+  Serial.println(">Resistance: " + String(HEATING_Measure_Resistance() / 1000.0, 3) + " kOhm");
+  Serial.println(">Temperature: " + String(HEATING_Measure_Temp(), 3) + " °C");
+  Serial.println(">Temperature AVG: " + String(HEATING_Measure_Temp_Avg(), 3) + " °C");
+
+  HEATING_Set_Temp(50); // Bang-bang control target temperature
+
+  delay(10); // Delay to make output readable
+}
+
+#endif // TESTING_TEMP

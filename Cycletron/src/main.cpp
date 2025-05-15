@@ -7,6 +7,12 @@
 #include "REHYDRATION.h"
 #include <stdlib.h>  // for atof()
 
+//TESTS
+// #define TESTING_TEMP
+// #define TESTING_MAIN
+
+
+
 #define Serial0 Serial
 
 // Wi-Fi credentials
@@ -243,6 +249,7 @@ void sendTemperature()
 
   Serial.printf("Sent temp: %.2f °C\n", temp);
 }
+#ifdef TESTING_MAIN
 
 void setup()
 {
@@ -333,3 +340,5 @@ void loop()
     break;
   }
 }
+
+#endif // TESTING_MAIN
