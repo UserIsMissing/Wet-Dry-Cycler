@@ -6,29 +6,29 @@ const path = require('path');
 const app = express();
 const PORT = 5174;
 
-// Server Log File Storage --------------------------------------
+// Server Saving & Storage --------------------------------------
 const fs = require('fs');
-// Load or initialize GPIO state
-const gpioFile = 'gpio_state.json';
-let gpioState = {
-  Start_Cycle: "off",
-  Pause_Cycle: "off",
-  End_Cycle: "off",
-  Extract: "off",
-  Refill: "off",
-  Log: "off"
+
+const recoveryFile = 'recovery_state.json';
+let recoveryState = {
+  machineStep: 'idle',    // could be 'heating', 'cooling', 'extracting', etc.
+  lastAction: null,
+  progress: 0             // a % complete, or however you track steps
 };
-if (fs.existsSync(gpioFile)) {
+
+// Load on startup
+if (fs.existsSync(recoveryFile)) {
   try {
-    gpioState = JSON.parse(fs.readFileSync(gpioFile));
-    console.log("Loaded GPIO state:", gpioState);
+    recoveryState = JSON.parse(fs.readFileSync(recoveryFile));
+    console.log("Loaded recovery state:", recoveryState);
   } catch (e) {
-    console.error("Failed to load GPIO state file:", e);
+    console.error("Failed to load recovery state file:", e);
   }
 }
-// Function to save updated GPIO state
-function saveGpioState() {
-  fs.writeFileSync(gpioFile, JSON.stringify(gpioState, null, 2));
+
+// Save function
+function saveRecoveryState() {
+  fs.writeFileSync(recoveryFile, JSON.stringify(recoveryState, null, 2));
 }
 // --------------------------------------------------------------
 
@@ -65,25 +65,48 @@ wss.on('connection', (ws) => {
   ws.send(JSON.stringify({
     type: 'initialGpioState',
     data: gpioState
+
+
   }));
 
 
   ws.on('message', (message) => {
     try {
       const msg = JSON.parse(message);
+
+      // Temperature logging
       if (msg.type === 'temperature') {
         db.run('INSERT INTO temperature_log (value) VALUES (?)', [msg.value]);
         console.log(`Logged temperature: ${msg.value}°C`);
       }
+
+      // GPIO command from frontend
       if (msg.type === 'gpioCommand') {
         gpioState[msg.name] = msg.state;
         saveGpioState();
         console.log(`Updated GPIO: ${msg.name} -> ${msg.state}`);
       }
+
+      // ESP or frontend requests recovery state
+      if (msg.type === 'getRecoveryState') {
+        ws.send(JSON.stringify({
+          type: 'recoveryState',
+          data: recoveryState
+        }));
+      }
+
+      // ESP or frontend updates recovery state
+      if (msg.type === 'updateRecoveryState') {
+        recoveryState = { ...recoveryState, ...msg.data };
+        saveRecoveryState();
+        console.log('Updated recovery state:', recoveryState);
+      }
+
     } catch (e) {
       console.error('Bad message:', e);
     }
   });
+
 
   ws.on('close', () => {
     console.log('ESP32 disconnected');

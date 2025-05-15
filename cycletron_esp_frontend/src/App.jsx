@@ -2,12 +2,32 @@ import './App.css';
 import React, { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import 'bulma/css/bulma.min.css';
+import useWebSocket from './hooks/useWebSocket'; // Import the custom hook
 
 const TAB_WIDTH = 690; // Define a constant
 const ESP32_IP = '10.0.0.229'; // Define the IP address at the top of the file
 
 
 function App() {
+  const [recoveryState, setRecoveryState] = useState(null);
+
+  // ✅ Use the hook once and get the send function
+  const { sendRecoveryUpdate } = useWebSocket((data) => {
+    setRecoveryState(data);
+  });
+
+  // ✅ Only call the provided function when needed
+  const handleClick = () => {
+    const recoveryData = {
+      cycleStatus: 'paused',
+      step: 'refill',
+      timestamp: Date.now()
+    };
+
+    sendRecoveryUpdate(recoveryData); // Hook handles ws status check inside
+    console.log('Sent recovery update:', recoveryData);
+  }; // ------------------------------------------------------------------------------------------
+
   const [isCycleActive, setIsCycleActive] = useState(false); // Track if a cycle is active
 
   const [currentTemp, setCurrentTemp] = useState(null); // Text Box for current temperature (next to chart)
@@ -26,7 +46,6 @@ function App() {
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
   const chartData = useRef([]);
-  const tempQueue = useRef([]); // Queue to store temperature data until the chart is initialized
   const [parameters, setParameters] = useState({
     volumeAddedPerCycle: '',
     durationOfRehydration: '',
@@ -88,42 +107,41 @@ function App() {
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data); // Parse the WebSocket message
-          console.log("WebSocket message received:", msg); // Debug log
+          const msg = JSON.parse(event.data);
+          console.log("WebSocket message received:", msg);
 
           setLastMessageTime(Date.now());
 
-          if (msg.type === 'temperature') {
-            const value = msg.value;
-
-            console.log("Temperature received:", value);
-            setCurrentTemp(value); // Update the currentTemp state
-
-            if (isChartInitialized && chartInstanceRef.current) {
-              // Update the chart if it is initialized
-              chartData.current.push(value);
-
-              if (chartData.current.length > 20) chartData.current.shift();
-
-              const labels = chartData.current.map((_, i) => i + 1);
-              chartInstanceRef.current.data.labels = labels;
-              chartInstanceRef.current.data.datasets[0].data = [...chartData.current];
-              chartInstanceRef.current.update();
-            } else {
-              // Queue the data if the chart is not initialized
-              console.warn("Chart instance is not initialized yet. Queuing data.");
-              tempQueue.current.push(value);
-            }
+          // Recovery State (type: recoveryState)
+          if (msg.type === 'recoveryState') {
+            setRecoveryState(msg.data);
           }
 
-          if (msg.name && msg.state) {
+          // Temperature message
+          if (msg.type === 'temperature') {
+            setCurrentTemp(msg.value);
+          }
+
+          // GPIO state message (direct pin messages)
+          if (msg.name && msg.state !== undefined) {
             setGpioStates((prev) => ({ ...prev, [msg.name]: msg.state }));
           }
+
+          // Status updates
+          if (msg.type === 'status') {
+            if (msg.syringeLimit !== undefined) setSyringeLimit(msg.syringeLimit);
+            if (msg.extractioReady !== undefined) setExtractionReady(msg.extractioReady);
+            if (msg.cyclesCompleted !== undefined) setCyclesCompleted(msg.cyclesCompleted);
+            if (msg.cycleProgress !== undefined) setCycleProgress(msg.cycleProgress);
+            if (msg.syringeUsed !== undefined) setSyringeUsed(msg.syringeUsed);
+          }
+
         } catch (err) {
-          console.error("Malformed WebSocket message:", event.data); // Log the raw message
-          console.error("Error details:", err); // Log the error details
+          console.error("Malformed WebSocket message:", event.data);
+          console.error("Error details:", err);
         }
       };
+
 
       ws.onclose = () => {
         console.log('WebSocket disconnected');
@@ -182,10 +200,10 @@ function App() {
     setIsCycleActive(false); // Unlock the "Set Parameters" tab
     setActiveTab('parameters'); // Switch to the "Set Parameters" tab
     console.log('Cycle ended.');
-  
+
     // Reset the "Start Cycle" button state
     setButtonStates((prev) => ({ ...prev, startCycle: false }));
-  
+
     // Temporarily turn the "End Cycle" button green
     setButtonStates((prev) => ({ ...prev, endCycle: true }));
     setTimeout(() => {
@@ -197,11 +215,11 @@ function App() {
     if (socket && socket.readyState === WebSocket.OPEN) {
       const newState = !buttonStates[buttonName];
       setButtonStates((prev) => ({ ...prev, [buttonName]: newState }));
-  
+
       // Send the button state to the ESP32
       socket.send(JSON.stringify({ type: 'button', name: buttonName, state: newState ? 'on' : 'off' }));
       console.log(`Button ${buttonName} sent with state: ${newState ? 'on' : 'off'}`);
-  
+
       // Keep "Start Cycle" green and disable it after being pressed
       if (buttonName === 'startCycle') {
         setButtonStates((prev) => ({ ...prev, [buttonName]: true })); // Keep it green
@@ -262,28 +280,19 @@ function App() {
       }
     });
 
-    setIsChartInitialized(true);
-
-    // Process any queued data immediately
-    if (tempQueue.current.length > 0) {
-      console.log("Processing queued data...");
-      chartData.current = [...tempQueue.current];
-      tempQueue.current = [];
-      updateChart();
-    }
   }, []);
 
-  const updateChart = () => {
-    if (!chartInstanceRef.current) {
-      console.error("Chart instance is not initialized.");
-      return;
-    }
+  // const updateChart = () => {
+  //   if (!chartInstanceRef.current) {
+  //     console.error("Chart instance is not initialized.");
+  //     return;
+  //   }
 
-    const labels = chartData.current.map((_, i) => i + 1);
-    chartInstanceRef.current.data.labels = labels;
-    chartInstanceRef.current.data.datasets[0].data = [...chartData.current];
-    chartInstanceRef.current.update();
-  };
+  //   const labels = chartData.current.map((_, i) => i + 1);
+  //   chartInstanceRef.current.data.labels = labels;
+  //   chartInstanceRef.current.data.datasets[0].data = [...chartData.current];
+  //   chartInstanceRef.current.update();
+  // };
 
   useEffect(() => {
     if (currentTemp !== null && isChartInitialized) {
@@ -304,32 +313,32 @@ function App() {
         setSocket(ws);
       };
 
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          console.log("WebSocket message received:", msg);
+      // ws.onmessage = (event) => {
+      //   try {
+      //     const msg = JSON.parse(event.data);
+      //     console.log("WebSocket message received:", msg);
 
-          setLastMessageTime(Date.now());
+      //     setLastMessageTime(Date.now());
 
-          if (msg.type === 'temperature') {
-            setCurrentTemp(msg.value);
-          }
+      //     if (msg.type === 'temperature') {
+      //       setCurrentTemp(msg.value);
+      //     }
 
-          if (msg.type === 'status') {
-            if (msg.syringeLimit !== undefined) setSyringeLimit(msg.syringeLimit);
-            if (msg.extractioReady !== undefined) setExtractionReady(msg.extractioReady);
-            if (msg.cyclesCompleted !== undefined) setCyclesCompleted(msg.cyclesCompleted);
-            if (msg.cycleProgress !== undefined) setCycleProgress(msg.cycleProgress);
-            if (msg.syringeUsed !== undefined) setSyringeUsed(msg.syringeUsed);
-          }
-          if (msg.type === "status" && msg.extractioReady !== undefined) {
-            setExtractionReady(msg.extractioReady);
-          }
-        } catch (err) {
-          console.error("Malformed WebSocket message:", event.data);
-          console.error("Error details:", err);
-        }
-      };
+      //     if (msg.type === 'status') {
+      //       if (msg.syringeLimit !== undefined) setSyringeLimit(msg.syringeLimit);
+      //       if (msg.extractioReady !== undefined) setExtractionReady(msg.extractioReady);
+      //       if (msg.cyclesCompleted !== undefined) setCyclesCompleted(msg.cyclesCompleted);
+      //       if (msg.cycleProgress !== undefined) setCycleProgress(msg.cycleProgress);
+      //       if (msg.syringeUsed !== undefined) setSyringeUsed(msg.syringeUsed);
+      //     }
+      //     if (msg.type === "status" && msg.extractioReady !== undefined) {
+      //       setExtractionReady(msg.extractioReady);
+      //     }
+      //   } catch (err) {
+      //     console.error("Malformed WebSocket message:", event.data);
+      //     console.error("Error details:", err);
+      //   }
+      // };
 
       ws.onclose = () => {
         console.log('WebSocket disconnected');
@@ -351,9 +360,20 @@ function App() {
     };
   }, [isChartInitialized]);
 
+  // -------------------- Responsible for visual elements of the page --------------------
   return (
     // <div className="container mt-5">
     <div className="container">
+      {/* ------ Recovery State Debugging ------- */}
+      <section className="box mt-4">
+        <h2 className="title is-5">Recovery State (Debug)</h2>
+        <pre>{JSON.stringify(recoveryState, null, 2)}</pre>
+        <button className="button is-small mt-2" onClick={handleClick}>
+          Send Recovery Update
+        </button>
+      </section>
+      {/* --------------------------------------- */}
+
       <h1 className="title is-2" style={{ marginTop: '0' }}>Wet-Dry Cycler Interface</h1>
 
       <div className="mb-4">
@@ -466,17 +486,6 @@ function App() {
               <section className="mt-4">
                 {/* <h2 className="title is-4">Controls</h2> */}
                 <div className="mb-4">
-                  {/* <h3 className="title is-5">Live Temperature (°C)</h3>
-                  <input
-                    type="text"
-                    className="input is-small"
-                    style={{ width: '100px' }}
-                    value={currentTemp !== null ? `${currentTemp} °C` : "N/A"}
-                    readOnly
-                  />
-                  <p className="mt-2 is-size-7">
-                    {espOnline ? "Live temperature data updating..." : "ESP32 offline – showing last known data."}
-                  </p> */}
                 </div>
                 <div className="buttons are-medium is-flex is-flex-wrap-wrap is-justify-content-space-between">
                   {[
