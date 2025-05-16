@@ -1,6 +1,5 @@
 #include <WiFi.h>
-#include <ESPAsyncWebServer.h>
-#include <AsyncTCP.h>
+#include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include "HEATING.h"
 #include "MIXING.h"
@@ -13,18 +12,18 @@
 
 #define Serial0 Serial
 
-// Wi-Fi credentials
+// === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-// const char *ssid = "DonnaHouse";
-// const char *password = "guessthepassword";
+const char *ssid = "DonnaHouse";
+const char *password = "guessthepassword";
 
-const char *ssid = "TheDawgHouse";
-const char *password = "ThrowItBackForPalestine";
+// const char *ssid = "TheDawgHouse";
+// const char *password = "ThrowItBackForPalestine";
 
 // const char *ssid = "UCSC-Guest";
-// const char* password = "";
+// const char *password = "";
 
 // === State Machine ===
 enum class SystemState
@@ -40,7 +39,7 @@ enum class SystemState
   ERROR
 };
 
-// ===  Parameters ===
+// === Operational Parameters ===
 float volumeAddedPerCycle = 0;
 float durationOfRehydration = 0;
 float syringeDiameter = 0;
@@ -57,9 +56,19 @@ int sampleZoneCount = 0;
 SystemState currentState = SystemState::IDLE;
 SystemState previousState = SystemState::IDLE;
 
-// === Web Server & WebSocket ===
+// === WebSocket Client ===
+WebSocketsClient webSocket;
+
+// TESTS
+// #define TESTING_TEMP
+#define TESTING_MAIN
+
+/* === WebSocket Server (Commented Out to Act as Client Only) ===
+#include <ESPAsyncWebServer.h>
+#include <AsyncTCP.h>
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
+*/
 
 // === State Handling ===
 void handleStateCommand(const String &name, const String &state)
@@ -78,16 +87,8 @@ void handleStateCommand(const String &name, const String &state)
   }
   else if (name == "pauseCycle")
   {
-    if (state == "on")
-    {
-      currentState = SystemState::PAUSED;
-      Serial.println("State changed to PAUSED");
-    }
-    else if (state == "off")
-    {
-      currentState = SystemState::RUNNING;
-      Serial.println("State changed to RESUMED (RUNNING)");
-    }
+    currentState = (state == "on") ? SystemState::PAUSED : SystemState::RUNNING;
+    Serial.printf("State changed to %s\n", state == "on" ? "PAUSED" : "RESUMED (RUNNING)");
   }
   else if (name == "endCycle" && state == "on")
   {
@@ -96,29 +97,13 @@ void handleStateCommand(const String &name, const String &state)
   }
   else if (name == "extract")
   {
-    if (state == "on")
-    {
-      currentState = SystemState::EXTRACTING;
-      Serial.println("State changed to EXTRACTING");
-    }
-    else if (state == "off")
-    {
-      currentState = SystemState::RUNNING;
-      Serial.println("Extraction ended — resuming RUNNING");
-    }
+    currentState = (state == "on") ? SystemState::EXTRACTING : SystemState::RUNNING;
+    Serial.printf("Extraction %s\n", state == "on" ? "started" : "ended — resuming RUNNING");
   }
   else if (name == "refill")
   {
-    if (state == "on")
-    {
-      currentState = SystemState::REFILLING;
-      Serial.println("State changed to REFILLING");
-    }
-    else if (state == "off")
-    {
-      currentState = SystemState::RUNNING;
-      Serial.println("Refill ended — resuming RUNNING");
-    }
+    currentState = (state == "on") ? SystemState::REFILLING : SystemState::RUNNING;
+    Serial.printf("Refill %s\n", state == "on" ? "started" : "ended — resuming RUNNING");
   }
   else if (name == "logCycle" && state == "on")
   {
@@ -131,36 +116,29 @@ void handleStateCommand(const String &name, const String &state)
     Serial.printf("Unknown or ignored command: %s with state: %s\n", name.c_str(), state.c_str());
   }
 }
-void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
-                      AwsEventType type, void *arg, uint8_t *data, size_t len)
+
+void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
 {
-  if (type == WS_EVT_CONNECT)
+  switch (type)
   {
-    Serial0.printf("WebSocket client #%u connected\n", client->id());
-  }
-
-  if (type == WS_EVT_DISCONNECT)
+  case WStype_CONNECTED:
+    Serial.println("WebSocket connected");
+    break;
+  case WStype_DISCONNECTED:
+    Serial.println("WebSocket disconnected");
+    break;
+  case WStype_TEXT:
   {
-    Serial0.printf("WebSocket client #%u disconnected\n", client->id());
-  }
-
-  if (type == WS_EVT_DATA)
-  {
-    Serial0.printf("Received data (%d bytes): ", len);
-    for (size_t i = 0; i < len; i++)
+    Serial.printf("Received: %s\n", payload);
     {
-      Serial0.print((char)data[i]);
-    }
-    Serial0.println();
-
-    StaticJsonDocument<200> doc;
-    DeserializationError err = deserializeJson(doc, data, len);
-    if (err)
-    {
-      Serial0.print("JSON parse failed: ");
-      Serial0.println(err.c_str());
-      return;
-    }
+      ArduinoJson::DynamicJsonDocument doc(300);
+      auto err = deserializeJson(doc, payload, length);
+      if (err)
+      {
+        Serial.print("JSON parse failed: ");
+        Serial.println(err.c_str());
+        break;
+      }
 
       // Handle 'parameters' packet
       if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
@@ -231,23 +209,26 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
         Serial.println("Invalid packet received");
       }
     }
+    break;
+  }
+  default:
+    break;
   }
 }
 
 void sendTemperature()
 {
   float temp = HEATING_Measure_Temp_Avg();
-
-  StaticJsonDocument<100> doc;
+  ArduinoJson::DynamicJsonDocument doc(100);
   doc["type"] = "temperature";
   doc["value"] = temp;
 
   char buffer[100];
-  size_t len = serializeJson(doc, buffer);
-  ws.textAll(buffer);
-
-  Serial.printf("Sent temp: %.2f °C\n", temp);
+  serializeJson(doc, buffer);
+  webSocket.sendTXT(buffer);
+  Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
 }
+
 #ifdef TESTING_MAIN
 
 void setup()
@@ -260,8 +241,6 @@ void setup()
   // Wi-Fi connect
   Serial.println("Connecting to WiFi...");
   WiFi.begin(ssid, password);
-  // WiFi.begin(ssid);
-
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
@@ -269,21 +248,18 @@ void setup()
   }
   Serial.println("\nWiFi connected. IP: " + WiFi.localIP().toString());
 
+  webSocket.begin("10.0.0.30", 5175, "/ws");
+  webSocket.onEvent(onWebSocketEvent);
+
   Serial0.print("ESP32 MAC Address: ");
   Serial0.println(WiFi.macAddress());
-
-  // WebSocket setup
-  ws.onEvent(onWebSocketEvent);
-  server.addHandler(&ws);
-  server.begin();
-  Serial.println("WebSocket server started");
-  Serial.println(WiFi.localIP());
 }
 
 unsigned long lastSent = 0;
 
 void loop()
 {
+  webSocket.loop();
   unsigned long now = millis();
 
   switch (currentState)
