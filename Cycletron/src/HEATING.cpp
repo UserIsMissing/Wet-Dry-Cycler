@@ -26,7 +26,7 @@
 
  #define roomTempCalibrationOffset 18 // Calibration offset for room temperature
 
- #define TESTING_TEMP
+//  #define TESTING_TEMP
 
  // === Thermistor constants ===
  const float R0   = 100000.0;     // Resistance at 25°C (reference temp)

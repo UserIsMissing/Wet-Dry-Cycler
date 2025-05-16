@@ -4,6 +4,7 @@ import useWebSocket from './hooks/useWebSocket';
 import './App.css';
 
 // Constants
+const PORT = 5175;
 const TAB_WIDTH = 690;
 const INITIAL_PARAMETERS = {
   volumeAddedPerCycle: '',
@@ -82,10 +83,153 @@ function App() {
 
   // Local states
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
-  const [activeTab, setActiveTab] = useState('parameters');
-  const [cycleState, setCycleState] = useState('idle'); // 'idle', 'started', 'paused', 'extract', 'refill'
-  const [isPaused, setIsPaused] = useState(false); // Tracks if the cycle is paused
-  const [activeButton, setActiveButton] = useState(null); // Tracks the currently active button
+  const [buttonStates, setButtonStates] = useState(INITIAL_BUTTON_STATES);
+
+  // Refs
+  const socketRef = useRef(null);
+
+  // WebSocket hook (your custom hook)
+  const { sendRecoveryUpdate } = useWebSocket(setRecoveryState);
+
+  // WebSocket connection logic
+  const connectWebSocket = useCallback(() => {
+    const ws = new WebSocket(`ws://${window.location.hostname}:${PORT}`);
+    // const ws = new WebSocket(`ws://${ESP32_IP}:${PORT}`);
+
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      setEspOnline(true);
+      socketRef.current = ws;
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        setLastMessageTime(Date.now());
+
+        switch (msg.type) {
+          case 'recoveryState':
+            setRecoveryState(msg.data);
+            break;
+          case 'temperature':
+            setCurrentTemp(msg.value);
+            break;
+          case 'status':
+            setEspOutputs((prev) => ({
+              ...prev,
+              ...(msg.syringeLimit !== undefined && { syringeLimit: msg.syringeLimit }),
+              ...(msg.extractioReady !== undefined && { extractioReady: msg.extractioReady }),
+              ...(msg.cyclesCompleted !== undefined && { cyclesCompleted: msg.cyclesCompleted }),
+              ...(msg.cycleProgress !== undefined && { cycleProgress: msg.cycleProgress }),
+              ...(msg.syringeUsed !== undefined && { syringeUsed: msg.syringeUsed }),
+            }));
+            break;
+          default:
+            // handle other message types if needed
+            break;
+        }
+      } catch (err) {
+        console.error("Malformed WebSocket message:", event.data, err);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+      setEspOnline(false);
+      setTimeout(connectWebSocket, RECONNECT_DELAY);
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+      setEspOnline(false);
+      ws.close();
+    };
+
+    return ws;
+  }, []);
+
+  // Initialize WebSocket once on mount
+  useEffect(() => {
+    const ws = connectWebSocket();
+    return () => {
+      if (ws) ws.close();
+    };
+  }, [connectWebSocket]);
+
+  // ESP32 online status check every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const secondsSinceLastMsg = (Date.now() - lastMessageTime) / 1000;
+      if (secondsSinceLastMsg > 6) setEspOnline(false);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [lastMessageTime]);
+
+  // Send recovery update handler
+  const handleRecoveryUpdate = () => {
+    const recoveryData = {
+      cycleStatus: 'paused',
+      step: 'refill',
+      timestamp: Date.now(),
+    };
+    sendRecoveryUpdate(recoveryData);
+    console.log('Sent recovery update:', recoveryData);
+  };
+
+  // Send parameters via WebSocket
+  const sendParameters = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'parameters', data: parameters }));
+      console.log('Parameters sent:', parameters);
+    } else {
+      console.error('WebSocket is not connected.');
+    }
+  }, [parameters]);
+
+  // "Go" button handler
+  const handleGoButton = () => {
+    sendParameters();
+    setIsCycleActive(true);
+    setActiveTab('controls');
+  };
+
+  // End cycle handler
+  const handleEndCycle = useCallback(() => {
+    setIsCycleActive(false);
+    setActiveTab('parameters');
+    setButtonStates((prev) => ({ ...prev, startCycle: false }));
+
+    // Flash endCycle button
+    setButtonStates((prev) => ({ ...prev, endCycle: true }));
+    setTimeout(() => setButtonStates((prev) => ({ ...prev, endCycle: false })), 1000);
+  }, []);
+
+  // Send button commands
+  const sendButtonCommand = useCallback(
+    (buttonName) => {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        const newState = !buttonStates[buttonName];
+
+        setButtonStates((prev) => ({
+          ...prev,
+          [buttonName]: buttonName === 'startCycle' ? true : newState,
+        }));
+
+        socketRef.current.send(
+          JSON.stringify({
+            type: 'button',
+            name: buttonName,
+            state: newState ? 'on' : 'off',
+          })
+        );
+
+        console.log(`Button ${buttonName} sent with state: ${newState ? 'on' : 'off'}`);
+      } else {
+        console.error('WebSocket is not connected.');
+      }
+    },
+    [buttonStates]
+  );
 
   // Handle parameter input change
   const handleParameterChange = (key, value) => {
