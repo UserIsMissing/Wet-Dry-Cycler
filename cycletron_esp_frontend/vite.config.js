@@ -5,7 +5,18 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,       // exposes the server to your local network
-    port: 5174,       // optional, makes sure it's always the same port
+    host: true,       // expose to local network
+    port: 5174,       // fixed port for frontend dev server
+    proxy: {
+      '/api': 'http://localhost:5175',      // Proxy REST API calls
+      '/ws': {
+        target: 'ws://localhost:5175',      // Proxy websocket path
+        ws: true,
+      },
+      '/socket': {
+        target: 'ws://localhost:5175',
+        ws: true,
+      }
+    }
   }
 });
