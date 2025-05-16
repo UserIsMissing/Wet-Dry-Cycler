@@ -105,21 +105,29 @@ function App() {
   };
 
   const handleStartCycle = () => {
-    sendButtonCommand('startCycle', true);
+    sendButtonCommand('startCycle', true); // send 'on'
     setCycleState('started');
     setActiveButton(null);
   };
 
   const handlePauseCycle = () => {
-    const isResuming = activeButton === 'pauseCycle';
-    sendButtonCommand(isResuming ? 'resumeCycle' : 'pauseCycle');
-    setCycleState(isResuming ? 'started' : 'paused');
-    setIsPaused(!isResuming);
-    setActiveButton(isResuming ? null : 'pauseCycle');
+    if (activeButton === 'pauseCycle') {
+      // Resume: send "off" for pause, "on" for resume
+      sendButtonCommand('pauseCycle', false); // turn pause off
+      sendButtonCommand('resumeCycle', true); // turn resume on
+      setCycleState('started');
+      setIsPaused(false);
+      setActiveButton(null);
+    } else {
+      sendButtonCommand('pauseCycle', true); // turn pause on
+      setCycleState('paused');
+      setIsPaused(true);
+      setActiveButton('pauseCycle');
+    }
   };
 
   const handleEndCycle = () => {
-    sendButtonCommand('endCycle');
+    sendButtonCommand('endCycle', true); // send 'on'
     setCycleState('idle');
     setActiveTab('parameters');
     setActiveButton(null);
@@ -127,14 +135,14 @@ function App() {
 
   const handleExtract = () => {
     const isCanceling = activeButton === 'extract';
-    sendButtonCommand('extract');
+    sendButtonCommand('extract', !isCanceling); // send "on" if starting, "off" if canceling
     setCycleState(isCanceling ? 'started' : 'extract');
     setActiveButton(isCanceling ? null : 'extract');
   };
 
   const handleRefill = () => {
     const isCanceling = activeButton === 'refill';
-    sendButtonCommand('refill');
+    sendButtonCommand('refill', !isCanceling); // send "on" if starting, "off" if canceling
     setCycleState(isCanceling ? 'started' : 'refill');
     setActiveButton(isCanceling ? null : 'refill');
   };

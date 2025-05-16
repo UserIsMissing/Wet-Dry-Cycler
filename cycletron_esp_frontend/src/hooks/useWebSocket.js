@@ -50,6 +50,9 @@ export default function useWebSocket() {
                     case 'temperature':
                         setCurrentTemp(msg.value);
                         break;
+                    case 'temperatureUpdate': // <-- Add this case
+                        setCurrentTemp(msg.value);
+                        break;
                     case 'status':
                         setEspOutputs((prev) => ({
                             ...prev,
@@ -104,7 +107,7 @@ export default function useWebSocket() {
         return () => clearInterval(interval);
     }, [lastMessageTime]);
 
-    const sendMessage = useCallback((obj) => { 
+    const sendMessage = useCallback((obj) => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             console.log("Sending message:", obj);
             socketRef.current.send(JSON.stringify(obj));
