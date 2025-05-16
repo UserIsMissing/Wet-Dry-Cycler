@@ -20,11 +20,11 @@
 // const char *ssid = "DonnaHouse";
 // const char *password = "guessthepassword";
 
-// const char *ssid = "TheDawgHouse";
-// const char *password = "ThrowItBackForPalestine";
+const char *ssid = "TheDawgHouse";
+const char *password = "ThrowItBackForPalestine";
 
-const char *ssid = "UCSC-Guest";
-const char* password = "";
+// const char *ssid = "UCSC-Guest";
+// const char* password = "";
 
 // === State Machine ===
 enum class SystemState
