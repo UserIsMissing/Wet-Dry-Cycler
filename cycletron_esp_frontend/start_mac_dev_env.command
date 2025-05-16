@@ -65,5 +65,7 @@ osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'\" && npm ru
 
 # === Open in Browser ===
 sleep 5
-open http://localhost:5000
+# echo "Opening backend WS server in browser..."
+# open http://localhost:5175
+echo "Opening frontend in browser..."
 open http://localhost:5174

@@ -1,5 +1,27 @@
-## Cole Schreiner
-# 5/15/2025
+## Cole Schreiner - 5/15/2025
+Frontend (React/Vite) → ws://localhost:5174 ⇄ Backend (server.js)
+    ↑                                ↓
+  Sends 'updateRecoveryState'   Serves 'recoveryState' from JSON
+-
+
+Frontend (React)
+   ⬇️ WebSocket
+User triggers update →
+   {
+     type: "updateRecoveryState",
+     data: { ... }
+   }
+
+Backend (Node.js server)
+   ⬇️ Saves to 
+Writes to recovery_state.json
+   ⬆️ On ESP32 request (getRecoveryState)
+Sends last saved state →
+
+ESP32
+   ⬅️ Receives recoveryState to resume operation
+
+## Cole Schreiner - 5/14/2025
 
 Adding several files to deal with file storage, crash recovery, page reloads, power loss, etc.
 
