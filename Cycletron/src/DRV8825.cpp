@@ -39,12 +39,12 @@
  
  /**
   * @brief Checks whether the motor driver is in a fault state.
-  *        The fault pin is active-low, so HIGH means fault.
+  *        The fault pin is active-high, so LOW means fault.
   *
   * @return true if a fault is detected, false otherwise.
   */
  bool DRV8825_Check_Fault(DRV8825_t *motor) {
-   return digitalRead(motor->fault_pin) == HIGH;
+   return digitalRead(motor->fault_pin) == LOW;
  }
  
  /**
@@ -148,7 +148,7 @@
 #include "DRV8825.h"  // Ensure this header matches your ESP32 driver
 
 // Rehydration motor instance
-DRV8825_t rehydrationMotor = {
+DRV8825_t testMotor = {
     .step_pin = 1,     // Replace with your actual ESP32 GPIOs
     .dir_pin = 2,
     .fault_pin = 42,
@@ -160,11 +160,13 @@ DRV8825_t rehydrationMotor = {
 
 void setup() {
   Serial.begin(115200);
-  DRV8825_Init(&rehydrationMotor);
-  DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_THIRTYSECOND_STEP);
+  delay(2000); // Allow USB Serial to connect
+
+  DRV8825_Init(&testMotor);
+  DRV8825_Set_Step_Mode(&testMotor, DRV8825_THIRTYSECOND_STEP);
 
   Serial.println("Moving forward...");
-  DRV8825_Move(&rehydrationMotor, 128000, DRV8825_FORWARD, DRV8825_DEFAULT_STEP_DELAY_US);
+  DRV8825_Move(&testMotor, 128000, DRV8825_BACKWARD, DRV8825_DEFAULT_STEP_DELAY_US);
 
   // Optional: Hold after move
   while (true);
