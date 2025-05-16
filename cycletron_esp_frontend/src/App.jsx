@@ -83,6 +83,7 @@ function ControlButton({ id, label, active, disabled, onClick }) {
 function App() {
   // States
   const [recoveryState, setRecoveryState] = useState(null);
+  const { sendRecoveryUpdate, connected } = useWebSocket(setRecoveryState); // WebSocket hook (custom hook)
   const [isCycleActive, setIsCycleActive] = useState(false);
   const [currentTemp, setCurrentTemp] = useState(null);
   const [espOnline, setEspOnline] = useState(false);
@@ -100,9 +101,6 @@ function App() {
 
   // Refs
   const socketRef = useRef(null);
-
-  // WebSocket hook (your custom hook)
-  const { sendRecoveryUpdate } = useWebSocket(setRecoveryState);
 
   // WebSocket connection logic
   const connectWebSocket = useCallback(() => {
