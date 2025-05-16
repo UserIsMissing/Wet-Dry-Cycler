@@ -35,7 +35,6 @@ const buttonConfigs = [
   { id: 'logCycle', label: 'Log Cycle' },
 ];
 
-// Small reusable components for inputs and buttons
 function ParameterInput({ label, value, placeholder, onChange }) {
   return (
     <div className="column is-half">
@@ -69,7 +68,6 @@ function ControlButton({ id, label, active, disabled, onClick }) {
 }
 
 function App() {
-  // WebSocket hook
   const {
     espOnline,
     recoveryState,
@@ -80,21 +78,18 @@ function App() {
     sendRecoveryUpdate,
   } = useWebSocket();
 
-  // Local states
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
   const [activeTab, setActiveTab] = useState('parameters');
-  const [cycleState, setCycleState] = useState('idle'); // 'idle', 'started', 'paused', 'extract', 'refill'
-  const [isPaused, setIsPaused] = useState(false); // Tracks if the cycle is paused
-  const [activeButton, setActiveButton] = useState(null); // Tracks the currently active button
+  const [cycleState, setCycleState] = useState('idle');
+  const [activeButton, setActiveButton] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
 
-  // Handle parameter input change
   const handleParameterChange = (key, value) => {
     if (value === '' || Number(value) > 0) {
       setParameters((prev) => ({ ...prev, [key]: value }));
     }
   };
 
-  // Handle sample zone checkbox changes
   const handleZoneToggle = (zone) => {
     const isSelected = parameters.sampleZonesToMix.includes(zone);
     const updatedZones = isSelected
@@ -103,79 +98,55 @@ function App() {
     setParameters((prev) => ({ ...prev, sampleZonesToMix: updatedZones }));
   };
 
-  // "Go" button handler
   const handleGoButton = () => {
     sendParameters(parameters);
+    setCycleState('idle');
     setActiveTab('controls');
-    setCycleState('idle'); // Reset to idle state
   };
 
-  // Start cycle handler
   const handleStartCycle = () => {
-    sendButtonCommand('startCycle', true);
-    setCycleState('started'); // Update state to started
-    setActiveButton(null); // Reset active button
+    sendButtonCommand('startCycle');
+    setCycleState('started');
+    setActiveButton(null);
   };
 
-  // Pause/Resume cycle handler
   const handlePauseCycle = () => {
-    if (activeButton === 'pauseCycle') {
-      // Resume cycle
-      sendButtonCommand('resumeCycle', true);
-      setCycleState('started'); // Return to started state
-      setIsPaused(false);
-      setActiveButton(null); // Reset active button
-    } else {
-      // Pause cycle
-      sendButtonCommand('pauseCycle', true);
-      setCycleState('paused'); // Update state to paused
-      setIsPaused(true);
-      setActiveButton('pauseCycle'); // Set active button to "pauseCycle"
-    }
+    const isResuming = activeButton === 'pauseCycle';
+    sendButtonCommand(isResuming ? 'resumeCycle' : 'pauseCycle');
+    setCycleState(isResuming ? 'started' : 'paused');
+    setIsPaused(!isResuming);
+    setActiveButton(isResuming ? null : 'pauseCycle');
   };
 
-  // End cycle handler
   const handleEndCycle = () => {
-    sendButtonCommand('endCycle', true);
-    setCycleState('idle'); // Reset to idle state
-    setActiveTab('parameters'); // Return to parameters tab
-    setActiveButton(null); // Reset active button
+    sendButtonCommand('endCycle');
+    setCycleState('idle');
+    setActiveTab('parameters');
+    setActiveButton(null);
   };
 
-  // Extract handler
   const handleExtract = () => {
-    if (activeButton === 'extract') {
-      setCycleState('started'); // Return to started state
-      setActiveButton(null); // Reset active button
-    } else {
-      sendButtonCommand('extract', true);
-      setCycleState('extract'); // Update state to extract
-      setActiveButton('extract'); // Set active button to "extract"
-    }
+    const isCanceling = activeButton === 'extract';
+    sendButtonCommand('extract');
+    setCycleState(isCanceling ? 'started' : 'extract');
+    setActiveButton(isCanceling ? null : 'extract');
   };
 
-  // Refill handler
   const handleRefill = () => {
-    if (activeButton === 'refill') {
-      setCycleState('started'); // Return to started state
-      setActiveButton(null); // Reset active button
-    } else {
-      sendButtonCommand('refill', true);
-      setCycleState('refill'); // Update state to refill
-      setActiveButton('refill'); // Set active button to "refill"
-    }
+    const isCanceling = activeButton === 'refill';
+    sendButtonCommand('refill');
+    setCycleState(isCanceling ? 'started' : 'refill');
+    setActiveButton(isCanceling ? null : 'refill');
   };
 
-  // Button disable logic
   const isButtonDisabled = (id) => {
-    if (activeButton && activeButton !== id) return true; // Disable all buttons except the active one
-    if (cycleState === 'idle' && id !== 'startCycle') return true; // Only "Start Cycle" is enabled in idle state
-    return false; // Enable all other buttons by default
+    if (activeButton && activeButton !== id) return true;
+    if (cycleState === 'idle' && id !== 'startCycle') return true;
+    return false;
   };
 
   return (
     <div className="container">
-      {/* Recovery State Debug */}
       <section className="box mt-4">
         <h2 className="title is-5">Recovery State (Debug)</h2>
         <pre>{JSON.stringify(recoveryState, null, 2)}</pre>
@@ -184,11 +155,8 @@ function App() {
         </button>
       </section>
 
-      <h1 className="title is-2" style={{ marginTop: 0 }}>
-        Wet-Dry Cycler Interface
-      </h1>
+      <h1 className="title is-2">Wet-Dry Cycler Interface</h1>
 
-      {/* ESP32 Connection Status */}
       <div className="mb-4">
         <span className="tag is-medium" style={{ backgroundColor: espOnline ? 'green' : 'red' }}></span>
         <span className="ml-2">
@@ -197,10 +165,8 @@ function App() {
       </div>
 
       <div className="columns">
-        {/* Left: Tabs and Main Content */}
         <div className="column is-three-quarters">
-          {/* Tabs */}
-          <div className="tabs is-toggle is-fullwidth" style={{ maxWidth: TAB_WIDTH, margin: 0 }}>
+          <div className="tabs is-toggle is-fullwidth" style={{ maxWidth: TAB_WIDTH }}>
             <ul>
               <li className={activeTab === 'parameters' ? 'is-active' : ''}>
                 <a
@@ -221,8 +187,7 @@ function App() {
             </ul>
           </div>
 
-          {/* Tab Content */}
-          <div className="box" style={{ maxWidth: TAB_WIDTH, margin: 0 }}>
+          <div className="box" style={{ maxWidth: TAB_WIDTH }}>
             {activeTab === 'parameters' && (
               <section className="mt-4">
                 <div className="columns is-multiline">
@@ -236,7 +201,6 @@ function App() {
                     />
                   ))}
 
-                  {/* Sample Zones to Mix */}
                   <div className="column is-half">
                     <div className="field">
                       <label className="label">Sample Zones to Mix</label>
@@ -274,8 +238,8 @@ function App() {
                     <ControlButton
                       key={id}
                       id={id}
-                      label={id === 'pauseCycle' && isPaused ? 'Resume Cycle' : label} // Change label dynamically
-                      active={activeButton === id} // Highlight the active button
+                      label={id === 'pauseCycle' && isPaused ? 'Resume Cycle' : label}
+                      active={activeButton === id}
                       disabled={isButtonDisabled(id)}
                       onClick={(btnId) => {
                         if (btnId === 'startCycle') handleStartCycle();
@@ -283,7 +247,7 @@ function App() {
                         else if (btnId === 'endCycle') handleEndCycle();
                         else if (btnId === 'extract') handleExtract();
                         else if (btnId === 'refill') handleRefill();
-                        else sendButtonCommand(btnId, true);
+                        else sendButtonCommand(btnId);
                       }}
                     />
                   ))}
@@ -293,12 +257,10 @@ function App() {
           </div>
         </div>
 
-        {/* Right: ESP32 Outputs */}
         <div className="column is-one-quarter">
-          <div className="box" style={{ maxWidth: 400, margin: 0 }}>
+          <div className="box" style={{ maxWidth: 400 }}>
             <h2 className="title is-5">ESP32 Outputs</h2>
             <div className="columns is-full is-multiline">
-              {/* Temperature */}
               <div className="column is-full">
                 <label className="label is-small">Temperature Data</label>
                 <input
@@ -308,16 +270,12 @@ function App() {
                   readOnly
                 />
               </div>
-
-              {/* Syringe Limit */}
               <div className="column is-full">
                 <label className="label is-small">Syringe Limit</label>
                 <progress className="progress is-primary is-small" value={espOutputs.syringeLimit} max="100">
                   {espOutputs.syringeLimit}%
                 </progress>
               </div>
-
-              {/* Extraction Ready */}
               <div className="column is-full">
                 <label className="label is-small">Extraction Ready</label>
                 <span
@@ -330,22 +288,16 @@ function App() {
                   {espOutputs.extractioReady === 'ready' ? 'Extraction Ready' : 'Not Ready'}
                 </span>
               </div>
-
-              {/* Cycles Completed */}
               <div className="column is-half">
                 <label className="label is-small"># Cycles Completed</label>
                 <input type="text" className="input is-small" value={espOutputs.cyclesCompleted} readOnly />
               </div>
-
-              {/* Cycle Progress */}
               <div className="column is-half">
                 <label className="label is-small">Cycle Progress</label>
                 <progress className="progress is-info is-small" value={espOutputs.cycleProgress} max="100">
                   {espOutputs.cycleProgress}%
                 </progress>
               </div>
-
-              {/* Syringe Used */}
               <div className="column is-full">
                 <label className="label is-small">Syringe Used</label>
                 <input type="text" className="input is-small" value={espOutputs.syringeUsed} readOnly />
