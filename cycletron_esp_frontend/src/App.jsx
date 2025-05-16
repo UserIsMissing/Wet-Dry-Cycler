@@ -1,14 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import Chart from 'chart.js/auto';
+import React, { useEffect, useState } from 'react';
 import 'bulma/css/bulma.min.css';
 import useWebSocket from './hooks/useWebSocket';
 import './App.css';
 
 // Constants
-const ESP32_IP = '169.233.116.115';
-const PORT = 5175;
 const TAB_WIDTH = 690;
-const RECONNECT_DELAY = 3000;
 const INITIAL_PARAMETERS = {
   volumeAddedPerCycle: '',
   durationOfRehydration: '',
@@ -18,14 +14,6 @@ const INITIAL_PARAMETERS = {
   sampleZonesToMix: [],
   durationOfMixing: '',
   numberOfCycles: '',
-};
-const INITIAL_BUTTON_STATES = {
-  extract: false,
-  refill: false,
-  startCycle: false,
-  pauseCycle: false,
-  endCycle: false,
-  logCycle: false,
 };
 
 const parameterFields = [
@@ -81,168 +69,25 @@ function ControlButton({ id, label, active, disabled, onClick }) {
 }
 
 function App() {
-  // States
-  const [recoveryState, setRecoveryState] = useState(null);
-  const { sendRecoveryUpdate, connected } = useWebSocket(setRecoveryState); // WebSocket hook (custom hook)
-  const [isCycleActive, setIsCycleActive] = useState(false);
-  const [currentTemp, setCurrentTemp] = useState(null);
-  const [espOnline, setEspOnline] = useState(false);
-  const [lastMessageTime, setLastMessageTime] = useState(Date.now());
-  const [activeTab, setActiveTab] = useState('parameters');
-  const [espOutputs, setEspOutputs] = useState({
-    syringeLimit: 0,
-    extractioReady: 'N/A',
-    cyclesCompleted: 0,
-    cycleProgress: 0,
-    syringeUsed: 0,
-  });
+  // WebSocket hook
+  const {
+    espOnline,
+    recoveryState,
+    currentTemp,
+    espOutputs,
+    sendParameters,
+    sendButtonCommand,
+    sendRecoveryUpdate,
+  } = useWebSocket();
+
+  // Local states
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
-  const [buttonStates, setButtonStates] = useState(INITIAL_BUTTON_STATES);
+  const [activeTab, setActiveTab] = useState('parameters');
+  const [cycleState, setCycleState] = useState('idle'); // 'idle', 'started', 'paused', 'extract', 'refill'
+  const [isPaused, setIsPaused] = useState(false); // Tracks if the cycle is paused
+  const [activeButton, setActiveButton] = useState(null); // Tracks the currently active button
 
-  // Refs
-  const socketRef = useRef(null);
-
-  // WebSocket connection logic
-  const connectWebSocket = useCallback(() => {
-    const ws = new WebSocket(`ws://${window.location.hostname}:${PORT}`);
-    // const ws = new WebSocket(`ws://${ESP32_IP}:${PORT}`);
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setEspOnline(true);
-      socketRef.current = ws;
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        setLastMessageTime(Date.now());
-
-        switch (msg.type) {
-          case 'recoveryState':
-            setRecoveryState(msg.data);
-            break;
-          case 'temperature':
-            setCurrentTemp(msg.value);
-            break;
-          case 'status':
-            setEspOutputs((prev) => ({
-              ...prev,
-              ...(msg.syringeLimit !== undefined && { syringeLimit: msg.syringeLimit }),
-              ...(msg.extractioReady !== undefined && { extractioReady: msg.extractioReady }),
-              ...(msg.cyclesCompleted !== undefined && { cyclesCompleted: msg.cyclesCompleted }),
-              ...(msg.cycleProgress !== undefined && { cycleProgress: msg.cycleProgress }),
-              ...(msg.syringeUsed !== undefined && { syringeUsed: msg.syringeUsed }),
-            }));
-            break;
-          default:
-            // handle other message types if needed
-            break;
-        }
-      } catch (err) {
-        console.error("Malformed WebSocket message:", event.data, err);
-      }
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setEspOnline(false);
-      setTimeout(connectWebSocket, RECONNECT_DELAY);
-    };
-
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      setEspOnline(false);
-      ws.close();
-    };
-
-    return ws;
-  }, []);
-
-  // Initialize WebSocket once on mount
-  useEffect(() => {
-    const ws = connectWebSocket();
-    return () => {
-      if (ws) ws.close();
-    };
-  }, [connectWebSocket]);
-
-  // ESP32 online status check every 3 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const secondsSinceLastMsg = (Date.now() - lastMessageTime) / 1000;
-      if (secondsSinceLastMsg > 6) setEspOnline(false);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [lastMessageTime]);
-
-  // Send recovery update handler
-  const handleRecoveryUpdate = () => {
-    const recoveryData = {
-      cycleStatus: 'paused',
-      step: 'refill',
-      timestamp: Date.now(),
-    };
-    sendRecoveryUpdate(recoveryData);
-    console.log('Sent recovery update:', recoveryData);
-  };
-
-  // Send parameters via WebSocket
-  const sendParameters = useCallback(() => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: 'parameters', data: parameters }));
-      console.log('Parameters sent:', parameters);
-    } else {
-      console.error('WebSocket is not connected.');
-    }
-  }, [parameters]);
-
-  // "Go" button handler
-  const handleGoButton = () => {
-    sendParameters();
-    setIsCycleActive(true);
-    setActiveTab('controls');
-  };
-
-  // End cycle handler
-  const handleEndCycle = useCallback(() => {
-    setIsCycleActive(false);
-    setActiveTab('parameters');
-    setButtonStates((prev) => ({ ...prev, startCycle: false }));
-
-    // Flash endCycle button
-    setButtonStates((prev) => ({ ...prev, endCycle: true }));
-    setTimeout(() => setButtonStates((prev) => ({ ...prev, endCycle: false })), 1000);
-  }, []);
-
-  // Send button commands
-  const sendButtonCommand = useCallback(
-    (buttonName) => {
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        const newState = !buttonStates[buttonName];
-
-        setButtonStates((prev) => ({
-          ...prev,
-          [buttonName]: buttonName === 'startCycle' ? true : newState,
-        }));
-
-        socketRef.current.send(
-          JSON.stringify({
-            type: 'button',
-            name: buttonName,
-            state: newState ? 'on' : 'off',
-          })
-        );
-
-        console.log(`Button ${buttonName} sent with state: ${newState ? 'on' : 'off'}`);
-      } else {
-        console.error('WebSocket is not connected.');
-      }
-    },
-    [buttonStates]
-  );
-
-  // Handle parameter input change with validation
+  // Handle parameter input change
   const handleParameterChange = (key, value) => {
     if (value === '' || Number(value) > 0) {
       setParameters((prev) => ({ ...prev, [key]: value }));
@@ -258,14 +103,74 @@ function App() {
     setParameters((prev) => ({ ...prev, sampleZonesToMix: updatedZones }));
   };
 
+  // "Go" button handler
+  const handleGoButton = () => {
+    sendParameters(parameters);
+    setActiveTab('controls');
+    setCycleState('idle'); // Reset to idle state
+  };
+
+  // Start cycle handler
+  const handleStartCycle = () => {
+    sendButtonCommand('startCycle', true);
+    setCycleState('started'); // Update state to started
+    setActiveButton(null); // Reset active button
+  };
+
+  // Pause/Resume cycle handler
+  const handlePauseCycle = () => {
+    if (activeButton === 'pauseCycle') {
+      // Resume cycle
+      sendButtonCommand('resumeCycle', true);
+      setCycleState('started'); // Return to started state
+      setIsPaused(false);
+      setActiveButton(null); // Reset active button
+    } else {
+      // Pause cycle
+      sendButtonCommand('pauseCycle', true);
+      setCycleState('paused'); // Update state to paused
+      setIsPaused(true);
+      setActiveButton('pauseCycle'); // Set active button to "pauseCycle"
+    }
+  };
+
+  // End cycle handler
+  const handleEndCycle = () => {
+    sendButtonCommand('endCycle', true);
+    setCycleState('idle'); // Reset to idle state
+    setActiveTab('parameters'); // Return to parameters tab
+    setActiveButton(null); // Reset active button
+  };
+
+  // Extract handler
+  const handleExtract = () => {
+    if (activeButton === 'extract') {
+      setCycleState('started'); // Return to started state
+      setActiveButton(null); // Reset active button
+    } else {
+      sendButtonCommand('extract', true);
+      setCycleState('extract'); // Update state to extract
+      setActiveButton('extract'); // Set active button to "extract"
+    }
+  };
+
+  // Refill handler
+  const handleRefill = () => {
+    if (activeButton === 'refill') {
+      setCycleState('started'); // Return to started state
+      setActiveButton(null); // Reset active button
+    } else {
+      sendButtonCommand('refill', true);
+      setCycleState('refill'); // Update state to refill
+      setActiveButton('refill'); // Set active button to "refill"
+    }
+  };
+
   // Button disable logic
   const isButtonDisabled = (id) => {
-    if (id === 'startCycle' && buttonStates.startCycle) return true;
-    if (id !== 'pauseCycle' && buttonStates.pauseCycle) return true;
-    if (id !== 'extract' && id !== 'refill' && (buttonStates.extract || buttonStates.refill)) return true;
-    if (id === 'extract' && buttonStates.refill) return true;
-    if (id === 'refill' && buttonStates.extract) return true;
-    return false;
+    if (activeButton && activeButton !== id) return true; // Disable all buttons except the active one
+    if (cycleState === 'idle' && id !== 'startCycle') return true; // Only "Start Cycle" is enabled in idle state
+    return false; // Enable all other buttons by default
   };
 
   return (
@@ -274,7 +179,7 @@ function App() {
       <section className="box mt-4">
         <h2 className="title is-5">Recovery State (Debug)</h2>
         <pre>{JSON.stringify(recoveryState, null, 2)}</pre>
-        <button className="button is-small mt-2" onClick={handleRecoveryUpdate}>
+        <button className="button is-small mt-2" onClick={() => sendRecoveryUpdate({ cycleStatus: 'paused' })}>
           Send Recovery Update
         </button>
       </section>
@@ -299,16 +204,16 @@ function App() {
             <ul>
               <li className={activeTab === 'parameters' ? 'is-active' : ''}>
                 <a
-                  onClick={() => !isCycleActive && setActiveTab('parameters')}
-                  style={{ pointerEvents: isCycleActive ? 'none' : 'auto', opacity: isCycleActive ? 0.5 : 1 }}
+                  onClick={() => setActiveTab('parameters')}
+                  style={{ pointerEvents: cycleState !== 'idle' ? 'none' : 'auto', opacity: cycleState !== 'idle' ? 0.5 : 1 }}
                 >
                   Set Parameters
                 </a>
               </li>
               <li className={activeTab === 'controls' ? 'is-active' : ''}>
                 <a
-                  onClick={() => isCycleActive && setActiveTab('controls')}
-                  style={{ pointerEvents: isCycleActive ? 'auto' : 'none', opacity: isCycleActive ? 1 : 0.5 }}
+                  onClick={() => setActiveTab('controls')}
+                  style={{ pointerEvents: cycleState === 'idle' ? 'none' : 'auto', opacity: cycleState === 'idle' ? 0.5 : 1 }}
                 >
                   Controls
                 </a>
@@ -369,12 +274,16 @@ function App() {
                     <ControlButton
                       key={id}
                       id={id}
-                      label={label === 'Pause Cycle' && buttonStates.pauseCycle ? 'Resume Cycle' : label}
-                      active={buttonStates[id]}
+                      label={id === 'pauseCycle' && isPaused ? 'Resume Cycle' : label} // Change label dynamically
+                      active={activeButton === id} // Highlight the active button
                       disabled={isButtonDisabled(id)}
                       onClick={(btnId) => {
-                        if (btnId === 'endCycle') handleEndCycle();
-                        sendButtonCommand(btnId);
+                        if (btnId === 'startCycle') handleStartCycle();
+                        else if (btnId === 'pauseCycle') handlePauseCycle();
+                        else if (btnId === 'endCycle') handleEndCycle();
+                        else if (btnId === 'extract') handleExtract();
+                        else if (btnId === 'refill') handleRefill();
+                        else sendButtonCommand(btnId, true);
                       }}
                     />
                   ))}
