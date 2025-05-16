@@ -128,6 +128,16 @@ wss.on('connection', (ws) => {
         broadcastExcept(ws, JSON.stringify({ type: 'recoveryState', data: recoveryState }));
       }
 
+      if (msg.type === 'parameters') {
+        console.log('Received parameters:', msg.data);
+        // Forward parameters to all ESP32 clients
+        for (const esp of espClients) {
+          if (esp.readyState === WebSocket.OPEN) {
+            esp.send(JSON.stringify(msg));
+          }
+        }
+      }
+
     } catch (e) {
       console.error('Bad message:', e);
     }
