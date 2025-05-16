@@ -105,7 +105,7 @@ function App() {
   };
 
   const handleStartCycle = () => {
-    sendButtonCommand('startCycle');
+    sendButtonCommand('startCycle', true);
     setCycleState('started');
     setActiveButton(null);
   };

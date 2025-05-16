@@ -7,6 +7,7 @@ export default function useWebSocket() {
     const socketRef = useRef(null);
     const [espOnline, setEspOnline] = useState(false);
     const [lastMessageTime, setLastMessageTime] = useState(Date.now());
+    const [isConnected, setIsConnected] = useState(false);
 
     const [recoveryState, setRecoveryState] = useState(null);
     const [currentTemp, setCurrentTemp] = useState(null);
@@ -26,6 +27,7 @@ export default function useWebSocket() {
 
         ws.onopen = () => {
             console.log('WebSocket connected');
+            setIsConnected(true);
             setEspOnline(true);
         };
 
@@ -34,7 +36,7 @@ export default function useWebSocket() {
             try {
                 const msg = JSON.parse(event.data);
 
-                // 🆕 If we receive a heartbeat from ESP, mark it online
+                // Heartbeat from ESP32
                 if (msg.type === 'heartbeat' && msg.from === 'esp32') {
                     console.log('Heartbeat received from ESP32');
                     setEspOnline(true);
@@ -67,12 +69,12 @@ export default function useWebSocket() {
             }
         };
 
-
         ws.onclose = () => {
             console.log('WebSocket disconnected');
             setEspOnline(false);
+            setIsConnected(false);
             socketRef.current = null;
-            setTimeout(connectWebSocket, RECONNECT_DELAY); // Try to reconnect
+            setTimeout(connectWebSocket, RECONNECT_DELAY);
         };
 
         ws.onerror = (err) => {
@@ -81,18 +83,19 @@ export default function useWebSocket() {
         };
     }, []);
 
-    // One-time connection on mount
+    // Connect on mount
     useEffect(() => {
         connectWebSocket();
         return () => {
             if (socketRef.current) {
                 socketRef.current.close();
                 socketRef.current = null;
+                setIsConnected(false);
             }
         };
     }, [connectWebSocket]);
 
-    // Watchdog timer to detect ESP32 silence
+    // Watchdog to check ESP silence
     useEffect(() => {
         const interval = setInterval(() => {
             const secondsSinceLastMsg = (Date.now() - lastMessageTime) / 1000;
@@ -101,12 +104,13 @@ export default function useWebSocket() {
         return () => clearInterval(interval);
     }, [lastMessageTime]);
 
-    const sendMessage = useCallback((obj) => {
+    const sendMessage = useCallback((obj) => { 
         if (socketRef.current?.readyState === WebSocket.OPEN) {
+            console.log("Sending message:", obj);
             socketRef.current.send(JSON.stringify(obj));
             return true;
         }
-        console.warn('WebSocket is not connected');
+        console.warn('WebSocket is not connected. ReadyState:', socketRef.current?.readyState);
         return false;
     }, []);
 
@@ -115,15 +119,16 @@ export default function useWebSocket() {
         [sendMessage]
     );
 
-const sendButtonCommand = useCallback(
-    (name, state) => {
-        const payload = { type: 'button', name, state: state ? 'on' : 'off' };
-        console.log("sendButtonCommand called with:", payload); // 🔍 Debug log
-        sendMessage(payload);
-    },
-    [sendMessage]
-);
-
+    const sendButtonCommand = useCallback(
+        (name, state) => {
+            const payload = { type: 'button', name, state: state ? 'on' : 'off' };
+            console.log("sendButtonCommand called with:", payload);
+            if (!sendMessage(payload)) {
+                console.warn('Failed to send button command: WebSocket not connected');
+            }
+        },
+        [sendMessage]
+    );
 
     const sendRecoveryUpdate = useCallback(
         (data) => sendMessage({ type: 'updateRecoveryState', data }),
@@ -138,5 +143,6 @@ const sendButtonCommand = useCallback(
         sendParameters,
         sendButtonCommand,
         sendRecoveryUpdate,
+        isConnected, // expose if you want to disable UI buttons when disconnected
     };
 }

@@ -103,6 +103,17 @@ wss.on('connection', (ws) => {
         broadcastExcept(ws, JSON.stringify({ type: 'gpioStateUpdate', name: msg.name, state: msg.state }));
       }
 
+      // Handles button commands
+      if (msg.type === 'button') {
+        console.log(`Button command received: ${msg.name} -> ${msg.state}`);
+        // Forward the button command to all ESP32 clients
+        for (const esp of espClients) {
+          if (esp.readyState === WebSocket.OPEN) {
+            esp.send(JSON.stringify(msg));
+          }
+        }
+      }
+      
       if (msg.type === 'getRecoveryState') {
         ws.send(JSON.stringify({
           type: 'recoveryState',
