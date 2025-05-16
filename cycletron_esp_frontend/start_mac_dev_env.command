@@ -8,8 +8,7 @@ cd "$SCRIPT_DIR"
 echo "Checking for Node.js and npm..."
 if ! command -v node &> /dev/null; then
   echo "Node.js is not installed. Installing Node.js..."
-  # Download and install Node.js directly
-  NODE_VERSION="18.17.1" # Specify the desired Node.js version
+  NODE_VERSION="18.17.1"
   NODE_DISTRO="node-v$NODE_VERSION-darwin-x64"
   curl -O "https://nodejs.org/dist/v$NODE_VERSION/$NODE_DISTRO.tar.gz"
   tar -xzf "$NODE_DISTRO.tar.gz"
@@ -53,11 +52,19 @@ else
   echo "Backend node_modules not found, running npm install..."
   npm install
 fi
+
+# Ensure nodemon is installed globally
+if ! command -v nodemon &> /dev/null; then
+  echo "nodemon is not installed. Installing globally..."
+  npm install -g nodemon
+else
+  echo "nodemon is already installed. Version: $(nodemon -v)"
+fi
 cd "$SCRIPT_DIR"
 
-# === Start Backend Server ===
-echo "Starting backend server on port 5000..."
-osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'/server\" && node server.js"'
+# === Start Backend Server with nodemon (ignoring recovery_state.json) ===
+echo "Starting backend server with nodemon on port 5175..."
+osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'/server\" && nodemon server.js --ignore recovery_state.json"'
 
 # === Start Frontend Vite Dev Server ===
 echo "Starting frontend (Vite) on default port..."
@@ -65,7 +72,5 @@ osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'\" && npm ru
 
 # === Open in Browser ===
 sleep 5
-# echo "Opening backend WS server in browser..."
-# open http://localhost:5175
 echo "Opening frontend in browser..."
 open http://localhost:5174

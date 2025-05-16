@@ -140,6 +140,10 @@ function App() {
   };
 
   const isButtonDisabled = (id) => {
+    if (id === 'startCycle' && cycleState !== 'idle') return true;
+    if (id === 'endCycle' && cycleState === 'idle') return true;
+    if (['pauseCycle', 'extract', 'refill'].includes(id) && cycleState === 'idle') return true;
+    
     if (activeButton && activeButton !== id) return true;
     if (cycleState === 'idle' && id !== 'startCycle') return true;
     return false;

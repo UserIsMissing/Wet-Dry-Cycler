@@ -8,7 +8,6 @@ export default function useWebSocket() {
     const [espOnline, setEspOnline] = useState(false);
     const [lastMessageTime, setLastMessageTime] = useState(Date.now());
 
-    // States to expose
     const [recoveryState, setRecoveryState] = useState(null);
     const [currentTemp, setCurrentTemp] = useState(null);
     const [espOutputs, setEspOutputs] = useState({
@@ -19,20 +18,28 @@ export default function useWebSocket() {
         syringeUsed: 0,
     });
 
-    // Connect WebSocket
     const connectWebSocket = useCallback(() => {
+        if (socketRef.current) return; // Prevent duplicate connections
+
         const ws = new WebSocket(`ws://${window.location.hostname}:${PORT}`);
+        socketRef.current = ws;
 
         ws.onopen = () => {
             console.log('WebSocket connected');
             setEspOnline(true);
-            socketRef.current = ws;
         };
 
         ws.onmessage = (event) => {
             setLastMessageTime(Date.now());
             try {
                 const msg = JSON.parse(event.data);
+
+                // 🆕 If we receive a heartbeat from ESP, mark it online
+                if (msg.type === 'heartbeat' && msg.from === 'esp32') {
+                    console.log('Heartbeat received from ESP32');
+                    setEspOnline(true);
+                    return;
+                }
 
                 switch (msg.type) {
                     case 'recoveryState':
@@ -60,39 +67,40 @@ export default function useWebSocket() {
             }
         };
 
+
         ws.onclose = () => {
             console.log('WebSocket disconnected');
             setEspOnline(false);
-            setTimeout(connectWebSocket, RECONNECT_DELAY);
+            socketRef.current = null;
+            setTimeout(connectWebSocket, RECONNECT_DELAY); // Try to reconnect
         };
 
         ws.onerror = (err) => {
             console.error('WebSocket error:', err);
-            setEspOnline(false);
             ws.close();
         };
-
-        return ws;
     }, []);
 
-    // Initialize WebSocket once on mount
+    // One-time connection on mount
     useEffect(() => {
-        const ws = connectWebSocket();
+        connectWebSocket();
         return () => {
-            if (ws) ws.close();
+            if (socketRef.current) {
+                socketRef.current.close();
+                socketRef.current = null;
+            }
         };
     }, [connectWebSocket]);
 
-    // ESP32 online status check every 3 seconds
+    // Watchdog timer to detect ESP32 silence
     useEffect(() => {
         const interval = setInterval(() => {
             const secondsSinceLastMsg = (Date.now() - lastMessageTime) / 1000;
-            if (secondsSinceLastMsg > 6) setEspOnline(false);
+            setEspOnline(secondsSinceLastMsg < 6);
         }, 3000);
         return () => clearInterval(interval);
     }, [lastMessageTime]);
 
-    // Send message helper
     const sendMessage = useCallback((obj) => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(JSON.stringify(obj));
@@ -102,19 +110,21 @@ export default function useWebSocket() {
         return false;
     }, []);
 
-    // Public API: send parameters
     const sendParameters = useCallback(
         (parameters) => sendMessage({ type: 'parameters', data: parameters }),
         [sendMessage]
     );
 
-    // Public API: send button commands
-    const sendButtonCommand = useCallback(
-        (name, state) => sendMessage({ type: 'button', name, state: state ? 'on' : 'off' }),
-        [sendMessage]
-    );
+const sendButtonCommand = useCallback(
+    (name, state) => {
+        const payload = { type: 'button', name, state: state ? 'on' : 'off' };
+        console.log("sendButtonCommand called with:", payload); // 🔍 Debug log
+        sendMessage(payload);
+    },
+    [sendMessage]
+);
 
-    // Public API: send recovery update
+
     const sendRecoveryUpdate = useCallback(
         (data) => sendMessage({ type: 'updateRecoveryState', data }),
         [sendMessage]

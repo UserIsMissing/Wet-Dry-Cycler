@@ -29,11 +29,20 @@ if exist node_modules (
   echo Backend node_modules not found, running npm install...
   npm install
 )
+
+REM Ensure nodemon is installed globally
+where nodemon >nul 2>nul
+if %errorlevel% neq 0 (
+  echo nodemon is not installed globally. Installing it...
+  npm install -g nodemon
+) else (
+  echo nodemon is already installed.
+)
 cd ..
 
-REM === Start Backend Server ===
-echo Starting backend server on port 5000...
-start "Backend" cmd /k node server/server.js
+REM === Start Backend Server with nodemon (ignoring recovery_state.json) ===
+echo Starting backend server with nodemon on port 5175...
+start "Backend" cmd /k nodemon server/server.js --ignore recovery_state.json
 
 REM === Start Frontend Vite Dev Server ===
 echo Starting frontend (Vite) on default port...
@@ -41,7 +50,7 @@ start "Frontend" cmd /k npm run dev
 
 REM === Open in Browser ===
 timeout /t 5 >nul
-start http://localhost:5000
+start http://localhost:5175
 start http://localhost:5174
 
 endlocal

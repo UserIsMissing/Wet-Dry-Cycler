@@ -73,8 +73,10 @@ const clients = new Set();
 const espClients = new Set();
 
 wss.on('connection', (ws) => {
+  if (!clients.has(ws)) {
   clients.add(ws);
   console.log('New WebSocket connection established');
+  }
 
   ws.on('message', (message) => {
     try {
@@ -84,6 +86,7 @@ wss.on('connection', (ws) => {
       if (msg.from === 'esp32') {
         espClients.add(ws);
         console.log('Registered ESP32 WebSocket client');
+        broadcastExcept(ws, JSON.stringify({ type: 'status', status: 'connected' }));
       }
 
       // Handle incoming message types
@@ -118,6 +121,8 @@ wss.on('connection', (ws) => {
       console.error('Bad message:', e);
     }
   });
+
+  
 
   ws.on('close', () => {
     clients.delete(ws);

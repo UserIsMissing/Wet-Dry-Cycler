@@ -11,18 +11,18 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.30"
+#define ServerIP "10.0.0.135"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-const char *ssid = "DonnaHouse";
-const char *password = "guessthepassword";
+// const char *ssid = "DonnaHouse";
+// const char *password = "guessthepassword";
 
-// const char *ssid = "TheDawgHouse";
-// const char *password = "ThrowItBackForPalestine";
+const char *ssid = "TheDawgHouse";
+const char *password = "ThrowItBackForPalestine";
 
 // const char *ssid = "UCSC-Guest";
 // const char *password = "";
@@ -125,6 +125,16 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
   {
   case WStype_CONNECTED:
     Serial.println("WebSocket connected");
+    // send the frontend a valid packet upon restart: "{ "from": "esp32", "type": "heartbeat" }
+    {
+      ArduinoJson::DynamicJsonDocument doc(64);
+      doc["from"] = "esp32";
+      doc["type"] = "heartbeat";
+      char buffer[64];
+      serializeJson(doc, buffer);
+      webSocket.sendTXT(buffer);
+      Serial.println("Sent heartbeat packet to frontend.");
+    }
     break;
   case WStype_DISCONNECTED:
     Serial.println("WebSocket disconnected");
@@ -264,12 +274,14 @@ void loop()
   webSocket.loop();
   unsigned long now = millis();
   if (now - lastSent >= 1000)
-    {
-      sendTemperature();
-      lastSent = now;
-    }
+  {
+    sendTemperature();
+    lastSent = now;
+  }
   switch (currentState)
   {
+    // Print current state
+    Serial.printf("Current state: %d\n", (int)currentState);
   case SystemState::IDLE:
     // Wait for parameter packet
     break;
