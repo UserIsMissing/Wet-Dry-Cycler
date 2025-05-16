@@ -11,6 +11,8 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
+#define ServerIP "10.0.0.30"
+#define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
@@ -248,7 +250,7 @@ void setup()
   }
   Serial.println("\nWiFi connected. IP: " + WiFi.localIP().toString());
 
-  webSocket.begin("10.0.0.30", 5175, "/ws");
+  webSocket.begin(ServerIP, ServerPort, "/ws");
   webSocket.onEvent(onWebSocketEvent);
 
   Serial0.print("ESP32 MAC Address: ");
@@ -261,7 +263,11 @@ void loop()
 {
   webSocket.loop();
   unsigned long now = millis();
-
+  if (now - lastSent >= 1000)
+    {
+      sendTemperature();
+      lastSent = now;
+    }
   switch (currentState)
   {
   case SystemState::IDLE:
