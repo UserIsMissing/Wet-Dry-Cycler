@@ -4,10 +4,10 @@
 #include "HEATING.h"
 #include "MIXING.h"
 #include "REHYDRATION.h"
-#include <stdlib.h>  // for atof()
+#include <stdlib.h> // for atof()
 
-//TESTS
-// #define TESTING_TEMP
+// TESTS
+//  #define TESTING_TEMP
 #define TESTING_MAIN
 
 #define Serial0 Serial
@@ -47,7 +47,7 @@ float desiredHeatingTemperature = 0;
 float durationOfHeating = 0;
 float durationOfMixing = 0;
 int numberOfCycles = 0;
-std::vector<int> sampleZonesToMix; // If using std::vector (with -fno-rtti)
+// std::vector<int> sampleZonesToMix; // If using std::vector (with -fno-rtti)
 
 // Or, use a fixed array if you prefer:
 int sampleZonesArray[10];
@@ -140,12 +140,12 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
         break;
       }
 
-    // Handle 'parameters' packet
+      // Handle 'parameters' packet
       if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
       {
         JsonObject data = doc["data"].as<JsonObject>();
 
-      // Parse floats
+        // Parse floats
 
         volumeAddedPerCycle = atof(data["volumeAddedPerCycle"] | "0");
         durationOfRehydration = atof(data["durationOfRehydration"] | "0");
@@ -153,9 +153,9 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
         desiredHeatingTemperature = atof(data["desiredHeatingTemperature"] | "0");
         durationOfHeating = atof(data["durationOfHeating"] | "0");
         durationOfMixing = atof(data["durationOfMixing"] | "0");
-      numberOfCycles = atoi(data["numberOfCycles"] | "0"); // use atoi for integer
+        numberOfCycles = atoi(data["numberOfCycles"] | "0"); // use atoi for integer
 
-      // Parse array
+        // Parse array
         sampleZoneCount = 0;
         if (data["sampleZonesToMix"].is<JsonArray>())
         {
@@ -169,45 +169,41 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
           }
         }
 
-      // Log for confirmation
-      Serial.println("[REHYDRATION] Received all parameters:");
-      Serial.printf("  Volume per cycle: %.2f µL\n", volumeAddedPerCycle);
-      Serial.printf("  Rehydration duration: %.2f s\n", durationOfRehydration);
-      Serial.printf("  Syringe diameter: %.2f in\n", syringeDiameter);
-      Serial.printf("  Heating temp: %.2f °C for %.2f s\n", desiredHeatingTemperature, durationOfHeating);
-      Serial.printf("  Mixing duration: %.2f s with %d zone(s)\n", durationOfMixing, sampleZoneCount);
-      Serial.printf("  Number of cycles: %d\n", numberOfCycles);
+        // Log for confirmation
+        Serial.println("[REHYDRATION] Received all parameters:");
+        Serial.printf("  Volume per cycle: %.2f µL\n", volumeAddedPerCycle);
+        Serial.printf("  Rehydration duration: %.2f s\n", durationOfRehydration);
+        Serial.printf("  Syringe diameter: %.2f in\n", syringeDiameter);
+        Serial.printf("  Heating temp: %.2f °C for %.2f s\n", desiredHeatingTemperature, durationOfHeating);
+        Serial.printf("  Mixing duration: %.2f s with %d zone(s)\n", durationOfMixing, sampleZoneCount);
+        Serial.printf("  Number of cycles: %d\n", numberOfCycles);
 
-      // Initialize modules now that we have real parameters
+        // Initialize modules now that we have real parameters
         Rehydration_Init(syringeDiameter);
         if (currentState == SystemState::IDLE)
         {
           currentState = SystemState::READY;
-        Serial.println("Received parameters — transitioning to READY state");
+          Serial.println("Received parameters — transitioning to READY state");
+        }
+        else
+        {
+          Serial.println("Received parameters, but system is not in IDLE");
+        }
+        return;
       }
-      else
-      {
-        Serial.println("Received parameters, but system is not in IDLE");
-      }
-      return;
-    }
-    // Handle regular control command
-    if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
+      // Handle regular control command
+      if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
       {
         String name = doc["name"].as<String>();
         String state = doc["state"].as<String>();
         Serial0.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
 
         handleStateCommand(name, state);
-      StaticJsonDocument<100> response;
-      response["name"] = name;
-      response["state"] = state;
-
-      char jsonBuffer[100];
-      size_t len = serializeJson(response, jsonBuffer);
-      ws.textAll(jsonBuffer);
       }
-
+      else if (doc["type"] == "initialGpioState")
+      {
+        Serial.println("Initial GPIO state received, ignoring for now.");
+      }
       else
       {
         Serial.println("Invalid packet received");
