@@ -20,23 +20,23 @@
  // === CONFIG ===
  #define HEATING_GPIO 5         // GPIO to control heater
  #define THERMISTOR_PIN 4        // ADC1_CHANNEL_0 = GPIO4 (ESP32-S3)
- #define MOVING_AVERAGE_WINDOW 1000 // Size of moving average window
+ #define MOVING_AVERAGE_WINDOW 80 // Size of moving average window
  #define VREF 3.28                // ADC reference voltage
  #define ADC_RESOLUTION 4095.0   // 12-bit ADC = 4096 levels
 
+ #define roomTempCalibrationOffset 18 // Calibration offset for room temperature
 
-
-//  #define TESTING_TEMP
+ #define TESTING_TEMP
 
  // === Thermistor constants ===
  const float R0   = 100000.0;     // Resistance at 25°C (reference temp)
  const float R1   = 4630.0;       // Fixed series resistor in voltage divider
- const float BETA = 3950.0;       // Beta value of thermistor
+ const float BETA = 3850.0;       // Beta value of thermistor
  const float T0   = 298.15;       // Reference temp in Kelvin (25°C)
  
  // === Buffers for Moving Average ===
- static int   adcBuffer[MOVING_AVERAGE_WINDOW] = {0}; // Circular buffer for ADC
- static int   adcIndex = 0, adcCount = 0;
+ static float   mvBuffer[MOVING_AVERAGE_WINDOW] = {0}; // Circular buffer for MV readings
+ static int   mvIndex = 0, mvCount = 0;
  
  static float tempBuffer[MOVING_AVERAGE_WINDOW] = {0}; // Circular buffer for temperature
  static int   tempIndex = 0, tempCount = 0;
@@ -53,52 +53,45 @@
    pinMode(HEATING_GPIO, OUTPUT);
    digitalWrite(HEATING_GPIO, LOW);  // Off by default
    analogReadResolution(12);         // 12-bit for ESP32
+   analogSetAttenuation(ADC_11db);      // Set full voltage range 0–3.3V
    Serial.println("[HEATING] Initialized GPIO and ADC");
  }
  
  /**
-  * @brief Reads a raw ADC value from the thermistor pin.
+  * @brief Reads a raw MilliVolt value from the thermistor pin.
   *
   * This is a direct analog read of the thermistor divider output.
   *
   * @return ADC value from 0 to 4095
   */
- int HEATING_Measure_Raw_ADC() {
-   return analogRead(THERMISTOR_PIN);  // Returns 0–4095
- }
+ int HEATING_Measure_Raw_MV() {
+  return analogReadMilliVolts(THERMISTOR_PIN) + roomTempCalibrationOffset;
+}
  
  /**
-  * @brief Computes the moving average of recent ADC readings.
+  * @brief Computes the moving average of recent MilliVolt readings.
   *
   * Stores readings in a circular buffer and returns the average.
   * Helps reduce noise in thermistor signal.
   *
   * @return Averaged ADC reading
   */
- int HEATING_Measure_Raw_ADC_Avg() {
-   int newAdc = HEATING_Measure_Raw_ADC();
-   adcBuffer[adcIndex] = newAdc;
-   adcIndex = (adcIndex + 1) % MOVING_AVERAGE_WINDOW;
-   if (adcCount < MOVING_AVERAGE_WINDOW) adcCount++;
+ float HEATING_Measure_AVG_MV() {
+  float newMV = HEATING_Measure_Raw_MV() / 1000.0; // Convert to Volts
+  mvBuffer[mvIndex] = newMV;
+  mvIndex = (mvIndex + 1) % MOVING_AVERAGE_WINDOW;
+  if (mvCount < MOVING_AVERAGE_WINDOW) mvCount++;
+
+  float sum = 0;
+  for (int i = 0; i < mvCount; i++) {
+      sum += mvBuffer[i];
+  }
+
+  float avg = sum / mvCount;
+  return avg;
+}
  
-   int sum = 0;
-   for (int i = 0; i < adcCount; i++) sum += adcBuffer[i];
-   return sum / adcCount;
- }
- 
- /**
-  * @brief Converts averaged ADC value to voltage.
-  *
-  * Uses VREF and ADC resolution to compute the measured voltage.
-  *
-  * @return Voltage across thermistor (0.0–VREF)
-  */
- float HEATING_Measure_Voltage() {
-   int avg_adc = HEATING_Measure_Raw_ADC_Avg();
-   return (((VREF * avg_adc) / ADC_RESOLUTION)+ 0.029);
-  // return(analogReadMilliVolts(THERMISTOR_PIN));
- }
- 
+
  /**
   * @brief Calculates thermistor resistance from voltage divider output.
   *
@@ -107,7 +100,7 @@
   * @return Thermistor resistance in Ohms
   */
  float HEATING_Measure_Resistance() {
-   float Vout = HEATING_Measure_Voltage();
+   float Vout = HEATING_Measure_AVG_MV();
    if (Vout <= 0) return -1.0;
    return R1 * (VREF - Vout) / Vout;
  }
@@ -171,19 +164,19 @@
 
 void setup() {
   Serial.begin(115200);
+  delay(2000); // Allow USB Serial to connect
+
   HEATING_Init();
 }
 
 void loop() {
-  Serial.println(">Raw ADC: " + String(HEATING_Measure_Raw_ADC()));
-  Serial.println(">Raw ADC: " + String(HEATING_Measure_Raw_ADC()));
-  Serial.println(">ADC AVG: " + String(HEATING_Measure_Raw_ADC_Avg()));
-  Serial.println(">Voltage: " + String(HEATING_Measure_Voltage(), 3));
+  Serial.println(">Raw Voltage: " + String(HEATING_Measure_Raw_MV()));
+  Serial.println(">Voltage AVG: " + String(HEATING_Measure_AVG_MV(), 5) + " V" );
   Serial.println(">Resistance: " + String(HEATING_Measure_Resistance() / 1000.0, 3) + " kOhm");
   Serial.println(">Temperature: " + String(HEATING_Measure_Temp(), 3) + " °C");
   Serial.println(">Temperature AVG: " + String(HEATING_Measure_Temp_Avg(), 3) + " °C");
 
-  HEATING_Set_Temp(50); // Bang-bang control target temperature
+  HEATING_Set_Temp(90); // Bang-bang control target temperature
 
   delay(10); // Delay to make output readable
 }

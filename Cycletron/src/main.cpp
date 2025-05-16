@@ -9,7 +9,7 @@
 
 //TESTS
 // #define TESTING_TEMP
-#define TESTING_MAIN
+// #define TESTING_MAIN
 
 #define Serial0 Serial
 

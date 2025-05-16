@@ -25,31 +25,27 @@
  void HEATING_Init(void);
  
  /**
-  * @brief Reads a single raw ADC value from the configured thermistor pin.
+  * @brief Reads a single raw MV value from the configured thermistor pin.
   *
   * This function performs a direct analog read of the voltage divider output.
   *
-  * @return Raw ADC value (range: 0–4095)
+  * @return Raw MV value (range: 0-3300 mV)
+  *         or 0 if the read fails
+  * 
   */
- int HEATING_Measure_Raw_ADC(void);
+ int HEATING_Measure_Raw_MV(void);
  
  /**
-  * @brief Returns the moving average of raw ADC readings.
+  * @brief Returns the moving average of raw MV readings.
   *
   * Smooths out rapid fluctuations by averaging over a window of samples.
   *
-  * @return Averaged raw ADC value
+  *  @return Average MV value (range: 0-3300 mV)
+  *         or 0 if the read fails
   */
- int HEATING_Measure_Raw_ADC_Avg(void);
+ float HEATING_Measure_AVG_MV(void);
  
- /**
-  * @brief Converts the averaged ADC value to voltage.
-  *
-  * Applies standard ADC-to-voltage conversion using VREF and resolution.
-  *
-  * @return Measured voltage in volts (0.0–3.3V)
-  */
- float HEATING_Measure_Voltage(void);
+ /*
  
  /**
   * @brief Calculates thermistor resistance based on the voltage divider.
