@@ -100,6 +100,12 @@ function App() {
 
   const handleGoButton = () => {
     sendParameters(parameters);
+    sendRecoveryUpdate({
+      ...parameters, // add all parameters to recovery state
+      machineStep: 'idle',
+      lastAction: 'setParameters',
+      progress: 0,
+    });
     setCycleState('idle');
     setActiveTab('controls');
   };
