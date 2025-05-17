@@ -122,6 +122,7 @@ export default function useWebSocket() {
         [sendMessage]
     );
 
+    // Send button command to ESP32 to log cycle data
     const sendButtonCommand = useCallback(
         (name, state, extra = {}) => {
             const payload = { type: 'button', name, state: state ? 'on' : 'off', ...extra };

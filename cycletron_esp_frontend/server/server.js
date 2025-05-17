@@ -4,7 +4,7 @@ const path = require('path');
 const WebSocket = require('ws');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
-const { exec } = require('child_process'); // Add at the top if not present
+const { exec } = require('child_process'); // For opening file location in Explorer
 
 const app = express();
 const PORT = 5175;
@@ -139,6 +139,7 @@ wss.on('connection', (ws) => {
         }
       }
 
+      // Handle log cycle button
       if (msg.type === 'button' && msg.name === 'logCycle') {
         const logFile = path.join(__dirname, '..', 'Log_Cycle.json');
         const entry = {
@@ -160,8 +161,14 @@ wss.on('connection', (ws) => {
         fs.writeFileSync(logFile, JSON.stringify(logArr, null, 2));
         console.log('Logged cycle:', entry);
 
-        // Open file location in Explorer (Windows)
-        exec(`explorer.exe /select,"${logFile.replace(/\//g, '\\')}"`);
+        // Cross-platform: open file location in Explorer (Windows) or Finder (macOS)
+        if (process.platform === 'win32') {
+          exec(`explorer.exe /select,"${logFile.replace(/\//g, '\\')}"`);
+        } else if (process.platform === 'darwin') {
+          exec(`open -R "${logFile}"`);
+        } else {
+          console.log('Automatic file opening not supported on this OS.');
+        }
       }
 
     } catch (e) {
