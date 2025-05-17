@@ -4,6 +4,7 @@ const path = require('path');
 const WebSocket = require('ws');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
+const { exec } = require('child_process'); // Add at the top if not present
 
 const app = express();
 const PORT = 5175;
@@ -136,6 +137,31 @@ wss.on('connection', (ws) => {
             esp.send(JSON.stringify(msg));
           }
         }
+      }
+
+      if (msg.type === 'button' && msg.name === 'logCycle') {
+        const logFile = path.join(__dirname, '..', 'Log_Cycle.json');
+        const entry = {
+          temp: msg.temp || null,
+          timestamp: msg.timestamp || new Date().toISOString(),
+        };
+
+        // Read existing log or start new array
+        let logArr = [];
+        if (fs.existsSync(logFile)) {
+          try {
+            logArr = JSON.parse(fs.readFileSync(logFile));
+            if (!Array.isArray(logArr)) logArr = [];
+          } catch (e) {
+            logArr = [];
+          }
+        }
+        logArr.push(entry);
+        fs.writeFileSync(logFile, JSON.stringify(logArr, null, 2));
+        console.log('Logged cycle:', entry);
+
+        // Open file location in Explorer (Windows)
+        exec(`explorer.exe /select,"${logFile.replace(/\//g, '\\')}"`);
       }
 
     } catch (e) {

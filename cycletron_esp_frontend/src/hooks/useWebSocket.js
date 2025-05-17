@@ -123,8 +123,8 @@ export default function useWebSocket() {
     );
 
     const sendButtonCommand = useCallback(
-        (name, state) => {
-            const payload = { type: 'button', name, state: state ? 'on' : 'off' };
+        (name, state, extra = {}) => {
+            const payload = { type: 'button', name, state: state ? 'on' : 'off', ...extra };
             console.log("sendButtonCommand called with:", payload);
             if (!sendMessage(payload)) {
                 console.warn('Failed to send button command: WebSocket not connected');

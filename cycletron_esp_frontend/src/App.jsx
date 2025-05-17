@@ -162,6 +162,13 @@ function App() {
     setActiveButton(isCanceling ? null : 'refill');
   };
 
+  const handleLogCycle = () => {
+    sendButtonCommand('logCycle', true, {
+      temp: currentTemp,
+      timestamp: new Date().toISOString(),
+    });
+  };
+
   const isButtonDisabled = (id) => {
     if (id === 'startCycle' && cycleState !== 'idle') return true;
     if (id === 'endCycle' && cycleState === 'idle') return true;
@@ -274,6 +281,7 @@ function App() {
                         else if (btnId === 'endCycle') handleEndCycle();
                         else if (btnId === 'extract') handleExtract();
                         else if (btnId === 'refill') handleRefill();
+                        else if (btnId === 'logCycle') handleLogCycle();
                         else sendButtonCommand(btnId);
                       }}
                     />
