@@ -105,24 +105,39 @@ function App() {
   };
 
   const handleStartCycle = () => {
-    sendButtonCommand('startCycle', true); // send 'on'
+    sendButtonCommand('startCycle', true);
     setCycleState('started');
     setActiveButton(null);
+    sendRecoveryUpdate({
+      machineStep: 'started',
+      lastAction: 'startCycle',
+      progress: 0,
+      // add any other state you want to track
+    });
   };
 
   const handlePauseCycle = () => {
     if (activeButton === 'pauseCycle') {
-      // Resume: send "off" for pause, "on" for resume
-      sendButtonCommand('pauseCycle', false); // turn pause off
-      sendButtonCommand('resumeCycle', true); // turn resume on
+      sendButtonCommand('pauseCycle', false);
+      sendButtonCommand('resumeCycle', true);
       setCycleState('started');
       setIsPaused(false);
       setActiveButton(null);
+      sendRecoveryUpdate({
+        machineStep: 'started',
+        lastAction: 'resumeCycle',
+        // ...
+      });
     } else {
-      sendButtonCommand('pauseCycle', true); // turn pause on
+      sendButtonCommand('pauseCycle', true);
       setCycleState('paused');
       setIsPaused(true);
       setActiveButton('pauseCycle');
+      sendRecoveryUpdate({
+        machineStep: 'paused',
+        lastAction: 'pauseCycle',
+        // ...
+      });
     }
   };
 

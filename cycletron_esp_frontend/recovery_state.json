@@ -1,6 +1,6 @@
 {
-  "machineStep": "idle",
-  "lastAction": null,
+  "machineStep": "started",
+  "lastAction": "resumeCycle",
   "progress": 0,
   "cycleStatus": "paused"
 }
