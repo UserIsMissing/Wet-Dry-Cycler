@@ -102,8 +102,8 @@ export default function useWebSocket() {
     useEffect(() => {
         const interval = setInterval(() => {
             const secondsSinceLastMsg = (Date.now() - lastMessageTime) / 1000;
-            setEspOnline(secondsSinceLastMsg < 6);
-        }, 3000);
+            setEspOnline(secondsSinceLastMsg < 2);
+        }, 1000);
         return () => clearInterval(interval);
     }, [lastMessageTime]);
 
