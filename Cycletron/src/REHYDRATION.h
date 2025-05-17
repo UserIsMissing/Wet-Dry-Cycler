@@ -19,6 +19,17 @@
 #include <Arduino.h>
 #include "DRV8825.h"
 
+// === Global State Flag ===
+/**
+ * @brief Global variable indicating bumper contact:
+ * - 0 = no bumper pressed
+ * - 1 = front bumper pressed
+ * - 2 = back bumper pressed
+ */
+extern int BUMPER_STATE;
+
+
+
 /**
  * @brief Initializes the syringe pump stepper motor.
  *
@@ -59,5 +70,39 @@ void Rehydration_Pull(uint32_t uL, float syringeDiameterInches);
  * unnecessary heating or energy drain. It should be called after movement is complete.
  */
 void Rehydration_Stop();
+
+// BUMPER HANDLING
+
+/**
+ * @brief Interrupt handler for front bumper trigger.
+ *
+ * Sets a flag indicating the front bumper has been triggered.
+ */
+void IRAM_ATTR onRehydrationFrontLimit();
+/**
+ * @brief Interrupt handler for back bumper trigger.
+ *
+ * Sets a flag indicating the back bumper has been triggered.
+ */
+void IRAM_ATTR onRehydrationBackLimit();
+
+/**
+ * @brief Configures GPIO pins for front and back bumpers.
+ *
+ * Sets the specified pins as input with pull-up resistors and attaches
+ * interrupt handlers for detecting bumper presses.
+ *
+ */
+void REHYDRATION_ConfigureInterrupts();
+/**
+ * @brief Handles interrupts for front and back bumpers.
+ *
+ * Handles the state of the bumpers and stops the rehydration process
+ * if either bumper is triggered. This function should be called in the
+ * main loop to check for bumper events.
+ *
+ */
+
+void REHYDRATION_HandleInterrupts();
 
 #endif // REHYDRATION_H

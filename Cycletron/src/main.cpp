@@ -4,6 +4,8 @@
 #include "HEATING.h"
 #include "MIXING.h"
 #include "REHYDRATION.h"
+#include "MOVEMENT.h"
+
 #include <stdlib.h> // for atof()
 
 // TESTS
@@ -11,18 +13,18 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.135"
+#define ServerIP "10.0.0.166"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-// const char *ssid = "DonnaHouse";
-// const char *password = "guessthepassword";
+const char *ssid = "DonnaHouse";
+const char *password = "guessthepassword";
 
-const char *ssid = "TheDawgHouse";
-const char *password = "ThrowItBackForPalestine";
+// const char *ssid = "TheDawgHouse";
+// const char *password = "ThrowItBackForPalestine";
 
 // const char *ssid = "UCSC-Guest";
 // const char *password = "";
@@ -245,11 +247,11 @@ void sendTemperature()
 
 void setup()
 {
+  
   Serial.begin(115200);
   delay(2000); // Allow USB Serial to connect
 
-  HEATING_Init();
-  MIXING_Init();
+
   // Wi-Fi connect
   Serial.println("Connecting to WiFi...");
   WiFi.begin(ssid, password);
@@ -265,6 +267,12 @@ void setup()
 
   Serial0.print("ESP32 MAC Address: ");
   Serial0.println(WiFi.macAddress());
+  HEATING_Init();
+  MIXING_Init();
+
+  MOVEMENT_ConfigureInterrupts();
+  REHYDRATION_ConfigureInterrupts();
+
 }
 
 unsigned long lastSent = 0;
@@ -272,12 +280,10 @@ unsigned long lastSent = 0;
 void loop()
 {
   webSocket.loop();
+  MOVEMENT_HandleInterrupts();
+  REHYDRATION_HandleInterrupts();
+
   unsigned long now = millis();
-  if (now - lastSent >= 1000)
-  {
-    sendTemperature();
-    lastSent = now;
-  }
   switch (currentState)
   {
     // Print current state
@@ -332,6 +338,8 @@ void loop()
     Serial.println("System error — awaiting reset or external command.");
     break;
   }
+  delay(10);  // Ensures watchdog is fed
+
 }
 
 #endif // TESTING_MAIN

@@ -12,8 +12,15 @@
 
 #include <Arduino.h>
 #include "REHYDRATION.h"
+#include "MOVEMENT.h"
 #include "DRV8825.h"
 #include <math.h>
+
+volatile bool rehydrationFrontTriggered = false;
+volatile bool rehydrationBackTriggered = false;
+
+// === Global State ===
+int BUMPER_STATE = 0;
 
 // === Motor Configuration ===
 DRV8825_t rehydrationMotor = {
@@ -24,6 +31,11 @@ DRV8825_t rehydrationMotor = {
     .mode1_pin = 40,
     .mode2_pin = 39,
     .enable_pin = 38};
+
+BUMPER_t bumpers_r = {
+    .front_bumper_pin = 3,
+    .back_bumper_pin = 10,
+};
 
 // === Syringe & Motion Parameters ===
 #define STEPPER_STEPS_PER_REV 200 // Full steps per revolution of stepper motor
@@ -61,7 +73,6 @@ static float calculate_uL_per_step(float syringeDiameterInches)
     float volume_uL = volume_in3 * INCH3_TO_UL;
     return volume_uL;
 }
-
 
 /**
  * @brief Initializes the syringe pump motor and prints calibration data.
@@ -133,4 +144,64 @@ void Rehydration_Stop()
 {
     DRV8825_Disable(&rehydrationMotor);
     Serial.println("[REHYDRATION] Motor stopped.");
+}
+
+// === BUMPER INTERRUPTS ===
+
+void IRAM_ATTR onRehydrationFrontLimit() {
+    rehydrationFrontTriggered = true;
+}
+
+void IRAM_ATTR onRehydrationBackLimit() {
+    rehydrationBackTriggered = true;
+}
+
+void REHYDRATION_ConfigureInterrupts() {
+    // Set pins as INPUT_PULLUP
+    pinMode(bumpers_r.front_bumper_pin, INPUT_PULLUP);
+    pinMode(bumpers_r.back_bumper_pin, INPUT_PULLUP);
+
+    rehydrationFrontTriggered = false;
+    rehydrationBackTriggered = false;
+
+    // Only attach if the pin is HIGH (i.e., not pressed)
+    if (digitalRead(bumpers_r.front_bumper_pin) == HIGH) {
+        attachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin), onRehydrationFrontLimit, FALLING);
+    } else {
+        Serial.println("[REHYDRATION] Skipping front interrupt attach — pin LOW despite pullup");
+    }
+
+    if (digitalRead(bumpers_r.back_bumper_pin) == HIGH) {
+        attachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin), onRehydrationBackLimit, FALLING);
+    } else {
+        Serial.println("[REHYDRATION] Skipping back interrupt attach — pin LOW despite pullup");
+    }
+}
+
+void REHYDRATION_HandleInterrupts() {
+    if (rehydrationFrontTriggered) {
+        rehydrationFrontTriggered = false;
+
+        // Disable the interrupt safely before re-arming
+        detachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin));
+        Serial.println("[INTERRUPT] Rehydration front limit triggered");
+        Rehydration_Stop();
+
+        // Optional: reattach only if input is HIGH again
+        if (digitalRead(bumpers_r.front_bumper_pin) == HIGH) {
+            attachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin), onRehydrationFrontLimit, FALLING);
+        }
+    }
+
+    if (rehydrationBackTriggered) {
+        rehydrationBackTriggered = false;
+
+        detachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin));
+        Serial.println("[INTERRUPT] Rehydration back limit triggered");
+        Rehydration_Stop();
+
+        if (digitalRead(bumpers_r.back_bumper_pin) == HIGH) {
+            attachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin), onRehydrationBackLimit, FALLING);
+        }
+    }
 }
