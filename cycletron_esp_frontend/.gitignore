@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# Misc
+cycletron_esp_frontend/esp_data.db
