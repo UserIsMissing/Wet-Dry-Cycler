@@ -12,11 +12,7 @@ const PORT = 5175;
 const recoveryFile = 'recovery_state.json';
 const gpioFile = 'gpio_state.json';
 
-let recoveryState = {
-  machineStep: 'idle',
-  lastAction: null,
-  progress: 0
-};
+let recoveryState = {};
 
 let gpioState = {};
 
@@ -26,6 +22,7 @@ if (fs.existsSync(recoveryFile)) {
     console.log("Loaded recovery state:", recoveryState);
   } catch (e) {
     console.error("Failed to load recovery state file:", e);
+    recoveryState = {};
   }
 }
 
@@ -169,6 +166,21 @@ wss.on('connection', (ws) => {
         } else {
           console.log('Automatic file opening not supported on this OS.');
         }
+      }
+
+      if (msg.type === 'resetRecoveryState') {
+        if (fs.existsSync(recoveryFile)) {
+          fs.unlinkSync(recoveryFile);
+          console.log('recovery_state.json deleted by frontend request.');
+        }
+        recoveryState = {};
+        // Notify all clients of the reset state
+        wss.clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'recoveryState', data: recoveryState }));
+          }
+        });
+        return;
       }
 
     } catch (e) {

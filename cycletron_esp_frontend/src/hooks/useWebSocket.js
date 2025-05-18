@@ -29,6 +29,7 @@ export default function useWebSocket() {
             console.log('WebSocket connected');
             setIsConnected(true);
             setEspOnline(true);
+            ws.send(JSON.stringify({ type: 'getRecoveryState' })); // <-- Add this here
         };
 
         ws.onmessage = (event) => {
@@ -147,6 +148,7 @@ export default function useWebSocket() {
         sendParameters,
         sendButtonCommand,
         sendRecoveryUpdate,
-        isConnected, // expose if you want to disable UI buttons when disconnected
+        isConnected,
+        sendMessage,
     };
 }

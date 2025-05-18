@@ -1,8 +1,4 @@
 {
-  "machineStep": "paused",
-  "lastAction": "pauseCycle",
-  "progress": 0,
-  "cycleStatus": "paused",
   "volumeAddedPerCycle": "",
   "durationOfRehydration": "",
   "syringeDiameter": "",
@@ -10,5 +6,9 @@
   "durationOfHeating": "",
   "sampleZonesToMix": [],
   "durationOfMixing": "",
-  "numberOfCycles": ""
+  "numberOfCycles": "",
+  "machineStep": "started",
+  "lastAction": "startCycle",
+  "progress": 0,
+  "cycleStatus": "paused"
 }
