@@ -83,6 +83,8 @@ function App() {
   const [cycleState, setCycleState] = useState('idle');
   const [activeButton, setActiveButton] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [showVialSetup, setShowVialSetup] = useState(true);
+  const [vialSetupStep, setVialSetupStep] = useState('prompt'); // 'prompt', 'continue', or null
 
   const handleParameterChange = (key, value) => {
     if (value === '' || Number(value) > 0) {
@@ -115,7 +117,7 @@ function App() {
     setCycleState('started');
     setActiveButton(null);
     sendRecoveryUpdate({
-      machineStep: 'started',
+      machineStep: 'started', 
       lastAction: 'startCycle',
       progress: 0,
       // add any other state you want to track
@@ -186,7 +188,57 @@ function App() {
   };
 
   return (
-    <div className="container">
+    <div className="container" style={{ position: 'relative' }}>
+      {/* Vial Setup Overlay */}
+      {vialSetupStep && (
+        <div
+          style={{
+            position: 'fixed',
+            zIndex: 1000,
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(255,255,255,0.98)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <h1 className="title is-2 mb-5">Vial Setup</h1>
+          {vialSetupStep === 'prompt' ? (
+            <>
+              <h2 className="title is-4 mb-5">Need to Prepare Vials?</h2>
+              <div>
+                <button
+                  className="button is-primary is-large mr-4"
+                  style={{ fontSize: '2rem', padding: '2rem 4rem' }}
+                  onClick={() => setVialSetupStep('continue')}
+                >
+                  Yes
+                </button>
+                <button
+                  className="button is-light is-large"
+                  style={{ fontSize: '2rem', padding: '2rem 4rem' }}
+                  onClick={() => setVialSetupStep(null)}
+                >
+                  No
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              className="button is-primary is-large"
+              style={{ fontSize: '2rem', padding: '2rem 4rem' }}
+              onClick={() => setVialSetupStep(null)}
+            >
+              Continue
+            </button>
+          )}
+        </div>
+      )}
+
       <section className="box mt-4">
         <h2 className="title is-5">Recovery State (Debug)</h2>
         <pre>{JSON.stringify(recoveryState, null, 2)}</pre>
