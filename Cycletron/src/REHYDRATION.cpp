@@ -12,8 +12,15 @@
 
 #include <Arduino.h>
 #include "REHYDRATION.h"
+#include "MOVEMENT.h"
 #include "DRV8825.h"
 #include <math.h>
+
+volatile bool rehydrationFrontTriggered = false;
+volatile bool rehydrationBackTriggered = false;
+
+// === Global State ===
+int BUMPER_STATE = 0;
 
 // === Motor Configuration ===
 DRV8825_t rehydrationMotor = {
@@ -24,6 +31,11 @@ DRV8825_t rehydrationMotor = {
     .mode1_pin = 40,
     .mode2_pin = 39,
     .enable_pin = 38};
+
+BUMPER_t bumpers_r = {
+    .front_bumper_pin = 3,
+    .back_bumper_pin = 10,
+};
 
 // === Syringe & Motion Parameters ===
 #define STEPPER_STEPS_PER_REV 200 // Full steps per revolution of stepper motor
@@ -61,7 +73,6 @@ static float calculate_uL_per_step(float syringeDiameterInches)
     float volume_uL = volume_in3 * INCH3_TO_UL;
     return volume_uL;
 }
-
 
 /**
  * @brief Initializes the syringe pump motor and prints calibration data.
@@ -133,4 +144,96 @@ void Rehydration_Stop()
 {
     DRV8825_Disable(&rehydrationMotor);
     Serial.println("[REHYDRATION] Motor stopped.");
+}
+
+// === BUMPER INTERRUPTS ===
+
+/**
+ * @brief Interrupt handler for front bumper trigger.
+ *
+ * Sets a flag indicating the front bumper has been triggered.
+ * Keep this minimal to avoid watchdog resets.
+ */
+void IRAM_ATTR onRehydrationFrontLimit() {
+    rehydrationFrontTriggered = true;
+}
+
+/**
+ * @brief Interrupt handler for back bumper trigger.
+ *
+ * Sets a flag indicating the back bumper has been triggered.
+ * Keep this minimal to avoid watchdog resets.
+ */
+void IRAM_ATTR onRehydrationBackLimit() {
+    rehydrationBackTriggered = true;
+}
+
+/**
+ * @brief Configures GPIO pins for front and back bumpers.
+ *
+ * Sets the specified pins as input with pull-up resistors and attaches
+ * interrupt handlers for detecting bumper presses.
+ * 
+ * Interrupts are only attached if the pin is HIGH (not already pressed)
+ * to avoid immediate triggering on startup from floating or LOW states.
+ */
+void REHYDRATION_ConfigureInterrupts() {
+    // Configure GPIO pins with pull-up resistors
+    pinMode(bumpers_r.front_bumper_pin, INPUT_PULLUP);
+    pinMode(bumpers_r.back_bumper_pin, INPUT_PULLUP);
+
+    // Clear any previous state
+    rehydrationFrontTriggered = false;
+    rehydrationBackTriggered = false;
+
+    // Attach front bumper ISR if the pin is not LOW on boot
+    if (digitalRead(bumpers_r.front_bumper_pin) == HIGH) {
+        attachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin), onRehydrationFrontLimit, FALLING);
+    } else {
+        Serial.println("[REHYDRATION] Skipping front interrupt attach — pin LOW despite pullup");
+    }
+
+    // Attach back bumper ISR if the pin is not LOW on boot
+    if (digitalRead(bumpers_r.back_bumper_pin) == HIGH) {
+        attachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin), onRehydrationBackLimit, FALLING);
+    } else {
+        Serial.println("[REHYDRATION] Skipping back interrupt attach — pin LOW despite pullup");
+    }
+}
+
+/**
+ * @brief Handles bumper-triggered interrupts.
+ *
+ * This function should be called in the main loop.
+ * It disables and re-enables interrupts based on pin state
+ * to prevent rapid re-triggering. Also stops the motor.
+ */
+void REHYDRATION_HandleInterrupts() {
+    if (rehydrationFrontTriggered) {
+        rehydrationFrontTriggered = false;
+
+        // Detach interrupt to prevent bouncing or re-entry
+        detachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin));
+        Serial.println("[INTERRUPT] Rehydration front limit triggered");
+        Rehydration_Stop();
+
+        // Re-attach only if the pin is HIGH again
+        if (digitalRead(bumpers_r.front_bumper_pin) == HIGH) {
+            attachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin), onRehydrationFrontLimit, FALLING);
+        }
+    }
+
+    if (rehydrationBackTriggered) {
+        rehydrationBackTriggered = false;
+
+        // Detach interrupt to prevent bouncing or re-entry
+        detachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin));
+        Serial.println("[INTERRUPT] Rehydration back limit triggered");
+        Rehydration_Stop();
+
+        // Re-attach only if the pin is HIGH again
+        if (digitalRead(bumpers_r.back_bumper_pin) == HIGH) {
+            attachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin), onRehydrationBackLimit, FALLING);
+        }
+    }
 }
