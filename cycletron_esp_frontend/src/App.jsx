@@ -117,7 +117,7 @@ function App() {
     setCycleState('started');
     setActiveButton(null);
     sendRecoveryUpdate({
-      machineStep: 'started', 
+      machineStep: 'started',
       lastAction: 'startCycle',
       progress: 0,
       // add any other state you want to track
@@ -181,7 +181,7 @@ function App() {
     if (id === 'startCycle' && cycleState !== 'idle') return true;
     if (id === 'endCycle' && cycleState === 'idle') return true;
     if (['pauseCycle', 'extract', 'refill'].includes(id) && cycleState === 'idle') return true;
-    
+
     if (activeButton && activeButton !== id) return true;
     if (cycleState === 'idle' && id !== 'startCycle') return true;
     return false;
@@ -355,6 +355,16 @@ function App() {
             <h2 className="title is-5">ESP32 Outputs</h2>
             <div className="columns is-full is-multiline">
               <div className="column is-full">
+                <label className="label is-small">Cycle Progress</label>
+                <progress className="progress is-info is-small" value={espOutputs.cycleProgress} max="100">
+                  {espOutputs.cycleProgress}%
+                </progress>
+              </div>
+              <div className="column is-half">
+                <label className="label is-small"># Cycles Completed</label>
+                <input type="text" className="input is-small" value={espOutputs.cyclesCompleted} readOnly />
+              </div>
+              <div className="column is-full">
                 <label className="label is-small">Temperature Data</label>
                 <input
                   type="text"
@@ -364,9 +374,9 @@ function App() {
                 />
               </div>
               <div className="column is-full">
-                <label className="label is-small">Syringe Limit</label>
-                <progress className="progress is-primary is-small" value={espOutputs.syringeLimit} max="100">
-                  {espOutputs.syringeLimit}%
+                <label className="label is-small">% of Syringe Left</label>
+                <progress className="progress is-primary is-small" value={espOutputs.syringeLeft} max="100">
+                  {espOutputs.syringeLeft}%
                 </progress>
               </div>
               <div className="column is-full">
@@ -374,27 +384,15 @@ function App() {
                 <span
                   className="tag is-medium"
                   style={{
-                    backgroundColor: espOutputs.extractioReady === 'ready' ? 'green' : 'red',
+                    backgroundColor: espOutputs.extractionReady === 'ready' ? 'green' : 'red',
                     color: 'white',
                   }}
                 >
-                  {espOutputs.extractioReady === 'ready' ? 'Extraction Ready' : 'Not Ready'}
+                  {espOutputs.extractionReady === 'ready' ? 'Extraction Ready' : 'Not Ready'}
                 </span>
               </div>
-              <div className="column is-half">
-                <label className="label is-small"># Cycles Completed</label>
-                <input type="text" className="input is-small" value={espOutputs.cyclesCompleted} readOnly />
-              </div>
-              <div className="column is-half">
-                <label className="label is-small">Cycle Progress</label>
-                <progress className="progress is-info is-small" value={espOutputs.cycleProgress} max="100">
-                  {espOutputs.cycleProgress}%
-                </progress>
-              </div>
-              <div className="column is-full">
-                <label className="label is-small">Syringe Used</label>
-                <input type="text" className="input is-small" value={espOutputs.syringeUsed} readOnly />
-              </div>
+
+
             </div>
           </div>
         </div>
@@ -404,4 +402,3 @@ function App() {
 }
 
 export default App;
- 

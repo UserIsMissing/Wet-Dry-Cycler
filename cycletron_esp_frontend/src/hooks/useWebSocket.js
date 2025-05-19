@@ -51,7 +51,7 @@ export default function useWebSocket() {
                     case 'temperature':
                         setCurrentTemp(msg.value);
                         break;
-                    case 'temperatureUpdate': // <-- Add this case
+                    case 'temperatureUpdate':
                         setCurrentTemp(msg.value);
                         break;
                     case 'status':
