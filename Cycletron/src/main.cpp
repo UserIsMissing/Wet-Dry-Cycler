@@ -13,7 +13,7 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.135"
+#define ServerIP "169.233.119.5"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
@@ -23,11 +23,11 @@
 // const char *ssid = "DonnaHouse";
 // const char *password = "guessthepassword";
 
-const char *ssid = "TheDawgHouse";
-const char *password = "ThrowItBackForPalestine";
+// const char *ssid = "TheDawgHouse";
+// const char *password = "ThrowItBackForPalestine";
 
-// const char *ssid = "UCSC-Guest";
-// const char *password = "";
+const char *ssid = "UCSC-Guest";
+const char *password = "";
 
 // === State Machine ===
 enum class SystemState
@@ -277,6 +277,17 @@ void setup()
 
 unsigned long lastSent = 0;
 
+void sendHeartbeat()
+{
+  ArduinoJson::DynamicJsonDocument doc(64);
+  doc["from"] = "esp32";
+  doc["type"] = "heartbeat";
+  char buffer[64];
+  serializeJson(doc, buffer);
+  webSocket.sendTXT(buffer);
+  Serial.println("Sent heartbeat packet to frontend (IDLE).");
+}
+
 void loop()
 {
   webSocket.loop();
@@ -289,7 +300,12 @@ void loop()
     // Print current state
     Serial.printf("Current state: %d\n", (int)currentState);
   case SystemState::IDLE:
-    // Wait for parameter packet
+    // Send heartbeat once a second to show ESP is connected
+    if (now - lastSent >= 1000)
+    {
+      sendHeartbeat();
+      lastSent = now;
+    }
     break;
 
   case SystemState::READY:
