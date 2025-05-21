@@ -98,7 +98,7 @@ void handleStateCommand(const String &name, const String &state)
     else
     {
       currentState = previousState;
-      Serial.println("State RESUMED");
+      Serial.printf("State RESUMED (currentState = %d)", static_cast<int>(currentState));
     }
   }
   else if (name == "endCycle" && state == "on")
@@ -146,13 +146,70 @@ void handleStateCommand(const String &name, const String &state)
   }
 }
 
+void handleRecoveryPacket(const JsonObject &data)
+{
+  if (!data.containsKey("currentState") || !data.containsKey("parameters"))
+  {
+    Serial.println("Recovery packet is empty or invalid. Transitioning to IDLE state.");
+    currentState = SystemState::IDLE;
+    return;
+  }
+
+  // Restore the last known state
+  String recoveredState = data["currentState"].as<String>();
+  if (recoveredState == "HEATING")
+    currentState = SystemState::HEATING;
+  else if (recoveredState == "REHYDRATING")
+    currentState = SystemState::REHYDRATING;
+  else if (recoveredState == "MIXING")
+    currentState = SystemState::MIXING;
+  else if (recoveredState == "READY")
+    currentState = SystemState::READY;
+  else
+    currentState = SystemState::IDLE;
+
+  // Restore parameters
+  JsonObject parameters = data["parameters"];
+  volumeAddedPerCycle = atof(parameters["volumeAddedPerCycle"] | "0");
+  durationOfRehydration = atof(parameters["durationOfRehydration"] | "0");
+  syringeDiameter = atof(parameters["syringeDiameter"] | "0");
+  desiredHeatingTemperature = atof(parameters["desiredHeatingTemperature"] | "0");
+  durationOfHeating = atof(parameters["durationOfHeating"] | "0");
+  durationOfMixing = atof(parameters["durationOfMixing"] | "0");
+  numberOfCycles = atoi(parameters["numberOfCycles"] | "0");
+
+  // Restore sample zones
+  sampleZoneCount = 0;
+  if (parameters["sampleZonesToMix"].is<JsonArray>())
+  {
+    JsonArray zones = parameters["sampleZonesToMix"].as<JsonArray>();
+    for (JsonVariant val : zones)
+    {
+      if (val.is<int>() && sampleZoneCount < 10)
+      {
+        sampleZonesArray[sampleZoneCount++] = val.as<int>();
+      }
+    }
+  }
+
+  // Log recovery details
+  Serial.println("[RECOVERY] Restored system state and parameters:");
+  Serial.printf("  Current state: %s\n", recoveredState.c_str());
+  Serial.printf("  Volume per cycle: %.2f µL\n", volumeAddedPerCycle);
+  Serial.printf("  Rehydration duration: %.2f s\n", durationOfRehydration);
+  Serial.printf("  Syringe diameter: %.2f in\n", syringeDiameter);
+  Serial.printf("  Heating temp: %.2f °C for %.2f s\n", desiredHeatingTemperature, durationOfHeating);
+  Serial.printf("  Mixing duration: %.2f s with %d zone(s)\n", durationOfMixing, sampleZoneCount);
+  Serial.printf("  Number of cycles: %d\n", numberOfCycles);
+}
+
 void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
 {
   switch (type)
   {
   case WStype_CONNECTED:
     Serial.println("WebSocket connected");
-    // send the frontend a valid packet upon restart: "{ "from": "esp32", "type": "heartbeat" }
+    // Send heartbeat packet
     {
       ArduinoJson::DynamicJsonDocument doc(64);
       doc["from"] = "esp32";
@@ -169,299 +226,254 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
   case WStype_TEXT:
   {
     Serial.printf("Received: %s\n", payload);
+    ArduinoJson::DynamicJsonDocument doc(300);
+    auto err = deserializeJson(doc, payload, length);
+    if (err)
     {
-      ArduinoJson::DynamicJsonDocument doc(300);
-      auto err = deserializeJson(doc, payload, length);
-      if (err)
-      {
-        Serial.print("JSON parse failed: ");
-        Serial.println(err.c_str());
-        break;
-      }
+      Serial.print("JSON parse failed: ");
+      Serial.println(err.c_str());
+      break;
+    }
 
-      // Handle 'parameters' packet
-      if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
-      {
-        JsonObject data = doc["data"].as<JsonObject>();
+    if (doc["type"] == "espRecoveryState" && doc["data"].is<JsonObject>())
+    {
+      JsonObject data = doc["data"].as<JsonObject>();
+      handleRecoveryPacket(data);
+    }
+    else if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
+    {
+      JsonObject data = doc["data"].as<JsonObject>();
+      // ...existing parameter handling code...
+    }
+    else if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
+    {
+      String name = doc["name"].as<String>();
+      String state = doc["state"].as<String>();
+      Serial0.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
 
-        // Parse floats
-
-        volumeAddedPerCycle = atof(data["volumeAddedPerCycle"] | "0");
-        durationOfRehydration = atof(data["durationOfRehydration"] | "0");
-        syringeDiameter = atof(data["syringeDiameter"] | "0");
-        desiredHeatingTemperature = atof(data["desiredHeatingTemperature"] | "0");
-        durationOfHeating = atof(data["durationOfHeating"] | "0");
-        durationOfMixing = atof(data["durationOfMixing"] | "0");
-        numberOfCycles = atoi(data["numberOfCycles"] | "0"); // use atoi for integer
-
-        // Parse array
-        sampleZoneCount = 0;
-        if (data["sampleZonesToMix"].is<JsonArray>())
-        {
-          JsonArray zones = data["sampleZonesToMix"].as<JsonArray>();
-          for (JsonVariant val : zones)
-          {
-            if (val.is<int>() && sampleZoneCount < 10)
-            {
-              sampleZonesArray[sampleZoneCount++] = val.as<int>();
-            }
-          }
-        }
-
-        // Log for confirmation
-        Serial.println("[REHYDRATION] Received all parameters:");
-        Serial.printf("  Volume per cycle: %.2f µL\n", volumeAddedPerCycle);
-        Serial.printf("  Rehydration duration: %.2f s\n", durationOfRehydration);
-        Serial.printf("  Syringe diameter: %.2f in\n", syringeDiameter);
-        Serial.printf("  Heating temp: %.2f °C for %.2f s\n", desiredHeatingTemperature, durationOfHeating);
-        Serial.printf("  Mixing duration: %.2f s with %d zone(s)\n", durationOfMixing, sampleZoneCount);
-        Serial.printf("  Number of cycles: %d\n", numberOfCycles);
-
-        // Initialize modules now that we have real parameters
-        Rehydration_Init(syringeDiameter);
-        if (currentState == SystemState::IDLE)
-        {
-          currentState = SystemState::READY;
-          Serial.println("Received parameters — transitioning to READY state");
-        }
-        else
-        {
-          Serial.println("Received parameters, but system is not in IDLE");
-        }
-        return;
-      }
-      // Handle regular control command
-      if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
-      {
-        String name = doc["name"].as<String>();
-        String state = doc["state"].as<String>();
-        Serial0.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
-
-        handleStateCommand(name, state);
-      }
-      else if (doc["type"] == "initialGpioState")
-      {
-        Serial.println("Initial GPIO state received, ignoring for now.");
-      }
-      else
-      {
-        Serial.println("Invalid packet received");
-      }
+      handleStateCommand(name, state);
+    }
+    else if (doc["type"] == "initialGpioState")
+    {
+      Serial.println("Initial GPIO state received, ignoring for now.");
+    }
+    else
+    {
+      Serial.println("Invalid packet received");
     }
     break;
   }
   default:
     break;
   }
-}
 
-unsigned long lastSent = 0;
-void sendHeartbeat()
-{
-  ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
-  doc["type"] = "heartbeat";
-  char buffer[64];
-  serializeJson(doc, buffer);
-  webSocket.sendTXT(buffer);
-  Serial.println("Sent heartbeat packet to frontend (IDLE).");
-}
+  unsigned long lastSent = 0;
+  void sendHeartbeat()
+  {
+    ArduinoJson::JsonDocument doc;
+    doc["from"] = "esp32";
+    doc["type"] = "heartbeat";
+    char buffer[64];
+    serializeJson(doc, buffer);
+    webSocket.sendTXT(buffer);
+    Serial.println("Sent heartbeat packet to frontend.");
+  }
 
-// CYCLE PROGRESS COMMUNICATION
+  // CYCLE PROGRESS COMMUNICATION
 
-void sendTemperature()
-{
-  float temp = HEATING_Measure_Temp_Avg();
-  ArduinoJson::DynamicJsonDocument doc(100);
-  doc["type"] = "temperature";
-  doc["value"] = temp;
+  void sendTemperature()
+  {
+    float temp = HEATING_Measure_Temp_Avg();
+    ArduinoJson::DynamicJsonDocument doc(100);
+    doc["type"] = "temperature";
+    doc["value"] = temp;
 
-  char buffer[100];
-  serializeJson(doc, buffer);
-  webSocket.sendTXT(buffer);
-  Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-}
+    char buffer[100];
+    serializeJson(doc, buffer);
+    webSocket.sendTXT(buffer);
+    Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+  }
 
-// void sendSyringePercentage(float)
-// {
-//   float temp = HEATING_Measure_Temp_Avg();
-//   ArduinoJson::DynamicJsonDocument doc(100);
-//   doc["type"] = "temperature";
-//   doc["value"] = temp;
+  // void sendSyringePercentage(float)
+  // {
+  //   float temp = HEATING_Measure_Temp_Avg();
+  //   ArduinoJson::DynamicJsonDocument doc(100);
+  //   doc["type"] = "temperature";
+  //   doc["value"] = temp;
 
-//   char buffer[100];
-//   serializeJson(doc, buffer);
-//   webSocket.sendTXT(buffer);
-//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-// }
+  //   char buffer[100];
+  //   serializeJson(doc, buffer);
+  //   webSocket.sendTXT(buffer);
+  //   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+  // }
 
-// void sendCycleProgress(float)
-// {
-//   float temp = HEATING_Measure_Temp_Avg();
-//   ArduinoJson::DynamicJsonDocument doc(100);
-//   doc["type"] = "temperature";
-//   doc["value"] = temp;
+  // void sendCycleProgress(float)
+  // {
+  //   float temp = HEATING_Measure_Temp_Avg();
+  //   ArduinoJson::DynamicJsonDocument doc(100);
+  //   doc["type"] = "temperature";
+  //   doc["value"] = temp;
 
-//   char buffer[100];
-//   serializeJson(doc, buffer);
-//   webSocket.sendTXT(buffer);
-//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-// }
+  //   char buffer[100];
+  //   serializeJson(doc, buffer);
+  //   webSocket.sendTXT(buffer);
+  //   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+  // }
 
-// void sendExtractReady(int)
-// {
-//   float temp = HEATING_Measure_Temp_Avg();
-//   ArduinoJson::DynamicJsonDocument doc(100);
-//   doc["type"] = "temperature";
-//   doc["value"] = temp;
+  // void sendExtractReady(int)
+  // {
+  //   float temp = HEATING_Measure_Temp_Avg();
+  //   ArduinoJson::DynamicJsonDocument doc(100);
+  //   doc["type"] = "temperature";
+  //   doc["value"] = temp;
 
-//   char buffer[100];
-//   serializeJson(doc, buffer);
-//   webSocket.sendTXT(buffer);
-//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-// }
+  //   char buffer[100];
+  //   serializeJson(doc, buffer);
+  //   webSocket.sendTXT(buffer);
+  //   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+  // }
 
-// void sendRecovery(int)
-// {
-//   float temp = HEATING_Measure_Temp_Avg();
-//   ArduinoJson::DynamicJsonDocument doc(100);
-//   doc["type"] = "temperature";
-//   doc["value"] = temp;
+  // void sendRecovery(int)
+  // {
+  //   float temp = HEATING_Measure_Temp_Avg();
+  //   ArduinoJson::DynamicJsonDocument doc(100);
+  //   doc["type"] = "temperature";
+  //   doc["value"] = temp;
 
-//   char buffer[100];
-//   serializeJson(doc, buffer);
-//   webSocket.sendTXT(buffer);
-//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-// }
+  //   char buffer[100];
+  //   serializeJson(doc, buffer);
+  //   webSocket.sendTXT(buffer);
+  //   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+  // }
 
-// ERROR ENUM CODEs
+  // ERROR ENUM CODEs
 
-// void sendError(int)
-// {
-//   float temp = HEATING_Measure_Temp_Avg();
-//   ArduinoJson::DynamicJsonDocument doc(100);
-//   doc["type"] = "temperature";
-//   doc["value"] = temp;
+  // void sendError(int)
+  // {
+  //   float temp = HEATING_Measure_Temp_Avg();
+  //   ArduinoJson::DynamicJsonDocument doc(100);
+  //   doc["type"] = "temperature";
+  //   doc["value"] = temp;
 
-//   char buffer[100];
-//   serializeJson(doc, buffer);
-//   webSocket.sendTXT(buffer);
-//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-// }
+  //   char buffer[100];
+  //   serializeJson(doc, buffer);
+  //   webSocket.sendTXT(buffer);
+  //   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+  // }
 
 #ifdef TESTING_MAIN
 
-void setup()
-{
-
-  Serial.begin(115200);
-  delay(2000); // Allow USB Serial to connect
-
-  // Wi-Fi connect
-  Serial.println("Connecting to WiFi...");
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED)
+  void setup()
   {
-    delay(500);
-    Serial.print(".");
+
+    Serial.begin(115200);
+    delay(2000); // Allow USB Serial to connect
+
+    // Wi-Fi connect
+    Serial.println("Connecting to WiFi...");
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println("\nWiFi connected. IP: " + WiFi.localIP().toString());
+
+    webSocket.begin(ServerIP, ServerPort, "/ws");
+    webSocket.onEvent(onWebSocketEvent);
+
+    Serial0.print("ESP32 MAC Address: ");
+    Serial0.println(WiFi.macAddress());
+    HEATING_Init();
+    MIXING_Init();
+
+    MOVEMENT_ConfigureInterrupts();
+    REHYDRATION_ConfigureInterrupts();
   }
-  Serial.println("\nWiFi connected. IP: " + WiFi.localIP().toString());
 
-  webSocket.begin(ServerIP, ServerPort, "/ws");
-  webSocket.onEvent(onWebSocketEvent);
-
-  Serial0.print("ESP32 MAC Address: ");
-  Serial0.println(WiFi.macAddress());
-  HEATING_Init();
-  MIXING_Init();
-
-  MOVEMENT_ConfigureInterrupts();
-  REHYDRATION_ConfigureInterrupts();
-}
-
-void loop()
-{
-  webSocket.loop();
-  MOVEMENT_HandleInterrupts();
-  REHYDRATION_HandleInterrupts();
-
-  unsigned long now = millis();
-  switch (currentState)
+  void loop()
   {
-  case SystemState::IDLE:
-    if (now - lastSent >= 1000)
+    webSocket.loop();
+    MOVEMENT_HandleInterrupts();
+    REHYDRATION_HandleInterrupts();
+
+    unsigned long now = millis();
+    switch (currentState)
     {
-      sendHeartbeat();
-      lastSent = now;
+    case SystemState::IDLE:
+      if (now - lastSent >= 1000)
+      {
+        sendHeartbeat();
+        lastSent = now;
+      }
+      break;
+    case SystemState::READY:
+      if (now - lastSent >= 1000)
+      {
+        sendHeartbeat();
+        lastSent = now;
+      }
+      break;
+    case SystemState::PAUSED:
+      if (now - lastSent >= 1000)
+      {
+        sendHeartbeat();
+        lastSent = now;
+      }
+      break;
+
+    case SystemState::REHYDRATING:
+      if (now - lastSent >= 1000)
+      {
+        sendTemperature();
+        // sendSyringePercentage();
+        // sendCycleProgress();
+        lastSent = now;
+      }
+      break;
+
+    case SystemState::HEATING:
+      if (now - lastSent >= 1000)
+      {
+        sendTemperature();
+        // sendCycleProgress();
+        lastSent = now;
+      }
+      break;
+
+    case SystemState::MIXING:
+      if (now - lastSent >= 1000)
+      {
+        sendTemperature();
+        // sendCycleProgress();
+        lastSent = now;
+      }
+      break;
+
+    case SystemState::REFILLING:
+      Serial.println("Refilling...");
+      currentState = SystemState::PAUSED;
+      break;
+
+    case SystemState::EXTRACTING:
+      Serial.println("Extracting...");
+      currentState = SystemState::PAUSED;
+      break;
+
+    case SystemState::LOGGING:
+      Serial.println("Logging data...");
+      currentState = previousState;
+      break;
+
+    case SystemState::ENDED:
+      currentState = SystemState::IDLE;
+      break;
+
+    case SystemState::ERROR:
+      Serial.println("System error — awaiting reset or external command.");
+      break;
     }
-    break;
-  case SystemState::READY:
-    if (now - lastSent >= 1000)
-    {
-      sendHeartbeat();
-      lastSent = now;
-    }
-    break;
-  case SystemState::PAUSED:
-    if (now - lastSent >= 1000)
-    {
-      sendHeartbeat();
-      lastSent = now;
-    }
-    break;
-
-  case SystemState::REHYDRATING:
-    if (now - lastSent >= 1000)
-    {
-      sendTemperature();
-      //sendSyringePercentage();
-      //sendCycleProgress();  
-      lastSent = now;
-    }
-    break;
-
-  case SystemState::HEATING:
-    if (now - lastSent >= 1000)
-    {
-      sendTemperature();
-      //sendCycleProgress();
-      lastSent = now;
-    }
-    break;
-
-  case SystemState::MIXING:
-    if (now - lastSent >= 1000)
-    {
-      sendTemperature();
-      //sendCycleProgress();
-      lastSent = now;
-    }
-    break;
-
-  case SystemState::REFILLING:
-    Serial.println("Refilling...");
-    currentState = SystemState::PAUSED;
-    break;
-
-  case SystemState::EXTRACTING:
-    Serial.println("Extracting...");
-    currentState = SystemState::PAUSED;
-    break;
-
-  case SystemState::LOGGING:
-    Serial.println("Logging data...");
-    currentState = previousState;
-    break;
-
-  case SystemState::ENDED:
-    currentState = SystemState::IDLE;
-    break;
-
-  case SystemState::ERROR:
-    Serial.println("System error — awaiting reset or external command.");
-    break;
+    delay(10);
   }
-  delay(10);
-}
 
 #endif // TESTING_MAIN
