@@ -691,6 +691,7 @@ void loop()
       sendCycleProgress(); // Send cycle progress
       heatingStarted = false;
       currentState = SystemState::REHYDRATING;
+      currentCycle++;
     }
     break;
   }
