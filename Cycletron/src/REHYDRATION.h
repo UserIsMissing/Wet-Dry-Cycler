@@ -27,8 +27,33 @@
  * - 2 = back bumper pressed
  */
 extern int BUMPER_STATE;
+// === SYRINGE PUMP Max Steps ===
+#define MAX_SYRINGE_STEPS 100000000000  // or a more realistic value based on your hardware
 
 
+// === Syringe & Motion Parameters ===
+#define STEPPER_STEPS_PER_REV 200 // Full steps per revolution of stepper motor
+#define MICROSTEPPING 16          // Microstepping mode (e.g., 1/16 step)
+#define LEADSCREW_TPI 20          // Threads per inch of leadscrew
+#define SYRINGE_DIAMETER_IN 1.0   // Syringe barrel inner diameter in inches
+
+// === Conversion Factors ===
+#define TOTAL_STEPS_PER_REV (STEPPER_STEPS_PER_REV * MICROSTEPPING)
+#define LEADSCREW_TRAVEL_IN_PER_REV (1.0 / LEADSCREW_TPI)
+#define STEP_TRAVEL_IN (LEADSCREW_TRAVEL_IN_PER_REV / TOTAL_STEPS_PER_REV)
+#define INCH3_TO_UL 16387.064 // Conversion factor from in³ to microliters
+
+/**
+ * @brief Calculates how many microliters are moved per motor step.
+ *
+ * This function computes the volume displaced by one step of the leadscrew-driven
+ * syringe pump based on the cross-sectional area of the syringe and the travel
+ * distance per motor step.
+ *
+ * @param syringeDiameterInches Inner diameter of the syringe barrel (in inches).
+ * @return Volume in microliters (µL) moved by one motor step.
+ */
+float calculate_uL_per_step(float syringeDiameterInches);
 
 /**
  * @brief Initializes the syringe pump stepper motor.

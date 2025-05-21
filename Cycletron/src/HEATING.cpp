@@ -18,7 +18,6 @@
  #define Serial0 Serial
  
  // === CONFIG ===
- #define HEATING_GPIO 5         // GPIO to control heater
  #define THERMISTOR_PIN 4        // ADC1_CHANNEL_0 = GPIO4 (ESP32-S3)
  #define MOVING_AVERAGE_WINDOW 80 // Size of moving average window
  #define VREF 3.28                // ADC reference voltage
@@ -154,6 +153,13 @@
    }
  }
  
+ /**
+  * @brief Turns off temperature controller.
+  *
+  */
+ void HEATING_Off() {
+    digitalWrite(HEATING_GPIO, LOW);   // Turn OFF
+}
 
 
 
