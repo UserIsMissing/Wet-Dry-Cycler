@@ -25,6 +25,7 @@ dist-ssr
 
 
 # Misc
-cycletron_esp_frontend/esp_data.db
+esp_data.db
+server/esp_data.db
 Log_Cycle*.json
 recovery_state*.json
