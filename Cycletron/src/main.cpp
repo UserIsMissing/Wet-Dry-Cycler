@@ -12,21 +12,21 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "169.233.119.111"
+#define ServerIP "10.0.0.166"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-// const char *ssid = "DonnaHouse";
-// const char *password = "guessthepassword";
+const char *ssid = "DonnaHouse";
+const char *password = "guessthepassword";
 
 // const char *ssid = "TheDawgHouse";
 // const char *password = "ThrowItBackForPalestine";
 
-const char *ssid = "UCSC-Guest";
-const char *password = "";
+// const char *ssid = "UCSC-Guest";
+// const char *password = "";
 
 // === State Machine ===
 enum class SystemState
@@ -243,7 +243,40 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     else if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
     {
       JsonObject data = doc["data"].as<JsonObject>();
-      // ...existing parameter handling code...
+      JsonObject parameters = doc["data"].as<JsonObject>();
+
+      volumeAddedPerCycle = atof(parameters["volumeAddedPerCycle"] | "0");
+      durationOfRehydration = atof(parameters["durationOfRehydration"] | "0");
+      syringeDiameter = atof(parameters["syringeDiameter"] | "0");
+      desiredHeatingTemperature = atof(parameters["desiredHeatingTemperature"] | "0");
+      durationOfHeating = atof(parameters["durationOfHeating"] | "0");
+      durationOfMixing = atof(parameters["durationOfMixing"] | "0");
+      numberOfCycles = atoi(parameters["numberOfCycles"] | "0");
+    
+      sampleZoneCount = 0;
+      if (parameters["sampleZonesToMix"].is<JsonArray>())
+      {
+        JsonArray zones = parameters["sampleZonesToMix"].as<JsonArray>();
+        for (JsonVariant val : zones)
+        {
+          if (val.is<int>() && sampleZoneCount < 10)
+          {
+            sampleZonesArray[sampleZoneCount++] = val.as<int>();
+          }
+        }
+      }
+    
+      Serial.println("[PARAMETERS] Parameters received and parsed.");
+      Serial.printf("  Volume per cycle: %.2f µL\n", volumeAddedPerCycle);
+      Serial.printf("  Rehydration duration: %.2f s\n", durationOfRehydration);
+      Serial.printf("  Syringe diameter: %.2f in\n", syringeDiameter);
+      Serial.printf("  Heating temp: %.2f °C for %.2f s\n", desiredHeatingTemperature, durationOfHeating);
+      Serial.printf("  Mixing duration: %.2f s with %d zone(s)\n", durationOfMixing, sampleZoneCount);
+      Serial.printf("  Number of cycles: %d\n", numberOfCycles);
+    
+      // Now transition into READY state
+\
+      setState(SystemState::READY);
     }
     else if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
     {
@@ -266,8 +299,9 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
   default:
     break;
   }
-
+}
   unsigned long lastSent = 0;
+
   void sendHeartbeat()
   {
     ArduinoJson::JsonDocument doc;
