@@ -441,6 +441,8 @@ void sendMixingProgress()
 }
 
 int completedCycles = 0; // How many full cycles have been completed
+int currentCycle = 0;  // Tracks which cycle we're on (starts from 0)
+
 void sendCycleProgress()
 {
   float percentDone = (numberOfCycles > 0)
@@ -461,6 +463,18 @@ void sendCycleProgress()
   webSocket.sendTXT(buffer);
   Serial.printf("Sent cycle progress: %d/%d (%.2f%%)\n",
                 completedCycles, numberOfCycles, percentDone);
+}
+
+void sendEndOfCycles()
+{
+  ArduinoJson::DynamicJsonDocument doc(100);
+  doc["type"] = "endOfCycles";
+  doc["message"] = "All cycles completed.";
+
+  char buffer[100];
+  serializeJson(doc, buffer);
+  webSocket.sendTXT(buffer);
+  Serial.println("Sent end of cycles packet to frontend.");
 }
 // void sendExtractReady(int)
 // {
@@ -568,7 +582,13 @@ void loop()
   {
     sendCurrentState();
     Serial.println("[STATE] Rehydrating...");
-
+    if (currentCycle >= numberOfCycles)
+    {
+      Serial.println("[REHYDRATION] Final cycle already completed. Sending end packet and switching to ENDED.");
+      sendEndOfCycles();
+      currentState = SystemState::ENDED;
+      break;
+    }
     float uL_per_step = calculate_uL_per_step(syringeDiameter);
     int stepsToMove = (int)(volumeAddedPerCycle / uL_per_step);
 
@@ -642,66 +662,63 @@ void loop()
     }
     break;
   }
-  
 
- 
-
-case SystemState::HEATING:
-{
-  if (!heatingStarted)
+  case SystemState::HEATING:
   {
-    Serial.printf("[HEATING] Starting. Target = %.2f °C, Duration = %.2f s\n", desiredHeatingTemperature, durationOfHeating);
-    heatingStartTime = millis();
-    heatingStarted = true;
+    if (!heatingStarted)
+    {
+      Serial.printf("[HEATING] Starting. Target = %.2f °C, Duration = %.2f s\n", desiredHeatingTemperature, durationOfHeating);
+      heatingStartTime = millis();
+      heatingStarted = true;
+    }
+
+    // Perform bang-bang control
+    HEATING_Set_Temp((int)desiredHeatingTemperature);
+
+    if (now - lastSent >= 1000)
+    {
+      sendTemperature();     // Send live temp
+      sendHeatingProgress(); // Send % progress
+      lastSent = now;
+    }
+
+    unsigned long elapsed = millis() - heatingStartTime;
+    if (elapsed >= (unsigned long)(durationOfHeating * 1000))
+    {
+      Serial.println("[HEATING] Completed. Turning off heater and transitioning to MIXING.");
+      HEATING_Off(); // You can add this helper or just: digitalWrite(HEATING_GPIO, LOW);
+      completedCycles++;
+      sendCycleProgress(); // Send cycle progress
+      heatingStarted = false;
+      currentState = SystemState::REHYDRATING;
+    }
+    break;
   }
 
-  // Perform bang-bang control
-  HEATING_Set_Temp((int)desiredHeatingTemperature);
+  case SystemState::REFILLING:
+    Serial.println("Refilling...");
+    currentState = SystemState::PAUSED;
+    break;
 
-  if (now - lastSent >= 1000)
-  {
-    sendTemperature();     // Send live temp
-    sendHeatingProgress(); // Send % progress
-    lastSent = now;
+  case SystemState::EXTRACTING:
+    Serial.println("Extracting...");
+    currentState = SystemState::PAUSED;
+    break;
+
+  case SystemState::LOGGING:
+    Serial.println("Logging data...");
+    currentState = previousState;
+    break;
+
+  case SystemState::ENDED:
+    currentState = SystemState::IDLE;
+    break;
+
+  case SystemState::ERROR:
+    Serial.println("System error — awaiting reset or external command.");
+    break;
   }
-
-  unsigned long elapsed = millis() - heatingStartTime;
-  if (elapsed >= (unsigned long)(durationOfHeating * 1000))
-  {
-    Serial.println("[HEATING] Completed. Turning off heater and transitioning to MIXING.");
-    HEATING_Off(); // You can add this helper or just: digitalWrite(HEATING_GPIO, LOW);
-    completedCycles++;
-    sendCycleProgress(); // Send cycle progress
-    heatingStarted = false;
-    currentState = SystemState::REHYDRATING;
-  }
-  break;
-}
-
-case SystemState::REFILLING:
-  Serial.println("Refilling...");
-  currentState = SystemState::PAUSED;
-  break;
-
-case SystemState::EXTRACTING:
-  Serial.println("Extracting...");
-  currentState = SystemState::PAUSED;
-  break;
-
-case SystemState::LOGGING:
-  Serial.println("Logging data...");
-  currentState = previousState;
-  break;
-
-case SystemState::ENDED:
-  currentState = SystemState::IDLE;
-  break;
-
-case SystemState::ERROR:
-  Serial.println("System error — awaiting reset or external command.");
-  break;
-}
-delay(10);
+  delay(10);
 }
 
 #endif // TESTING_MAIN
