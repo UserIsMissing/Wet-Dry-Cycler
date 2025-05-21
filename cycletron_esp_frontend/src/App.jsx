@@ -251,6 +251,13 @@ function App() {
   const handleVialSetupStep = (step) => {
     setVialSetupStep(step);
     sendRecoveryUpdate({ vialSetupStep: step });
+  
+    // Send vial setup packet to ESP32
+    if (step === 'continue') {
+      sendButtonCommand('vialSetup', true, { status: 'yes' }); // Send "yes" to ESP32
+    } else if (step === null) {
+      sendButtonCommand('vialSetup', true, { status: 'no' }); // Send "no" to ESP32
+    }
   };
 
   return (

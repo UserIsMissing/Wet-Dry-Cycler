@@ -10,12 +10,12 @@ const app = express();
 const PORT = 5175;
 
 const recoveryFile = 'recovery_state.json';
-const gpioFile = 'gpio_state.json';
+const espRecoveryFile = 'ESP_Recovery.json'; // File for ESP32 recovery state
 
 let recoveryState = {};
+let espRecoveryState = {};
 
-let gpioState = {};
-
+// Load recovery state if the file exists
 if (fs.existsSync(recoveryFile)) {
   try {
     recoveryState = JSON.parse(fs.readFileSync(recoveryFile));
@@ -26,12 +26,14 @@ if (fs.existsSync(recoveryFile)) {
   }
 }
 
-if (fs.existsSync(gpioFile)) {
+// Load ESP recovery state if the file exists
+if (fs.existsSync(espRecoveryFile)) {
   try {
-    gpioState = JSON.parse(fs.readFileSync(gpioFile));
-    console.log("Loaded GPIO state:", gpioState);
+    espRecoveryState = JSON.parse(fs.readFileSync(espRecoveryFile));
+    console.log("Loaded ESP recovery state:", espRecoveryState);
   } catch (e) {
-    console.error("Failed to load GPIO state file:", e);
+    console.error("Failed to load ESP recovery state file:", e);
+    espRecoveryState = {};
   }
 }
 
@@ -39,8 +41,18 @@ function saveRecoveryState() {
   fs.writeFileSync(recoveryFile, JSON.stringify(recoveryState, null, 2));
 }
 
-function saveGpioState() {
-  fs.writeFileSync(gpioFile, JSON.stringify(gpioState, null, 2));
+// Function to save ESP recovery state
+function saveEspRecoveryState() {
+  fs.writeFileSync(espRecoveryFile, JSON.stringify(espRecoveryState, null, 2));
+}
+
+// Reset ESP recovery state
+function resetEspRecoveryState() {
+  if (fs.existsSync(espRecoveryFile)) {
+    fs.unlinkSync(espRecoveryFile);
+    console.log('ESP_Recovery.json deleted.');
+  }
+  espRecoveryState = {};
 }
 
 // ----------------- SQLite DB Setup -----------------
@@ -81,13 +93,12 @@ const clients = new Set();
 const espClients = new Set();
 
 wss.on('connection', (ws) => {
+  let isEspClient = false; // Track if this client is an ESP32
+
   if (!clients.has(ws)) {
     clients.add(ws);
     console.log('New WebSocket connection established');
   }
-
-  // Send the current recovery state to the front-end
-  ws.send(JSON.stringify({ type: 'recoveryState', data: recoveryState }));
 
   ws.on('message', (message) => {
     try {
@@ -95,9 +106,29 @@ wss.on('connection', (ws) => {
 
       // Detect ESP32 by a message property (e.g., type === 'esp_announce')
       if (msg.from === 'esp32') {
-        espClients.add(ws);
-        console.log('Registered ESP32 WebSocket client');
-        broadcastExcept(ws, JSON.stringify({ type: 'status', status: 'connected' }));
+        if (!espClients.has(ws)) {
+          espClients.add(ws);
+          isEspClient = true;
+          console.log('Registered ESP32 WebSocket client');
+          broadcastExcept(ws, JSON.stringify({ type: 'status', status: 'connected' }));
+
+          // Send ESP recovery state to ESP32 on connection
+          if (Object.keys(espRecoveryState).length > 0) {
+            ws.send(JSON.stringify({ type: 'espRecoveryState', data: espRecoveryState }));
+            console.log('Sent ESP recovery state to ESP32:', espRecoveryState);
+          } else {
+            console.log('ESP recovery state is empty. ESP32 will start fresh.');
+          }
+        }
+        return; // ESP32 never gets recoveryState
+      }
+
+      // If a frontend connects, send recoveryState on request or after identification
+      if (msg.type === 'getRecoveryState') {
+        ws.send(JSON.stringify({
+          type: 'recoveryState',
+          data: recoveryState
+        }));
       }
 
       // Handle incoming message types
@@ -107,17 +138,16 @@ wss.on('connection', (ws) => {
         broadcastExcept(ws, JSON.stringify({ type: 'temperatureUpdate', value: msg.value }));
       }
 
-      if (msg.type === 'gpioCommand') {
-        gpioState[msg.name] = msg.state;
-        saveGpioState();
-        console.log(`Updated GPIO: ${msg.name} -> ${msg.state}`);
-        broadcastExcept(ws, JSON.stringify({ type: 'gpioStateUpdate', name: msg.name, state: msg.state }));
-      }
-
       if (msg.type === 'button' && msg.name === 'startCycle') {
         recoveryState.machineStep = 'started';
         saveRecoveryState();
-        broadcastExcept(ws, JSON.stringify({ type: 'recoveryState', data: recoveryState }));
+
+        // Broadcast recovery state to frontend clients only
+        for (const client of clients) {
+          if (client !== ws && client.readyState === WebSocket.OPEN && !espClients.has(client)) {
+            client.send(JSON.stringify({ type: 'recoveryState', data: recoveryState }));
+          }
+        }
         console.log('Cycle started, recovery state updated:', recoveryState);
       }
 
@@ -133,18 +163,21 @@ wss.on('connection', (ws) => {
       }
 
       if (msg.type === 'getRecoveryState') {
-        ws.send(JSON.stringify({
-          type: 'recoveryState',
-          data: recoveryState
-        }));
+        // Only send recovery state to frontend clients
+        if (!isEspClient) {
+          ws.send(JSON.stringify({
+            type: 'recoveryState',
+            data: recoveryState
+          }));
+        }
       }
 
       if (msg.type === 'updateRecoveryState') {
         recoveryState = { ...recoveryState, ...msg.data };
         saveRecoveryState(); // Save the updated recovery state to the file
         console.log('Updated recovery state:', recoveryState);
-        // broadcastExcept(ws, JSON.stringify({ type: 'recoveryState', data: recoveryState }));
-        // Instead, only send to frontend clients:
+
+        // Only broadcast to frontend clients
         for (const client of clients) {
           if (
             client !== ws &&
@@ -223,12 +256,32 @@ wss.on('connection', (ws) => {
         return;
       }
 
+      if (msg.type === 'button' && msg.name === 'vialSetup') {
+        console.log(`Vial setup status received: ${msg.status}`);
+        // Forward the vial setup status to all ESP32 clients
+        for (const esp of espClients) {
+          if (esp.readyState === WebSocket.OPEN) {
+            esp.send(JSON.stringify({ type: 'vialSetup', status: msg.status }));
+          }
+        }
+      }
+
+      // Handle state or progress updates from ESP32
+      if (msg.type === 'stateUpdate' || msg.type === 'progressUpdate') {
+        espRecoveryState = { ...espRecoveryState, ...msg };
+        saveEspRecoveryState();
+        console.log('Updated ESP recovery state:', espRecoveryState);
+      }
+
+      // Reset ESP recovery state when the cycle ends
+      if (msg.type === 'button' && msg.name === 'endCycle') {
+        resetEspRecoveryState();
+      }
+
     } catch (e) {
       console.error('Bad message:', e);
     }
   });
-
-
 
   ws.on('close', () => {
     clients.delete(ws);
@@ -239,9 +292,6 @@ wss.on('connection', (ws) => {
   ws.on('error', (err) => {
     console.error('WebSocket error:', err);
   });
-
-  // Initial state on connect
-  ws.send(JSON.stringify({ type: 'initialGpioState', data: gpioState }));
 });
 
 // Broadcast helper
