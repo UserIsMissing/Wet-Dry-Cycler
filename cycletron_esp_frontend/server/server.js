@@ -59,6 +59,16 @@ app.get('/api/history', (req, res) => {
   });
 });
 
+// Add this route to reset the recovery state
+app.post('/api/resetRecoveryState', (req, res) => {
+  if (fs.existsSync(recoveryFile)) {
+    fs.unlinkSync(recoveryFile);
+    console.log('recovery_state.json deleted by request.');
+  }
+  recoveryState = {}; // Reset in-memory state
+  res.json({ success: true });
+});
+
 // ----------------- Static Frontend -----------------
 app.use(express.static(path.join(__dirname, '../dist')));
 
@@ -72,9 +82,12 @@ const espClients = new Set();
 
 wss.on('connection', (ws) => {
   if (!clients.has(ws)) {
-  clients.add(ws);
-  console.log('New WebSocket connection established');
+    clients.add(ws);
+    console.log('New WebSocket connection established');
   }
+
+  // Send the current recovery state to the front-end
+  ws.send(JSON.stringify({ type: 'recoveryState', data: recoveryState }));
 
   ws.on('message', (message) => {
     try {
@@ -101,6 +114,13 @@ wss.on('connection', (ws) => {
         broadcastExcept(ws, JSON.stringify({ type: 'gpioStateUpdate', name: msg.name, state: msg.state }));
       }
 
+      if (msg.type === 'button' && msg.name === 'startCycle') {
+        recoveryState.machineStep = 'started';
+        saveRecoveryState();
+        broadcastExcept(ws, JSON.stringify({ type: 'recoveryState', data: recoveryState }));
+        console.log('Cycle started, recovery state updated:', recoveryState);
+      }
+
       // Handles button commands
       if (msg.type === 'button') {
         console.log(`Button command received: ${msg.name} -> ${msg.state}`);
@@ -111,7 +131,7 @@ wss.on('connection', (ws) => {
           }
         }
       }
-      
+
       if (msg.type === 'getRecoveryState') {
         ws.send(JSON.stringify({
           type: 'recoveryState',
@@ -121,7 +141,7 @@ wss.on('connection', (ws) => {
 
       if (msg.type === 'updateRecoveryState') {
         recoveryState = { ...recoveryState, ...msg.data };
-        saveRecoveryState();
+        saveRecoveryState(); // Save the updated recovery state to the file
         console.log('Updated recovery state:', recoveryState);
         broadcastExcept(ws, JSON.stringify({ type: 'recoveryState', data: recoveryState }));
       }
@@ -188,7 +208,7 @@ wss.on('connection', (ws) => {
     }
   });
 
-  
+
 
   ws.on('close', () => {
     clients.delete(ws);

@@ -279,7 +279,7 @@ unsigned long lastSent = 0;
 
 void sendHeartbeat()
 {
-  ArduinoJson::DynamicJsonDocument doc(64);
+  ArduinoJson::JsonDocument doc;
   doc["from"] = "esp32";
   doc["type"] = "heartbeat";
   char buffer[64];
@@ -297,8 +297,6 @@ void loop()
   unsigned long now = millis();
   switch (currentState)
   {
-    // Print current state
-    Serial.printf("Current state: %d\n", (int)currentState);
   case SystemState::IDLE:
     // Send heartbeat once a second to show ESP is connected
     if (now - lastSent >= 1000)
@@ -310,6 +308,11 @@ void loop()
 
   case SystemState::READY:
     // Await user input (startCycle)
+    if (now - lastSent >= 1000)
+    {
+      sendHeartbeat();
+      lastSent = now;
+    }
     break;
 
   case SystemState::RUNNING:

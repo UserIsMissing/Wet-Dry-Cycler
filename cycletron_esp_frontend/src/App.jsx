@@ -55,14 +55,17 @@ function ParameterInput({ label, value, placeholder, onChange }) {
   );
 }
 
-function ControlButton({ id, label, active, disabled, onClick }) {
+function ControlButton({ id, label, active, disabled, onClick, isPaused }) {
+  const buttonLabel = id === 'pauseCycle' && isPaused ? 'Resume Cycle' : label;
+  const buttonClass = id === 'pauseCycle' && isPaused ? 'is-success' : active ? 'is-success' : 'is-light';
+
   return (
     <button
-      className={`button ${active ? 'is-success' : 'is-light'} m-2`}
+      className={`button ${buttonClass} m-2`}
       disabled={disabled}
       onClick={() => onClick(id)}
     >
-      {label}
+      {buttonLabel}
     </button>
   );
 }
@@ -76,6 +79,7 @@ function App() {
     sendParameters,
     sendButtonCommand,
     sendRecoveryUpdate,
+    resetRecoveryState, // Add this
   } = useWebSocket();
 
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
@@ -85,6 +89,16 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [showVialSetup, setShowVialSetup] = useState(true);
   const [vialSetupStep, setVialSetupStep] = useState('prompt'); // 'prompt', 'continue', or null
+
+  // Restore UI state from recoveryState
+  useEffect(() => {
+    if (recoveryState) {
+      setParameters(recoveryState.parameters || INITIAL_PARAMETERS);
+      setActiveTab(recoveryState.activeTab || 'parameters'); // Restore the active tab
+      setCycleState(recoveryState.cycleState || 'idle');
+      setActiveButton(recoveryState.activeButton || null);
+    }
+  }, [recoveryState]);
 
   const handleParameterChange = (key, value) => {
     if (value === '' || Number(value) > 0) {
@@ -101,15 +115,16 @@ function App() {
   };
 
   const handleGoButton = () => {
-    sendParameters(parameters);
+    sendParameters(parameters); // Send parameters to the ESP32
     sendRecoveryUpdate({
-      ...parameters, // add all parameters to recovery state
+      ...parameters, // Add all parameters to recovery state
       machineStep: 'idle',
       lastAction: 'setParameters',
       progress: 0,
+      activeTab: 'controls', // Update the active tab in recovery state
     });
     setCycleState('idle');
-    setActiveTab('controls');
+    setActiveTab('controls'); // Switch to the controls tab
   };
 
   const handleStartCycle = () => {
@@ -118,42 +133,40 @@ function App() {
     setActiveButton(null);
     sendRecoveryUpdate({
       machineStep: 'started',
+      cycleState: 'started', // <-- important!
       lastAction: 'startCycle',
       progress: 0,
-      // add any other state you want to track
     });
   };
 
   const handlePauseCycle = () => {
-    if (activeButton === 'pauseCycle') {
-      sendButtonCommand('pauseCycle', false);
-      sendButtonCommand('resumeCycle', true);
-      setCycleState('started');
-      setIsPaused(false);
-      setActiveButton(null);
-      sendRecoveryUpdate({
-        machineStep: 'started',
-        lastAction: 'resumeCycle',
-        // ...
-      });
-    } else {
-      sendButtonCommand('pauseCycle', true);
-      setCycleState('paused');
-      setIsPaused(true);
-      setActiveButton('pauseCycle');
-      sendRecoveryUpdate({
-        machineStep: 'paused',
-        lastAction: 'pauseCycle',
-        // ...
-      });
-    }
+    const isPausing = !isPaused; // Determine if we are pausing or resuming
+    sendButtonCommand('pauseCycle', isPausing); // Always send "Pause Cycle" on or off
+    setCycleState(isPausing ? 'paused' : 'started'); // Update the cycle state
+    setIsPaused(isPausing); // Update the paused state
+    setActiveButton(isPausing ? 'pauseCycle' : null); // Set the active button
+    sendRecoveryUpdate({
+      machineStep: isPausing ? 'paused' : 'started',
+      cycleState: isPausing ? 'paused' : 'started', // <-- important!
+      lastAction: isPausing ? 'pauseCycle' : 'resumeCycle',
+    });
   };
 
   const handleEndCycle = () => {
-    sendButtonCommand('endCycle', true); // send 'on'
-    setCycleState('idle');
-    setActiveTab('parameters');
-    setActiveButton(null);
+    sendButtonCommand('endCycle', true); // Send 'on' to the server
+    setCycleState('idle'); // Reset the cycle state to 'idle'
+    setActiveButton(null); // Reset the active button
+    setIsPaused(false); // Ensure the paused state is reset
+    sendRecoveryUpdate({
+      machineStep: 'idle',
+      cycleState: 'idle', // <-- important!
+      lastAction: 'endCycle',
+      progress: 0,
+    });
+    setParameters(INITIAL_PARAMETERS); // Reset parameters to initial state
+    setVialSetupStep('prompt'); // Reset the vial setup step
+    setShowVialSetup(true); // Show the vial setup prompt again
+    setActiveTab('parameters'); // Switch to the "Set Parameters" tab
   };
 
   const handleExtract = () => {
@@ -181,6 +194,9 @@ function App() {
     if (id === 'startCycle' && cycleState !== 'idle') return true;
     if (id === 'endCycle' && cycleState === 'idle') return true;
     if (['pauseCycle', 'extract', 'refill'].includes(id) && cycleState === 'idle') return true;
+
+    if (cycleState === 'paused' && id !== 'pauseCycle') return true;
+
 
     if (activeButton && activeButton !== id) return true;
     if (cycleState === 'idle' && id !== 'startCycle') return true;
@@ -244,6 +260,9 @@ function App() {
         <pre>{JSON.stringify(recoveryState, null, 2)}</pre>
         <button className="button is-small mt-2" onClick={() => sendRecoveryUpdate({ cycleStatus: 'paused' })}>
           Send Recovery Update
+        </button>
+        <button className="button is-small mt-2 is-danger" onClick={resetRecoveryState}>
+          Reset Recovery State
         </button>
       </section>
 
@@ -342,6 +361,7 @@ function App() {
                         else if (btnId === 'logCycle') handleLogCycle();
                         else sendButtonCommand(btnId);
                       }}
+                      isPaused={isPaused} // Pass the isPaused state
                     />
                   ))}
                 </div>

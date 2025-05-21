@@ -108,6 +108,18 @@ export default function useWebSocket() {
         return () => clearInterval(interval);
     }, [lastMessageTime]);
 
+    // Fetch recovery state on mount
+    useEffect(() => {
+        fetch('/api/recoveryState')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data && data.recoveryState) {
+                    setRecoveryState(data.recoveryState);
+                }
+            })
+            .catch((err) => console.error('Failed to fetch recovery state:', err));
+    }, []);
+
     const sendMessage = useCallback((obj) => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             console.log("Sending message:", obj);
@@ -140,6 +152,19 @@ export default function useWebSocket() {
         [sendMessage]
     );
 
+    // Function to reset recovery state
+    const resetRecoveryState = useCallback(() => {
+        fetch('/api/resetRecoveryState', { method: 'POST' })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) {
+                    setRecoveryState({});
+                    window.location.reload(); // Reload the page after resetting the recovery state
+                }
+            })
+            .catch((err) => console.error('Failed to reset recovery state:', err));
+    }, []);
+
     return {
         espOnline,
         recoveryState,
@@ -150,5 +175,6 @@ export default function useWebSocket() {
         sendRecoveryUpdate,
         isConnected,
         sendMessage,
+        resetRecoveryState,
     };
 }
