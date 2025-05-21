@@ -12,7 +12,7 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.135"
+#define ServerIP "169.233.119.111"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
@@ -22,11 +22,11 @@
 // const char *ssid = "DonnaHouse";
 // const char *password = "guessthepassword";
 
-const char *ssid = "TheDawgHouse";
-const char *password = "ThrowItBackForPalestine";
+// const char *ssid = "TheDawgHouse";
+// const char *password = "ThrowItBackForPalestine";
 
-// const char *ssid = "UCSC-Guest";
-// const char *password = "";
+const char *ssid = "UCSC-Guest";
+const char *password = "";
 
 // === State Machine ===
 enum class SystemState
@@ -61,7 +61,6 @@ SystemState previousState = SystemState::IDLE;
 
 // === WebSocket Client ===
 WebSocketsClient webSocket;
-
 
 /* === WebSocket Server (Commented Out to Act as Client Only) ===
 #include <ESPAsyncWebServer.h>
@@ -226,6 +225,20 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
   }
 }
 
+unsigned long lastSent = 0;
+void sendHeartbeat()
+{
+  ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
+  doc["type"] = "heartbeat";
+  char buffer[64];
+  serializeJson(doc, buffer);
+  webSocket.sendTXT(buffer);
+  Serial.println("Sent heartbeat packet to frontend (IDLE).");
+}
+
+//CYCLE PROGRESS COMMUNICATION
+
 void sendTemperature()
 {
   float temp = HEATING_Measure_Temp_Avg();
@@ -239,14 +252,86 @@ void sendTemperature()
   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
 }
 
+// void sendSyringePercentage(float)
+// {
+//   float temp = HEATING_Measure_Temp_Avg();
+//   ArduinoJson::DynamicJsonDocument doc(100);
+//   doc["type"] = "temperature";
+//   doc["value"] = temp;
+
+//   char buffer[100];
+//   serializeJson(doc, buffer);
+//   webSocket.sendTXT(buffer);
+//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+// }
+
+// void sendCycleProgress(float)
+// {
+//   float temp = HEATING_Measure_Temp_Avg();
+//   ArduinoJson::DynamicJsonDocument doc(100);
+//   doc["type"] = "temperature";
+//   doc["value"] = temp;
+
+//   char buffer[100];
+//   serializeJson(doc, buffer);
+//   webSocket.sendTXT(buffer);
+//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+// }
+
+
+// void sendExtractReady(int)
+// {
+//   float temp = HEATING_Measure_Temp_Avg();
+//   ArduinoJson::DynamicJsonDocument doc(100);
+//   doc["type"] = "temperature";
+//   doc["value"] = temp;
+
+//   char buffer[100];
+//   serializeJson(doc, buffer);
+//   webSocket.sendTXT(buffer);
+//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+// }
+
+// void sendRecovery(int)
+// {
+//   float temp = HEATING_Measure_Temp_Avg();
+//   ArduinoJson::DynamicJsonDocument doc(100);
+//   doc["type"] = "temperature";
+//   doc["value"] = temp;
+
+//   char buffer[100];
+//   serializeJson(doc, buffer);
+//   webSocket.sendTXT(buffer);
+//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+// }
+
+
+//ERROR ENUM CODEs
+
+// void sendError(int)
+// {
+//   float temp = HEATING_Measure_Temp_Avg();
+//   ArduinoJson::DynamicJsonDocument doc(100);
+//   doc["type"] = "temperature";
+//   doc["value"] = temp;
+
+//   char buffer[100];
+//   serializeJson(doc, buffer);
+//   webSocket.sendTXT(buffer);
+//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
+// }
+
+
+
+
+
 #ifdef TESTING_MAIN
 
 void setup()
 {
-  
+
   Serial.begin(115200);
   delay(2000); // Allow USB Serial to connect
-
 
   // Wi-Fi connect
   Serial.println("Connecting to WiFi...");
@@ -268,21 +353,9 @@ void setup()
 
   MOVEMENT_ConfigureInterrupts();
   REHYDRATION_ConfigureInterrupts();
-
 }
 
-unsigned long lastSent = 0;
 
-void sendHeartbeat()
-{
-  ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
-  doc["type"] = "heartbeat";
-  char buffer[64];
-  serializeJson(doc, buffer);
-  webSocket.sendTXT(buffer);
-  Serial.println("Sent heartbeat packet to frontend (IDLE).");
-}
 
 void loop()
 {
@@ -322,6 +395,11 @@ void loop()
 
   case SystemState::PAUSED:
     // System is paused — do nothing
+    if (now - lastSent >= 1000)
+    {
+      sendHeartbeat();
+      lastSent = now;
+    }
     break;
 
   case SystemState::ENDED:
@@ -353,8 +431,7 @@ void loop()
     Serial.println("System error — awaiting reset or external command.");
     break;
   }
-  delay(10);  // Ensures watchdog is fed
-
+  delay(10); // Ensures watchdog is fed
 }
 
 #endif // TESTING_MAIN
