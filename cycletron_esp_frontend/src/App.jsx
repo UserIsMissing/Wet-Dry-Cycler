@@ -102,6 +102,11 @@ function App() {
           ? recoveryState.vialSetupStep
           : 'prompt'
       );
+      // Restore isPaused based on cycleState or activeButton
+      setIsPaused(
+        recoveryState.cycleState === 'paused' ||
+        recoveryState.activeButton === 'pauseCycle'
+      );
     }
   }, [recoveryState]);
 
@@ -154,15 +159,18 @@ function App() {
   };
 
   const handlePauseCycle = () => {
-    const isPausing = !isPaused; // Determine if we are pausing or resuming
-    sendButtonCommand('pauseCycle', isPausing); // Always send "Pause Cycle" on or off
-    setCycleState(isPausing ? 'paused' : 'started'); // Update the cycle state
-    setIsPaused(isPausing); // Update the paused state
-    setActiveButton(isPausing ? 'pauseCycle' : null); // Set the active button
+    const isPausing = !isPaused;
+    sendButtonCommand('pauseCycle', isPausing);
+    setCycleState(isPausing ? 'paused' : 'started');
+    setIsPaused(isPausing);
+    setActiveButton(isPausing ? 'pauseCycle' : null);
     sendRecoveryUpdate({
+      parameters,
       machineStep: isPausing ? 'paused' : 'started',
-      cycleState: isPausing ? 'paused' : 'started', // <-- important!
-      lastAction: isPausing ? 'pauseCycle' : 'resumeCycle',
+      cycleState: isPausing ? 'paused' : 'started',
+      lastAction: isPausing ? 'pauseCycle' : 'started',
+      activeButton: isPausing ? 'pauseCycle' : null,
+      activeTab,
     });
   };
 
@@ -191,6 +199,14 @@ function App() {
     sendButtonCommand('extract', !isCanceling); // send "on" if starting, "off" if canceling
     setCycleState(isCanceling ? 'started' : 'extract');
     setActiveButton(isCanceling ? null : 'extract');
+    sendRecoveryUpdate({
+      parameters,
+      machineStep: isCanceling ? 'started' : 'extract',
+      cycleState: isCanceling ? 'started' : 'extract',
+      lastAction: isCanceling ? 'started' : 'extract',
+      activeButton: isCanceling ? null : 'extract',
+      activeTab,
+    });
   };
 
   const handleRefill = () => {
@@ -198,6 +214,14 @@ function App() {
     sendButtonCommand('refill', !isCanceling); // send "on" if starting, "off" if canceling
     setCycleState(isCanceling ? 'started' : 'refill');
     setActiveButton(isCanceling ? null : 'refill');
+    sendRecoveryUpdate({
+      parameters,
+      machineStep: isCanceling ? 'started' : 'refill',
+      cycleState: isCanceling ? 'started' : 'refill',
+      lastAction: isCanceling ? 'started' : 'refill',
+      activeButton: isCanceling ? null : 'refill',
+      activeTab,
+    });
   };
 
   const handleLogCycle = () => {

@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-05-21T06:54:32.941Z",
+  "parameters": {
+    "volumeAddedPerCycle": "1",
+    "durationOfRehydration": "2",
+    "syringeDiameter": "3",
+    "desiredHeatingTemperature": "4",
+    "durationOfHeating": "5",
+    "durationOfMixing": "6",
+    "numberOfCycles": "7",
+    "sampleZonesToMix": [
+      "Zone1",
+      "Zone3"
+    ]
+  },
+  "espOutputs": {
+    "syringeLimit": 0,
+    "cyclesCompleted": 0,
+    "cycleProgress": 0,
+    "syringeUsed": 0
+  }
+}

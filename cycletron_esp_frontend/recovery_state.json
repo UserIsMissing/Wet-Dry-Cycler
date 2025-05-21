@@ -1,21 +1,19 @@
 {
   "vialSetupStep": null,
   "parameters": {
-    "volumeAddedPerCycle": "1",
-    "durationOfRehydration": "2",
-    "syringeDiameter": "3",
-    "desiredHeatingTemperature": "4",
-    "durationOfHeating": "5",
-    "sampleZonesToMix": [
-      "Zone1",
-      "Zone2"
-    ],
-    "durationOfMixing": "6",
-    "numberOfCycles": "7"
+    "volumeAddedPerCycle": "",
+    "durationOfRehydration": "",
+    "syringeDiameter": "",
+    "desiredHeatingTemperature": "",
+    "durationOfHeating": "",
+    "sampleZonesToMix": [],
+    "durationOfMixing": "",
+    "numberOfCycles": ""
   },
-  "machineStep": "idle",
-  "lastAction": "endCycle",
+  "machineStep": "started",
+  "lastAction": "started",
   "progress": 0,
-  "activeTab": "parameters",
-  "cycleState": "idle"
+  "activeTab": "controls",
+  "cycleState": "started",
+  "activeButton": null
 }
