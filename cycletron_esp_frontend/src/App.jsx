@@ -88,17 +88,30 @@ function App() {
   const [activeButton, setActiveButton] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [showVialSetup, setShowVialSetup] = useState(true);
-  const [vialSetupStep, setVialSetupStep] = useState('prompt'); // 'prompt', 'continue', or null
+  const [vialSetupStep, setVialSetupStep] = useState('prompt');
 
   // Restore UI state from recoveryState
   useEffect(() => {
     if (recoveryState) {
       setParameters(recoveryState.parameters || INITIAL_PARAMETERS);
-      setActiveTab(recoveryState.activeTab || 'parameters'); // Restore the active tab
+      setActiveTab(recoveryState.activeTab || 'parameters');
       setCycleState(recoveryState.cycleState || 'idle');
       setActiveButton(recoveryState.activeButton || null);
+      setVialSetupStep(
+        recoveryState.vialSetupStep !== undefined
+          ? recoveryState.vialSetupStep
+          : 'prompt'
+      );
     }
   }, [recoveryState]);
+
+  // Whenever vialSetupStep changes, persist it in recovery state
+  useEffect(() => {
+    if (recoveryState && recoveryState.vialSetupStep !== vialSetupStep) {
+      sendRecoveryUpdate({ vialSetupStep });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vialSetupStep]);
 
   const handleParameterChange = (key, value) => {
     if (value === '' || Number(value) > 0) {
@@ -117,7 +130,8 @@ function App() {
   const handleGoButton = () => {
     sendParameters(parameters); // Send parameters to the ESP32
     sendRecoveryUpdate({
-      ...parameters, // Add all parameters to recovery state
+      // ...parameters, // Add all parameters to recovery state
+      parameters,
       machineStep: 'idle',
       lastAction: 'setParameters',
       progress: 0,
@@ -158,12 +172,15 @@ function App() {
     setActiveButton(null); // Reset the active button
     setIsPaused(false); // Ensure the paused state is reset
     sendRecoveryUpdate({
+      // ...parameters,
+      parameters, // <-- add this line
       machineStep: 'idle',
-      cycleState: 'idle', // <-- important!
+      cycleState: 'idle',
       lastAction: 'endCycle',
       progress: 0,
+      activeTab: 'parameters',
     });
-    setParameters(INITIAL_PARAMETERS); // Reset parameters to initial state
+    // setParameters(INITIAL_PARAMETERS); // Reset parameters to initial state
     setVialSetupStep('prompt'); // Reset the vial setup step
     setShowVialSetup(true); // Show the vial setup prompt again
     setActiveTab('parameters'); // Switch to the "Set Parameters" tab
@@ -203,6 +220,12 @@ function App() {
     return false;
   };
 
+  // When closing the overlay, update recovery state
+  const handleVialSetupStep = (step) => {
+    setVialSetupStep(step);
+    sendRecoveryUpdate({ vialSetupStep: step });
+  };
+
   return (
     <div className="container" style={{ position: 'relative' }}>
       {/* Vial Setup Overlay */}
@@ -230,14 +253,14 @@ function App() {
                 <button
                   className="button is-primary is-large mr-4"
                   style={{ fontSize: '2rem', padding: '2rem 4rem' }}
-                  onClick={() => setVialSetupStep('continue')}
+                  onClick={() => handleVialSetupStep('continue')}
                 >
                   Yes
                 </button>
                 <button
                   className="button is-light is-large"
                   style={{ fontSize: '2rem', padding: '2rem 4rem' }}
-                  onClick={() => setVialSetupStep(null)}
+                  onClick={() => handleVialSetupStep(null)}
                 >
                   No
                 </button>
@@ -247,7 +270,7 @@ function App() {
             <button
               className="button is-primary is-large"
               style={{ fontSize: '2rem', padding: '2rem 4rem' }}
-              onClick={() => setVialSetupStep(null)}
+              onClick={() => handleVialSetupStep(null)}
             >
               Continue
             </button>
@@ -388,7 +411,7 @@ function App() {
                 <label className="label is-small">Temperature Data</label>
                 <input
                   type="text"
-                  className="input is-small"
+                  // className="input is-small"
                   value={currentTemp !== null ? `${currentTemp} °C` : 'N/A'}
                   readOnly
                 />

@@ -12,7 +12,7 @@
  #include "MIXING.h"
  
 
- #define TESTING_MIXING
+//  #define TESTING_MIXING
 
  // === CONFIG ===
  #define MIX1_GPIO 11

@@ -143,7 +143,17 @@ wss.on('connection', (ws) => {
         recoveryState = { ...recoveryState, ...msg.data };
         saveRecoveryState(); // Save the updated recovery state to the file
         console.log('Updated recovery state:', recoveryState);
-        broadcastExcept(ws, JSON.stringify({ type: 'recoveryState', data: recoveryState }));
+        // broadcastExcept(ws, JSON.stringify({ type: 'recoveryState', data: recoveryState }));
+        // Instead, only send to frontend clients:
+        for (const client of clients) {
+          if (
+            client !== ws &&
+            client.readyState === WebSocket.OPEN &&
+            !espClients.has(client) // Only send to non-ESP32 clients
+          ) {
+            client.send(JSON.stringify({ type: 'recoveryState', data: recoveryState }));
+          }
+        }
       }
 
       if (msg.type === 'parameters') {

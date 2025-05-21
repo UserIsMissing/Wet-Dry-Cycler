@@ -9,10 +9,10 @@
 #include <stdlib.h> // for atof()
 
 // TESTS
-// #define TESTING_MAIN
+#define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "169.233.119.5"
+#define ServerIP "10.0.0.135"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
@@ -22,11 +22,11 @@
 // const char *ssid = "DonnaHouse";
 // const char *password = "guessthepassword";
 
-// const char *ssid = "TheDawgHouse";
-// const char *password = "ThrowItBackForPalestine";
+const char *ssid = "TheDawgHouse";
+const char *password = "ThrowItBackForPalestine";
 
-const char *ssid = "UCSC-Guest";
-const char *password = "";
+// const char *ssid = "UCSC-Guest";
+// const char *password = "";
 
 // === State Machine ===
 enum class SystemState
