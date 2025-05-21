@@ -33,7 +33,9 @@ enum class SystemState
 {
   IDLE,
   READY,
-  RUNNING,
+  REHYDRATING,
+  HEATING,
+  MIXING,
   REFILLING,
   EXTRACTING,
   LOGGING,
@@ -62,32 +64,42 @@ SystemState previousState = SystemState::IDLE;
 // === WebSocket Client ===
 WebSocketsClient webSocket;
 
-/* === WebSocket Server (Commented Out to Act as Client Only) ===
-#include <ESPAsyncWebServer.h>
-#include <AsyncTCP.h>
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-*/
+void setState(SystemState newState)
+{
+  if (currentState != SystemState::PAUSED &&
+      currentState != SystemState::REFILLING &&
+      currentState != SystemState::EXTRACTING)
+  {
+    previousState = currentState;
+  }
+  currentState = newState;
+}
 
-// === State Handling ===
 void handleStateCommand(const String &name, const String &state)
 {
-  // Block all state changes if system is still in IDLE
   if (currentState == SystemState::IDLE)
   {
     Serial.println("System is IDLE — cannot process commands until parameters are received.");
     return;
   }
-  // Allow commands only from READY or RUNNING (or related intermediate) states
   if (name == "startCycle" && state == "on")
   {
-    currentState = SystemState::RUNNING;
-    Serial.println("State changed to RUNNING");
+    setState(SystemState::REHYDRATING);
+    Serial.println("State changed to REHYDRATING");
   }
   else if (name == "pauseCycle")
   {
-    currentState = (state == "on") ? SystemState::PAUSED : SystemState::RUNNING;
-    Serial.printf("State changed to %s\n", state == "on" ? "PAUSED" : "RESUMED (RUNNING)");
+    if (state == "on")
+    {
+      previousState = currentState;
+      currentState = SystemState::PAUSED;
+      Serial.println("State changed to PAUSED");
+    }
+    else
+    {
+      currentState = previousState;
+      Serial.println("State RESUMED");
+    }
   }
   else if (name == "endCycle" && state == "on")
   {
@@ -96,17 +108,35 @@ void handleStateCommand(const String &name, const String &state)
   }
   else if (name == "extract")
   {
-    currentState = (state == "on") ? SystemState::EXTRACTING : SystemState::RUNNING;
-    Serial.printf("Extraction %s\n", state == "on" ? "started" : "ended — resuming RUNNING");
+    if (state == "on")
+    {
+      previousState = currentState;
+      currentState = SystemState::EXTRACTING;
+      Serial.println("Extraction started");
+    }
+    else
+    {
+      currentState = previousState;
+      Serial.println("Extraction ended — resuming");
+    }
   }
   else if (name == "refill")
   {
-    currentState = (state == "on") ? SystemState::REFILLING : SystemState::RUNNING;
-    Serial.printf("Refill %s\n", state == "on" ? "started" : "ended — resuming RUNNING");
+    if (state == "on")
+    {
+      previousState = currentState;
+      currentState = SystemState::REFILLING;
+      Serial.println("Refill started");
+    }
+    else
+    {
+      currentState = previousState;
+      Serial.println("Refill ended — resuming");
+    }
   }
   else if (name == "logCycle" && state == "on")
   {
-    previousState = currentState; // Save current state
+    previousState = currentState;
     currentState = SystemState::LOGGING;
     Serial.println("State changed to LOGGING");
   }
@@ -237,7 +267,7 @@ void sendHeartbeat()
   Serial.println("Sent heartbeat packet to frontend (IDLE).");
 }
 
-//CYCLE PROGRESS COMMUNICATION
+// CYCLE PROGRESS COMMUNICATION
 
 void sendTemperature()
 {
@@ -278,7 +308,6 @@ void sendTemperature()
 //   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
 // }
 
-
 // void sendExtractReady(int)
 // {
 //   float temp = HEATING_Measure_Temp_Avg();
@@ -305,8 +334,7 @@ void sendTemperature()
 //   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
 // }
 
-
-//ERROR ENUM CODEs
+// ERROR ENUM CODEs
 
 // void sendError(int)
 // {
@@ -320,10 +348,6 @@ void sendTemperature()
 //   webSocket.sendTXT(buffer);
 //   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
 // }
-
-
-
-
 
 #ifdef TESTING_MAIN
 
@@ -355,8 +379,6 @@ void setup()
   REHYDRATION_ConfigureInterrupts();
 }
 
-
-
 void loop()
 {
   webSocket.loop();
@@ -367,16 +389,20 @@ void loop()
   switch (currentState)
   {
   case SystemState::IDLE:
-    // Send heartbeat once a second to show ESP is connected
     if (now - lastSent >= 1000)
     {
       sendHeartbeat();
       lastSent = now;
     }
     break;
-
   case SystemState::READY:
-    // Await user input (startCycle)
+    if (now - lastSent >= 1000)
+    {
+      sendHeartbeat();
+      lastSent = now;
+    }
+    break;
+  case SystemState::PAUSED:
     if (now - lastSent >= 1000)
     {
       sendHeartbeat();
@@ -384,54 +410,58 @@ void loop()
     }
     break;
 
-  case SystemState::RUNNING:
-    // Send temperature periodically
+  case SystemState::REHYDRATING:
     if (now - lastSent >= 1000)
     {
       sendTemperature();
+      //sendSyringePercentage();
+      //sendCycleProgress();  
       lastSent = now;
     }
     break;
 
-  case SystemState::PAUSED:
-    // System is paused — do nothing
+  case SystemState::HEATING:
     if (now - lastSent >= 1000)
     {
-      sendHeartbeat();
+      sendTemperature();
+      //sendCycleProgress();
       lastSent = now;
     }
     break;
 
-  case SystemState::ENDED:
-    // System ended — could power down, stop all tasks, etc.
-    currentState = SystemState::IDLE;
+  case SystemState::MIXING:
+    if (now - lastSent >= 1000)
+    {
+      sendTemperature();
+      //sendCycleProgress();
+      lastSent = now;
+    }
     break;
 
   case SystemState::REFILLING:
     Serial.println("Refilling...");
-    // Optional: trigger refill hardware here
     currentState = SystemState::PAUSED;
     break;
 
   case SystemState::EXTRACTING:
     Serial.println("Extracting...");
-    // Optional: trigger extract hardware here
     currentState = SystemState::PAUSED;
     break;
 
   case SystemState::LOGGING:
     Serial.println("Logging data...");
-    // [Optional: insert actual logging logic here]
-    currentState = previousState; // Resume previous state
+    currentState = previousState;
     break;
 
+  case SystemState::ENDED:
+    currentState = SystemState::IDLE;
     break;
 
   case SystemState::ERROR:
     Serial.println("System error — awaiting reset or external command.");
     break;
   }
-  delay(10); // Ensures watchdog is fed
+  delay(10);
 }
 
 #endif // TESTING_MAIN
