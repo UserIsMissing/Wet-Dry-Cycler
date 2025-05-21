@@ -11,6 +11,9 @@
  #include <Arduino.h>
  #include "MIXING.h"
  
+
+ #define TESTING_MIXING
+
  // === CONFIG ===
  #define MIX1_GPIO 11
  #define MIX2_GPIO 12
@@ -66,3 +69,37 @@
      digitalWrite(motorPins[i], LOW);
    }
  }
+
+// === TEST LOOP ===
+// This section is for testing the mixing motors.
+#ifdef TESTING_MIXING
+
+void setup() {
+  Serial.begin(115200);
+  MIXING_Init();
+}
+
+void loop() {
+  // Step through each motor
+  for (int i = 0; i < NUM_MOTORS; i++) {
+    Serial.printf("[TEST] Turning ON motor %d (GPIO %d)\n", i + 1, motorPins[i]);
+    MIXING_Motor_OnPin(motorPins[i]);
+    delay(10000); // ON for 10 seconds
+
+    Serial.printf("[TEST] Turning OFF motor %d (GPIO %d)\n", i + 1, motorPins[i]);
+    MIXING_Motor_OffPin(motorPins[i]);
+    delay(3000);  // OFF for 3 seconds
+  }
+
+  // All motors ON
+  Serial.println("[TEST] Turning ALL motors ON");
+  MIXING_AllMotors_On();
+  delay(20000);
+
+  // All motors OFF
+  Serial.println("[TEST] Turning ALL motors OFF");
+  MIXING_AllMotors_Off();
+  delay(5000);
+}
+
+#endif // TESTING_MIXING

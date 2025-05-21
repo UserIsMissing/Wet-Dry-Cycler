@@ -9,8 +9,7 @@
 #include <stdlib.h> // for atof()
 
 // TESTS
-//  #define TESTING_TEMP
-#define TESTING_MAIN
+// #define TESTING_MAIN
 
 #define Serial0 Serial
 #define ServerIP "169.233.119.5"
@@ -63,9 +62,6 @@ SystemState previousState = SystemState::IDLE;
 // === WebSocket Client ===
 WebSocketsClient webSocket;
 
-// TESTS
-// #define TESTING_TEMP
-#define TESTING_MAIN
 
 /* === WebSocket Server (Commented Out to Act as Client Only) ===
 #include <ESPAsyncWebServer.h>
