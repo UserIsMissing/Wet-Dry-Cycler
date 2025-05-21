@@ -168,27 +168,37 @@ wss.on('connection', (ws) => {
 
       // Handle log cycle button
       if (msg.type === 'button' && msg.name === 'logCycle') {
-        const logFile = path.join(__dirname, '..', 'Log_Cycle.json');
-        const entry = {
-          temp: msg.temp || null,
-          timestamp: msg.timestamp || new Date().toISOString(),
+        // Format: Log_Cycle_YYYY-MM-DD_HH-MM.json (safe for Windows/Mac)
+        const now = new Date();
+        const pad = n => n.toString().padStart(2, '0');
+        const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
+        const logFile = path.join(__dirname, '..', `Log_Cycle_${dateStr}_${timeStr}.json`);
+
+        // Compose log entry with ordered parameters
+        const p = msg.parameters || {};
+        const orderedParameters = {
+          volumeAddedPerCycle: p.volumeAddedPerCycle,
+          durationOfRehydration: p.durationOfRehydration,
+          syringeDiameter: p.syringeDiameter,
+          desiredHeatingTemperature: p.desiredHeatingTemperature,
+          durationOfHeating: p.durationOfHeating,
+          durationOfMixing: p.durationOfMixing,
+          numberOfCycles: p.numberOfCycles,
+          sampleZonesToMix: p.sampleZonesToMix,
         };
 
-        // Read existing log or start new array
-        let logArr = [];
-        if (fs.existsSync(logFile)) {
-          try {
-            logArr = JSON.parse(fs.readFileSync(logFile));
-            if (!Array.isArray(logArr)) logArr = [];
-          } catch (e) {
-            logArr = [];
-          }
-        }
-        logArr.push(entry);
-        fs.writeFileSync(logFile, JSON.stringify(logArr, null, 2));
-        console.log('Logged cycle:', entry);
+        const entry = {
+          timestamp: msg.timestamp || now.toISOString(),
+          parameters: orderedParameters,
+          espOutputs: msg.espOutputs || null,
+        };
 
-        // Cross-platform: open file location in Explorer (Windows) or Finder (macOS)
+        // Write the entry to a new file
+        fs.writeFileSync(logFile, JSON.stringify(entry, null, 2));
+        console.log('Logged cycle to:', logFile);
+
+        // Optionally open the file location
         if (process.platform === 'win32') {
           exec(`explorer.exe /select,"${logFile.replace(/\//g, '\\')}"`);
         } else if (process.platform === 'darwin') {

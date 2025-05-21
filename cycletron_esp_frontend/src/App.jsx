@@ -201,8 +201,11 @@ function App() {
   };
 
   const handleLogCycle = () => {
+    // Exclude syringeLeft and extractionReady from espOutputs
+    const { syringeLeft, extractionReady, ...filteredEspOutputs } = espOutputs;
     sendButtonCommand('logCycle', true, {
-      temp: currentTemp,
+      parameters,
+      espOutputs: filteredEspOutputs,
       timestamp: new Date().toISOString(),
     });
   };
