@@ -38,7 +38,7 @@ export default function useWebSocket() {
                 const msg = JSON.parse(event.data);
 
                 // Heartbeat from ESP32
-                if (msg.type === 'heartbeat' && msg.from === 'esp32') {
+                if (msg.type === 'heartbeat') {
                     console.log('Heartbeat received from ESP32');
                     setEspOnline(true);
                     return;

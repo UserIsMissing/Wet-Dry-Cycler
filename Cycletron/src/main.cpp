@@ -18,7 +18,6 @@
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
-
 const char *ssid = "DonnaHouse";
 const char *password = "guessthepassword";
 
@@ -396,12 +395,12 @@ unsigned long lastSent = 0;
 void sendHeartbeat()
 {
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "heartbeat";
+  doc["value"] = 1;
   char buffer[64];
   serializeJson(doc, buffer);
   webSocket.sendTXT(buffer);
-  Serial.println("Sent heartbeat packet to frontend.");
+  Serial.printf("Sent heartbeat packet to frontend.");
 }
 
 // CYCLE PROGRESS COMMUNICATION
