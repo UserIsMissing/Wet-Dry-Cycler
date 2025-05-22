@@ -227,3 +227,25 @@ void REHYDRATION_HandleInterrupts() {
         }
     }
 }
+
+/**
+ * @brief Continuously moves the syringe backward until the back bumper is triggered.
+ *
+ * This uses a while-loop to move indefinitely in the BACKWARD direction
+ * until the back limit switch is hit (rehydrationBackTriggered becomes true).
+ * Be sure REHYDRATION_ConfigureInterrupts() has been called before using.
+ */
+void Rehydration_BackUntilBumper() {
+    DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_QUARTER_STEP); // precise and slower
+
+    rehydrationBackTriggered = false;
+    Serial.println("[REHYDRATION] Moving backward until bumper is triggered...");
+
+    while (!rehydrationBackTriggered) {
+        DRV8825_Move(&rehydrationMotor, 1, DRV8825_BACKWARD, 500); // one step at a time
+        delayMicroseconds(200); // small delay to allow interrupt detection
+    }
+
+    Rehydration_Stop();
+    Serial.println("[REHYDRATION] Back bumper triggered — motion stopped.");
+}

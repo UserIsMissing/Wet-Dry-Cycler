@@ -130,4 +130,11 @@ void REHYDRATION_ConfigureInterrupts();
 
 void REHYDRATION_HandleInterrupts();
 
+
+/**
+ * @brief Moves backward until the back bumper is hit.
+ */
+void Rehydration_BackUntilBumper();
+
+
 #endif // REHYDRATION_H
