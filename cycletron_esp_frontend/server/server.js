@@ -123,6 +123,19 @@ wss.on('connection', (ws) => {
         return; // ESP32 never gets recoveryState
       }
 
+      // Handle heartbeat packets from ESP32
+      if (msg.type === 'heartbeat') {
+        // Forward status update to all frontend clients
+        for (const client of clients) {
+          if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
+            client.send(JSON.stringify({ type: 'status', status: 'connected' }));
+          }
+        }
+        // Optionally, you can log the heartbeat
+        // console.log('Received heartbeat from ESP32');
+        return;
+      }
+
       // If a frontend connects, send recoveryState on request or after identification
       if (msg.type === 'getRecoveryState') {
         ws.send(JSON.stringify({
