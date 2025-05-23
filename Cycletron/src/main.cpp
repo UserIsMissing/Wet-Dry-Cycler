@@ -36,7 +36,6 @@ const char *password = "guessthepassword";
 // === Operational Parameters ===
 // main.cpp
 float volumeAddedPerCycle = 0;
-float durationOfRehydration = 0;
 float syringeDiameter = 0;
 float desiredHeatingTemperature = 0;
 float durationOfHeating = 0;

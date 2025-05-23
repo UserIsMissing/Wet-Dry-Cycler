@@ -7,7 +7,6 @@ import './App.css';
 const TAB_WIDTH = 690;
 const INITIAL_PARAMETERS = {
   volumeAddedPerCycle: '',
-  durationOfRehydration: '',
   syringeDiameter: '',
   desiredHeatingTemperature: '',
   durationOfHeating: '',
@@ -18,7 +17,6 @@ const INITIAL_PARAMETERS = {
 
 const parameterFields = [
   { label: "Volume Added Per Cycle (uL)", key: "volumeAddedPerCycle", placeholder: "e.g., 10" },
-  { label: "Duration of Rehydration (seconds)", key: "durationOfRehydration", placeholder: "e.g., 30" },
   { label: "Syringe Diameter (in)", key: "syringeDiameter", placeholder: "e.g., 5" },
   { label: "Desired Heating Temperature (°C)", key: "desiredHeatingTemperature", placeholder: "e.g., 90" },
   { label: "Duration of Heating (seconds)", key: "durationOfHeating", placeholder: "e.g., 120" },
@@ -373,7 +371,7 @@ function App() {
                     <div className="field">
                       <label className="label">Sample Zones to Mix</label>
                       <div className="control">
-                        {['Zone1', 'Zone2', 'Zone3'].map((zone) => (
+                        {[1, 2, 3].map((zone) => (
                           <label key={zone} className="checkbox mr-3">
                             <input
                               type="checkbox"
@@ -381,7 +379,7 @@ function App() {
                               checked={parameters.sampleZonesToMix.includes(zone)}
                               onChange={() => handleZoneToggle(zone)}
                             />
-                            {zone}
+                            {`Zone${zone}`}
                           </label>
                         ))}
                       </div>

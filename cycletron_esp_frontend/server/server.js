@@ -260,6 +260,8 @@ wss.on('connection', (ws) => {
           console.log('recovery_state.json deleted by frontend request.');
         }
         recoveryState = {};
+        // Also reset ESP recovery state
+        resetEspRecoveryState();
         // Notify all clients of the reset state
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
@@ -267,6 +269,15 @@ wss.on('connection', (ws) => {
           }
         });
         return;
+      }
+
+      // Reset ESP recovery state when the frontend presses "End Cycle"
+      if (
+        msg.type === 'button' &&
+        msg.name === 'endCycle' &&
+        msg.state === 'on'
+      ) {
+        resetEspRecoveryState();
       }
 
       if (msg.type === 'button' && msg.name === 'vialSetup') {
@@ -279,18 +290,29 @@ wss.on('connection', (ws) => {
         }
       }
 
-      // Handle state or progress updates from ESP32
-      if (msg.type === 'stateUpdate' || msg.type === 'progressUpdate') {
-        espRecoveryState = { ...espRecoveryState, ...msg };
+      // Only store recovery packets from ESP32
+      if (msg.type === 'espRecovery' || msg.type === 'espRecoveryState') {
+        // If the ESP sends the whole state as msg.data, just store it
+        if (msg.data && typeof msg.data === 'object') {
+          espRecoveryState = { ...espRecoveryState, ...msg.data };
+        }
+        // If using the sectioned update format
+        if (msg.section === 'parameters' && typeof msg.data === 'object') {
+          espRecoveryState.parameters = { ...espRecoveryState.parameters, ...msg.data };
+        } else if (msg.section === 'progress' && typeof msg.data === 'object') {
+          espRecoveryState.progress = { ...espRecoveryState.progress, ...msg.data };
+        } else if (msg.section === 'currentState') {
+          espRecoveryState.currentState = msg.data;
+        }
+        // Always update lastUpdated
+        espRecoveryState.lastUpdated = new Date().toISOString();
         saveEspRecoveryState();
-        console.log('Updated ESP recovery state:', espRecoveryState);
+        // Optionally log:
+        // console.log('ESP Recovery updated:', espRecoveryState);
+        return;
       }
 
-      // Reset ESP recovery state when the cycle ends
-      if (msg.type === 'button' && msg.name === 'endCycle') {
-        resetEspRecoveryState();
-      }
-
+      // (rest of the message handler remains unchanged)
     } catch (e) {
       console.error('Bad message:', e);
     }
