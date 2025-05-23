@@ -42,32 +42,30 @@ void handleStateCommand(const String &name, const String &state)
   {
     if (state == "on")
     {
-      previousState = currentState;
-      currentState = SystemState::PAUSED;
+      setState(SystemState::PAUSED);
       Serial.println("State changed to PAUSED");
     }
     else
     {
-      currentState = previousState;
+      setState(previousState);
       Serial.printf("State RESUMED (currentState = %d)", static_cast<int>(currentState));
     }
   }
   else if (name == "endCycle" && state == "on")
   {
-    currentState = SystemState::ENDED;
+    setState(SystemState::ENDED);
     Serial.println("State changed to ENDED");
   }
   else if (name == "extract")
   {
     if (state == "on")
     {
-      previousState = currentState;
-      currentState = SystemState::EXTRACTING;
+      setState(SystemState::EXTRACTING);
       Serial.println("Extraction started");
     }
     else
     {
-      currentState = previousState;
+      setState(previousState);
       Serial.println("Extraction ended — resuming");
     }
   }
@@ -75,20 +73,18 @@ void handleStateCommand(const String &name, const String &state)
   {
     if (state == "on")
     {
-      previousState = currentState;
-      currentState = SystemState::REFILLING;
+      setState(SystemState::REFILLING);
       Serial.println("Refill started");
     }
     else
     {
-      currentState = previousState;
+      setState(previousState);
       Serial.println("Refill ended — resuming");
     }
   }
   else if (name == "logCycle" && state == "on")
   {
-    previousState = currentState;
-    currentState = SystemState::LOGGING;
+    setState(SystemState::LOGGING);
     Serial.println("State changed to LOGGING");
   }
   else

@@ -77,8 +77,46 @@ SystemState previousState = SystemState::IDLE;
 // === WebSocket Client ===
 WebSocketsClient webSocket;
 
+unsigned long pausedElapsedTime = 0;
+unsigned long pausedAtTime = 0;
+
 void setState(SystemState newState)
 {
+  // --- PAUSE/RESUME LOGIC ---
+  if (newState == SystemState::PAUSED ||
+      newState == SystemState::EXTRACTING ||
+      newState == SystemState::REFILLING) {
+    pausedAtTime = millis();
+    // Save elapsed time for the current state
+    if (currentState == SystemState::HEATING) {
+      pausedElapsedTime = millis() - heatingStartTime;
+    } else if (currentState == SystemState::MIXING) {
+      pausedElapsedTime = millis() - mixingStartTime;
+    } else {
+      pausedElapsedTime = 0;
+    }
+  }
+  // If resuming from PAUSED, EXTRACTING, or REFILLING, adjust start times and remaining durations
+  if ((currentState == SystemState::PAUSED ||
+       currentState == SystemState::EXTRACTING ||
+       currentState == SystemState::REFILLING) &&
+      (newState != SystemState::PAUSED &&
+       newState != SystemState::EXTRACTING &&
+       newState != SystemState::REFILLING)) {
+    if (previousState == SystemState::HEATING) {
+      heatingStartTime = millis() - pausedElapsedTime;
+      heatingDurationRemaining -= pausedElapsedTime;
+      if (heatingDurationRemaining < 0) heatingDurationRemaining = 0;
+    } else if (previousState == SystemState::MIXING) {
+      mixingStartTime = millis() - pausedElapsedTime;
+      mixingDurationRemaining -= pausedElapsedTime;
+      if (mixingDurationRemaining < 0) mixingDurationRemaining = 0;
+    }
+    pausedElapsedTime = 0;
+    pausedAtTime = 0;
+  }
+  // --- END PAUSE/RESUME LOGIC ---
+
   if (currentState != SystemState::PAUSED &&
       currentState != SystemState::REFILLING &&
       currentState != SystemState::EXTRACTING)
@@ -298,11 +336,14 @@ void loop()
     if (!heatingStarted)
     {
       Serial.println("[HEATING] Starting...");
-
-      // Decide how long to heat based on whether we're recovering
       unsigned long heatTime = heatingProgressPercent > 0
                                    ? (unsigned long)((1.0 - (heatingProgressPercent / 100.0)) * durationOfHeating * 1000)
                                    : (unsigned long)(durationOfHeating * 1000);
+
+      // If resuming from pause, use heatingDurationRemaining if set
+      if (heatingDurationRemaining > 0 && heatingDurationRemaining < heatTime) {
+        heatTime = heatingDurationRemaining;
+      }
 
       heatingStartTime = millis();
       heatingDurationRemaining = heatTime;
