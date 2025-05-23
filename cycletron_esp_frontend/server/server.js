@@ -122,10 +122,14 @@ wss.on('connection', (ws) => {
           console.log('Registered ESP32 WebSocket client');
           broadcastExcept(ws, JSON.stringify({ type: 'status', status: 'connected' }));
 
-          // Send ESP recovery state to ESP32 on connection
+          // --- PATCH: Normalize parameters before sending to ESP ---
           if (Object.keys(espRecoveryState).length > 0) {
-            ws.send(JSON.stringify({ type: 'espRecoveryState', data: espRecoveryState }));
-            console.log('Sent ESP recovery state to ESP32:', espRecoveryState);
+            const normalizedRecovery = { ...espRecoveryState };
+            if (normalizedRecovery.parameters) {
+              normalizedRecovery.parameters = normalizeParameters(normalizedRecovery.parameters);
+            }
+            ws.send(JSON.stringify({ type: 'espRecoveryState', data: normalizedRecovery }));
+            console.log('Sent ESP recovery state to ESP32:', normalizedRecovery);
           } else {
             console.log('ESP recovery state is empty. ESP32 will start fresh.');
           }
