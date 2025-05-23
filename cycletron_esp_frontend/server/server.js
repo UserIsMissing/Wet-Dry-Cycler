@@ -81,16 +81,6 @@ app.post('/api/resetRecoveryState', (req, res) => {
   res.json({ success: true });
 });
 
-// Add this route to reset the ESP recovery state
-app.post('/api/resetEspRecoveryState', (req, res) => {
-  if (fs.existsSync(espRecoveryFile)) {
-    fs.unlinkSync(espRecoveryFile);
-    console.log('ESP_Recovery.json deleted by request.');
-  }
-  espRecoveryState = {}; // Reset in-memory state
-  res.json({ success: true });
-});
-
 // ----------------- Static Frontend -----------------
 app.use(express.static(path.join(__dirname, '../dist')));
 
@@ -122,14 +112,10 @@ wss.on('connection', (ws) => {
           console.log('Registered ESP32 WebSocket client');
           broadcastExcept(ws, JSON.stringify({ type: 'status', status: 'connected' }));
 
-          // --- PATCH: Normalize parameters before sending to ESP ---
+          // Send ESP recovery state to ESP32 on connection
           if (Object.keys(espRecoveryState).length > 0) {
-            const normalizedRecovery = { ...espRecoveryState };
-            if (normalizedRecovery.parameters) {
-              normalizedRecovery.parameters = normalizeParameters(normalizedRecovery.parameters);
-            }
-            ws.send(JSON.stringify({ type: 'espRecoveryState', data: normalizedRecovery }));
-            console.log('Sent ESP recovery state to ESP32:', normalizedRecovery);
+            ws.send(JSON.stringify({ type: 'espRecoveryState', data: espRecoveryState }));
+            console.log('Sent ESP recovery state to ESP32:', espRecoveryState);
           } else {
             console.log('ESP recovery state is empty. ESP32 will start fresh.');
           }
@@ -218,38 +204,15 @@ wss.on('connection', (ws) => {
 
       if (msg.type === 'parameters') {
         console.log('Received parameters:', msg.data);
-        // Normalize parameters to ensure numbers are sent to ESP and stored
-        const normalizedParams = normalizeParameters(msg.data);
         // Forward parameters to all ESP32 clients
         for (const esp of espClients) {
           if (esp.readyState === WebSocket.OPEN) {
-            esp.send(JSON.stringify({ ...msg, data: normalizedParams }));
+            esp.send(JSON.stringify(msg));
           }
         }
-        // Update ESP recovery state
-        if (normalizedParams && typeof normalizedParams === 'object') {
-          espRecoveryState.parameters = { ...espRecoveryState.parameters, ...normalizedParams };
-          espRecoveryState.lastUpdated = new Date().toISOString();
-          saveEspRecoveryState();
-          console.log('ESP_Recovery.json updated with parameters:', espRecoveryState.parameters);
-        }
       }
 
-      // --- ADD THIS BLOCK: handle progress and currentState updates ---
-      if (msg.type === 'progress' && msg.data && typeof msg.data === 'object') {
-        espRecoveryState.progress = { ...espRecoveryState.progress, ...msg.data };
-        espRecoveryState.lastUpdated = new Date().toISOString();
-        saveEspRecoveryState();
-        console.log('ESP_Recovery.json updated with progress:', espRecoveryState.progress);
-      }
-      if (msg.type === 'currentState' && msg.value) {
-        espRecoveryState.currentState = msg.value;
-        espRecoveryState.lastUpdated = new Date().toISOString();
-        saveEspRecoveryState();
-        console.log('ESP_Recovery.json updated with currentState:', espRecoveryState.currentState);
-      }
-      // --- END BLOCK ---
-
+      // Handle log cycle button
       if (msg.type === 'button' && msg.name === 'logCycle') {
         // Format: Log_Cycle_YYYY-MM-DD_HH-MM.json (safe for Windows/Mac)
         const now = new Date();
@@ -297,8 +260,6 @@ wss.on('connection', (ws) => {
           console.log('recovery_state.json deleted by frontend request.');
         }
         recoveryState = {};
-        // Also reset ESP recovery state
-        resetEspRecoveryState();
         // Notify all clients of the reset state
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
@@ -306,15 +267,6 @@ wss.on('connection', (ws) => {
           }
         });
         return;
-      }
-
-      // Reset ESP recovery state when the frontend presses "End Cycle"
-      if (
-        msg.type === 'button' &&
-        msg.name === 'endCycle' &&
-        msg.state === 'on'
-      ) {
-        resetEspRecoveryState();
       }
 
       if (msg.type === 'button' && msg.name === 'vialSetup') {
@@ -327,29 +279,18 @@ wss.on('connection', (ws) => {
         }
       }
 
-      // Only store recovery packets from ESP32
-      if (msg.type === 'espRecovery' || msg.type === 'espRecoveryState') {
-        // If the ESP sends the whole state as msg.data, just store it
-        if (msg.data && typeof msg.data === 'object') {
-          espRecoveryState = { ...espRecoveryState, ...msg.data };
-        }
-        // If using the sectioned update format
-        if (msg.section === 'parameters' && typeof msg.data === 'object') {
-          espRecoveryState.parameters = { ...espRecoveryState.parameters, ...msg.data };
-        } else if (msg.section === 'progress' && typeof msg.data === 'object') {
-          espRecoveryState.progress = { ...espRecoveryState.progress, ...msg.data };
-        } else if (msg.section === 'currentState') {
-          espRecoveryState.currentState = msg.data;
-        }
-        // Always update lastUpdated
-        espRecoveryState.lastUpdated = new Date().toISOString();
+      // Handle state or progress updates from ESP32
+      if (msg.type === 'stateUpdate' || msg.type === 'progressUpdate') {
+        espRecoveryState = { ...espRecoveryState, ...msg };
         saveEspRecoveryState();
-        // Optionally log:
-        // console.log('ESP Recovery updated:', espRecoveryState);
-        return;
+        console.log('Updated ESP recovery state:', espRecoveryState);
       }
 
-      // (rest of the message handler remains unchanged)
+      // Reset ESP recovery state when the cycle ends
+      if (msg.type === 'button' && msg.name === 'endCycle') {
+        resetEspRecoveryState();
+      }
+
     } catch (e) {
       console.error('Bad message:', e);
     }
@@ -373,28 +314,6 @@ function broadcastExcept(sender, message) {
       client.send(message);
     }
   }
-}
-
-// Utility: convert parameter fields to numbers where appropriate
-function normalizeParameters(params) {
-  if (!params) return {};
-  const numericKeys = [
-    "volumeAddedPerCycle",
-    "syringeDiameter",
-    "desiredHeatingTemperature",
-    "durationOfHeating",
-    "durationOfMixing",
-    "numberOfCycles"
-  ];
-  const out = { ...params };
-  for (const key of numericKeys) {
-    if (out[key] !== undefined) out[key] = Number(out[key]);
-  }
-  // sampleZonesToMix should be an array of numbers
-  if (Array.isArray(out.sampleZonesToMix)) {
-    out.sampleZonesToMix = out.sampleZonesToMix.map(Number);
-  }
-  return out;
 }
 
 server.listen(PORT, () => {
