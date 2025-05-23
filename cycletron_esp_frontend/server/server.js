@@ -81,6 +81,16 @@ app.post('/api/resetRecoveryState', (req, res) => {
   res.json({ success: true });
 });
 
+// Add this route to reset the ESP recovery state
+app.post('/api/resetEspRecoveryState', (req, res) => {
+  if (fs.existsSync(espRecoveryFile)) {
+    fs.unlinkSync(espRecoveryFile);
+    console.log('ESP_Recovery.json deleted by request.');
+  }
+  espRecoveryState = {}; // Reset in-memory state
+  res.json({ success: true });
+});
+
 // ----------------- Static Frontend -----------------
 app.use(express.static(path.join(__dirname, '../dist')));
 
@@ -204,15 +214,38 @@ wss.on('connection', (ws) => {
 
       if (msg.type === 'parameters') {
         console.log('Received parameters:', msg.data);
+        // Normalize parameters to ensure numbers are sent to ESP and stored
+        const normalizedParams = normalizeParameters(msg.data);
         // Forward parameters to all ESP32 clients
         for (const esp of espClients) {
           if (esp.readyState === WebSocket.OPEN) {
-            esp.send(JSON.stringify(msg));
+            esp.send(JSON.stringify({ ...msg, data: normalizedParams }));
           }
+        }
+        // Update ESP recovery state
+        if (normalizedParams && typeof normalizedParams === 'object') {
+          espRecoveryState.parameters = { ...espRecoveryState.parameters, ...normalizedParams };
+          espRecoveryState.lastUpdated = new Date().toISOString();
+          saveEspRecoveryState();
+          console.log('ESP_Recovery.json updated with parameters:', espRecoveryState.parameters);
         }
       }
 
-      // Handle log cycle button
+      // --- ADD THIS BLOCK: handle progress and currentState updates ---
+      if (msg.type === 'progress' && msg.data && typeof msg.data === 'object') {
+        espRecoveryState.progress = { ...espRecoveryState.progress, ...msg.data };
+        espRecoveryState.lastUpdated = new Date().toISOString();
+        saveEspRecoveryState();
+        console.log('ESP_Recovery.json updated with progress:', espRecoveryState.progress);
+      }
+      if (msg.type === 'currentState' && msg.value) {
+        espRecoveryState.currentState = msg.value;
+        espRecoveryState.lastUpdated = new Date().toISOString();
+        saveEspRecoveryState();
+        console.log('ESP_Recovery.json updated with currentState:', espRecoveryState.currentState);
+      }
+      // --- END BLOCK ---
+
       if (msg.type === 'button' && msg.name === 'logCycle') {
         // Format: Log_Cycle_YYYY-MM-DD_HH-MM.json (safe for Windows/Mac)
         const now = new Date();
@@ -336,6 +369,28 @@ function broadcastExcept(sender, message) {
       client.send(message);
     }
   }
+}
+
+// Utility: convert parameter fields to numbers where appropriate
+function normalizeParameters(params) {
+  if (!params) return {};
+  const numericKeys = [
+    "volumeAddedPerCycle",
+    "syringeDiameter",
+    "desiredHeatingTemperature",
+    "durationOfHeating",
+    "durationOfMixing",
+    "numberOfCycles"
+  ];
+  const out = { ...params };
+  for (const key of numericKeys) {
+    if (out[key] !== undefined) out[key] = Number(out[key]);
+  }
+  // sampleZonesToMix should be an array of numbers
+  if (Array.isArray(out.sampleZonesToMix)) {
+    out.sampleZonesToMix = out.sampleZonesToMix.map(Number);
+  }
+  return out;
 }
 
 server.listen(PORT, () => {

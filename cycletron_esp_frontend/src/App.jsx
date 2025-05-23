@@ -258,6 +258,22 @@ function App() {
     }
   };
 
+  // Function to reset both frontend and ESP recovery state
+  const resetRecoveryData = () => {
+    // Reset frontend recovery state
+    resetRecoveryState();
+    // Reset ESP recovery state
+    fetch('/api/resetEspRecoveryState', { method: 'POST' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          // Optionally, you can show a notification or reload
+          console.log('ESP_Recovery.json reset');
+        }
+      })
+      .catch((err) => console.error('Failed to reset ESP recovery state:', err));
+  };
+
   return (
     <div className="container" style={{ position: 'relative' }}>
       {/* Vial Setup Overlay */}
@@ -316,8 +332,8 @@ function App() {
         <button className="button is-small mt-2" onClick={() => sendRecoveryUpdate({ cycleStatus: 'paused' })}>
           Send Recovery Update
         </button>
-        <button className="button is-small mt-2 is-danger" onClick={resetRecoveryState}>
-          Reset Recovery State
+        <button className="button is-small mt-2 is-danger" onClick={resetRecoveryData}>
+          Reset Recovery Data
         </button>
       </section>
 
