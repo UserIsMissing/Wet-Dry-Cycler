@@ -51,6 +51,9 @@ export default function useWebSocket(onEndOfCycles) {
                     case 'temperature':
                         setCurrentTemp(msg.value);
                         break;
+                    case 'temperatureUpdate': // <-- Add this case
+                        setCurrentTemp(msg.value);
+                        break;
                     case 'cycleProgress': // Handle cycle progress updates
                         setEspOutputs((prev) => ({
                             ...prev,

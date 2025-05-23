@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import 'bulma/css/bulma.min.css';
 import useWebSocket from './hooks/useWebSocket';
 import './App.css';
@@ -282,6 +282,14 @@ function App() {
     }, 500); // 500ms delay to ensure log finishes
   };
 
+  // Store the last valid temperature value
+  const lastTempRef = useRef(null);
+  useEffect(() => {
+    if (typeof currentTemp === 'number' && !isNaN(currentTemp)) {
+      lastTempRef.current = currentTemp;
+    }
+  }, [currentTemp]);
+
   return (
     <div className="container" style={{ position: 'relative' }}>
       {/* Vial Setup Overlay */}
@@ -474,8 +482,11 @@ function App() {
                 <label className="label is-small">Temperature Data</label>
                 <input
                   type="text"
-                  // className="input is-small"
-                  value={currentTemp !== null ? `${currentTemp} °C` : 'N/A'}
+                  value={
+                    (typeof lastTempRef.current === 'number' && !isNaN(lastTempRef.current))
+                      ? `${lastTempRef.current} °C`
+                      : 'N/A'
+                  }
                   readOnly
                 />
               </div>
