@@ -7,6 +7,8 @@
 // === State Machine ===
 enum class SystemState
 {
+  VIAL_SETUP,
+  WAITING,
   IDLE,
   READY,
   REHYDRATING,
@@ -23,7 +25,6 @@ enum class SystemState
 
 // === Parameters set by frontend or recovery ===
 extern float volumeAddedPerCycle;
-extern float durationOfRehydration;
 extern float syringeDiameter;
 extern float desiredHeatingTemperature;
 extern float durationOfHeating;

@@ -83,6 +83,7 @@ void handleStateCommand(const String &name, const String &state)
   }
   else if (name == "logCycle" && state == "on")
   {
+
     setState(SystemState::LOGGING);
     Serial.println("State changed to LOGGING");
   }
