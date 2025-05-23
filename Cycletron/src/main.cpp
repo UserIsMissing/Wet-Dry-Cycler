@@ -36,7 +36,6 @@ const char *password = "guessthepassword";
 // === Operational Parameters ===
 // main.cpp
 float volumeAddedPerCycle = 0;
-float durationOfRehydration = 0;
 float syringeDiameter = 0;
 float desiredHeatingTemperature = 0;
 float durationOfHeating = 0;
@@ -71,7 +70,7 @@ float mixingDurationRemaining = 0;  // Remaining time for mixing
 int sampleZonesArray[3];
 int sampleZoneCount = 0;
 
-SystemState currentState = SystemState::IDLE;
+SystemState currentState = SystemState::IDLE; // Start in IDLE
 SystemState previousState = SystemState::IDLE;
 
 // === WebSocket Client ===
@@ -124,7 +123,6 @@ void setState(SystemState newState)
     previousState = currentState;
   }
   currentState = newState;
-  sendCurrentState(); // Inform frontend of the state change
 }
 
 void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
@@ -159,6 +157,26 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
       break;
     }
 
+    // --- VIAL SETUP PACKET HANDLING ---
+    if (doc["type"] == "vialSetup" && doc["status"].is<const char*>())
+    {
+      String status = doc["status"].as<String>();
+      if (status == "yes") {
+        Serial.println("[VIAL_SETUP] Vial setup confirmed. Transitioning to VIAL_SETUP state...");
+        setState(SystemState::VIAL_SETUP);
+      } else if (status == "no") {
+        if (currentState == SystemState::VIAL_SETUP) {
+          Serial.println("[VIAL_SETUP] Vial setup complete while in VIAL_SETUP. Going to WAITING state.");
+          setState(SystemState::WAITING);
+        } else {
+          Serial.println("[VIAL_SETUP] Vial setup declined. Going to WAITING state.");
+          setState(SystemState::WAITING);
+        }
+      }
+      break;
+    }
+    // --- END VIAL SETUP PACKET HANDLING ---
+
     if (doc["type"] == "espRecoveryState" && doc["data"].is<JsonObject>())
     {
       JsonObject data = doc["data"].as<JsonObject>();
@@ -167,9 +185,14 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     else if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
     {
       JsonObject parameters = doc["data"].as<JsonObject>();
-      handleParametersPacket(parameters);
+      // Only allow transition to READY from WAITING
+      if (currentState == SystemState::WAITING) {
+        handleParametersPacket(parameters); // This should call setState(SystemState::READY)
+      } else {
+        Serial0.printf("[PARAMETERS] Ignoring parameters packet in state: %d\n", static_cast<int>(currentState));
+      }
     }
-    else if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
+    else if (doc["name"].is<const char *>() && doc["state"].is<const char *>() && String(doc["name"].as<const char*>()) != "vialSetup")
     {
       String name = doc["name"].as<String>();
       String state = doc["state"].as<String>();
@@ -229,12 +252,29 @@ void loop()
   switch (currentState)
   {
   case SystemState::IDLE:
+    // Await vialSetup packet from frontend
     if (now - lastSent >= 1000)
     {
       sendHeartbeat();
       lastSent = now;
     }
     break;
+
+  case SystemState::VIAL_SETUP:
+    // Perform vial setup actions here if needed
+    if (now - lastSent >= 1000)
+    {
+      sendHeartbeat();
+      lastSent = now;
+    }
+    // Only send state once on entry (handled by setState)
+    break;
+
+  case SystemState::WAITING:
+    // Await parameters packet from frontend
+    // Only send state once on entry (handled by setState)
+    break;
+
   case SystemState::READY:
     if (now - lastSent >= 1000)
     {
@@ -252,7 +292,7 @@ void loop()
 
   case SystemState::REHYDRATING:
   {
-    sendCurrentState();
+    // Only send state once on entry (handled by setState)
     Serial.println("[STATE] Rehydrating...");
     if (currentCycle >= numberOfCycles)
     {
@@ -272,6 +312,7 @@ void loop()
     {
       Serial.println("[ERROR] Syringe step count would exceed safe range! Aborting push.");
       currentState = SystemState::ERROR;
+      sendCurrentState(); // Notify state change to ERROR
       break;
     }
 
@@ -281,7 +322,6 @@ void loop()
     sendSyringePercentage();
 
     currentState = SystemState::MIXING;
-    sendCurrentState(); // Notify state change to MIXING
     break;
   }
 
@@ -326,7 +366,6 @@ void loop()
       MIXING_AllMotors_Off;
       mixingStarted = false;
       currentState = SystemState::HEATING;
-      sendCurrentState(); // Notify state change to HEATING
     }
     break;
   }
@@ -365,7 +404,7 @@ void loop()
         percentDone = 100.0;
 
       ArduinoJson::JsonDocument doc; // auto-resizing with latest versions
-     sendHeatingProgress();
+      sendHeatingProgress();
 
       lastSent = now;
     }
@@ -380,7 +419,6 @@ void loop()
       currentCycle++;
       sendCycleProgress();
       currentState = SystemState::REHYDRATING;
-      sendCurrentState(); // Notify state change to REHYDRATING
     }
 
     break;
@@ -394,32 +432,27 @@ void loop()
       syringeStepCount = 0;          // Reset step counter
       sendSyringeResetInfo();        // Notify webserver
       refillingStarted = true;
-      sendCurrentState(); // Notify state change to REFILLING
     }
     break;
 
   case SystemState::EXTRACTING:
     Serial.println("Extracting...");
     currentState = SystemState::PAUSED;
-    sendCurrentState(); // Notify state change to PAUSED
     break;
 
   case SystemState::LOGGING:
     Serial.println("Logging data...");
     currentState = previousState;
-    sendCurrentState(); // Notify state change to previousState
     break;
 
   case SystemState::ENDED:
     completedCycles = 0;
     currentCycle = 0;
     currentState = SystemState::IDLE;
-    sendCurrentState(); // Notify state change to IDLE
     break;
 
   case SystemState::ERROR:
     Serial.println("System error — awaiting reset or external command.");
-    sendCurrentState(); // Notify state change to ERROR
     break;
   }
   delay(10);

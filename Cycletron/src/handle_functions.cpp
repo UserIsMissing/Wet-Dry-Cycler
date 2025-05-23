@@ -5,7 +5,6 @@
 
 // Use globals from globals.h
 extern float volumeAddedPerCycle;
-extern float durationOfRehydration;
 extern float syringeDiameter;
 extern float desiredHeatingTemperature;
 extern float durationOfHeating;
@@ -84,6 +83,7 @@ void handleStateCommand(const String &name, const String &state)
   }
   else if (name == "logCycle" && state == "on")
   {
+
     setState(SystemState::LOGGING);
     Serial.println("State changed to LOGGING");
   }
@@ -118,7 +118,6 @@ void handleRecoveryPacket(const JsonObject &data)
   // Restore parameters
   JsonObject parameters = data["parameters"];
   volumeAddedPerCycle = parameters["volumeAddedPerCycle"].is<float>() ? parameters["volumeAddedPerCycle"].as<float>() : 0.0;
-  durationOfRehydration = parameters["durationOfRehydration"].is<float>() ? parameters["durationOfRehydration"].as<float>() : 0.0;
   syringeDiameter = parameters["syringeDiameter"].is<float>() ? parameters["syringeDiameter"].as<float>() : 0.0;
   desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<float>() ? parameters["desiredHeatingTemperature"].as<float>() : 0.0;
   durationOfHeating = parameters["durationOfHeating"].is<float>() ? parameters["durationOfHeating"].as<float>() : 0.0;
@@ -161,7 +160,6 @@ void handleRecoveryPacket(const JsonObject &data)
   Serial.println("[RECOVERY] Restored system state and parameters:");
   Serial.printf("  Current state: %s\n", recoveredState.c_str());
   Serial.printf("  Volume per cycle: %.2f µL\n", volumeAddedPerCycle);
-  Serial.printf("  Rehydration duration: %.2f s\n", durationOfRehydration);
   Serial.printf("  Syringe diameter: %.2f in\n", syringeDiameter);
   Serial.printf("  Heating temp: %.2f °C for %.2f s\n", desiredHeatingTemperature, durationOfHeating);
   Serial.printf("  Mixing duration: %.2f s with %d zone(s)\n", durationOfMixing, sampleZoneCount);
@@ -174,7 +172,6 @@ void handleRecoveryPacket(const JsonObject &data)
 void handleParametersPacket(const JsonObject &parameters)
 {
   volumeAddedPerCycle = atof(parameters["volumeAddedPerCycle"] | "0");
-  durationOfRehydration = atof(parameters["durationOfRehydration"] | "0");
   syringeDiameter = atof(parameters["syringeDiameter"] | "0");
   desiredHeatingTemperature = atof(parameters["desiredHeatingTemperature"] | "0");
   durationOfHeating = atof(parameters["durationOfHeating"] | "0");
@@ -196,7 +193,6 @@ void handleParametersPacket(const JsonObject &parameters)
 
   Serial.println("[PARAMETERS] Parameters received and parsed.");
   Serial.printf("  Volume per cycle: %.2f µL\n", volumeAddedPerCycle);
-  Serial.printf("  Rehydration duration: %.2f s\n", durationOfRehydration);
   Serial.printf("  Syringe diameter: %.2f in\n", syringeDiameter);
   Serial.printf("  Heating temp: %.2f °C for %.2f s\n", desiredHeatingTemperature, durationOfHeating);
   Serial.printf("  Mixing duration: %.2f s with %d zone(s)\n", durationOfMixing, sampleZoneCount);
