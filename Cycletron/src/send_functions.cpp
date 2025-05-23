@@ -23,7 +23,7 @@ void sendHeartbeat()
   char buffer[64];
   serializeJson(doc, buffer);
   webSocket.sendTXT(buffer);
-  Serial.printf("Sent heartbeat packet to frontend.");
+  Serial.printf("[%d] Sent heartbeat packet to frontend.\n", static_cast<int>(currentState));
 }
 
 void sendTemperature()

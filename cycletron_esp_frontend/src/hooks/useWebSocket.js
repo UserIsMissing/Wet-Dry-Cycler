@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 const RECONNECT_DELAY = 3000;
 const PORT = 5175;
 
-export default function useWebSocket() {
+export default function useWebSocket(onEndOfCycles) {
     const socketRef = useRef(null);
     const [espOnline, setEspOnline] = useState(false);
     const [lastMessageTime, setLastMessageTime] = useState(Date.now());
@@ -51,8 +51,13 @@ export default function useWebSocket() {
                     case 'temperature':
                         setCurrentTemp(msg.value);
                         break;
-                    case 'temperatureUpdate':
-                        setCurrentTemp(msg.value);
+                    case 'cycleProgress': // Handle cycle progress updates
+                        setEspOutputs((prev) => ({
+                            ...prev,
+                            cyclesCompleted: msg.completed || 0,
+                            cycleProgress: msg.percent || 0,
+                        }));
+                        console.log(`Updated cycle progress: ${msg.completed}/${msg.total} (${msg.percent}%)`);
                         break;
                     case 'status':
                         setEspOutputs((prev) => ({
@@ -63,6 +68,11 @@ export default function useWebSocket() {
                             ...(msg.cycleProgress !== undefined && { cycleProgress: msg.cycleProgress }),
                             ...(msg.syringeUsed !== undefined && { syringeUsed: msg.syringeUsed }),
                         }));
+                        break;
+                    case 'endOfCycles':
+                        if (typeof onEndOfCycles === 'function') {
+                            onEndOfCycles();
+                        }
                         break;
                     default:
                         // Unknown message type
@@ -85,7 +95,7 @@ export default function useWebSocket() {
             console.error('WebSocket error:', err);
             ws.close();
         };
-    }, []);
+    }, [onEndOfCycles]);
 
     // Connect on mount
     useEffect(() => {

@@ -15,18 +15,18 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.166"
+#define ServerIP "10.0.0.135"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-const char *ssid = "DonnaHouse";
-const char *password = "guessthepassword";
+// const char *ssid = "DonnaHouse";
+// const char *password = "guessthepassword";
 
-// const char *ssid = "TheDawgHouse";
-// const char *password = "ThrowItBackForPalestine";
+const char *ssid = "TheDawgHouse";
+const char *password = "ThrowItBackForPalestine";
 
 // const char *ssid = "UCSC-Guest";
 // const char *password = "";
@@ -273,6 +273,11 @@ void loop()
   case SystemState::WAITING:
     // Await parameters packet from frontend
     // Only send state once on entry (handled by setState)
+    if (now - lastSent >= 1000)
+    {
+      sendHeartbeat();
+      lastSent = now;
+    }
     break;
 
   case SystemState::READY:

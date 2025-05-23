@@ -280,10 +280,19 @@ wss.on('connection', (ws) => {
       }
 
       // Handle state or progress updates from ESP32
-      if (msg.type === 'stateUpdate' || msg.type === 'progressUpdate') {
-        espRecoveryState = { ...espRecoveryState, ...msg };
-        saveEspRecoveryState();
-        console.log('Updated ESP recovery state:', espRecoveryState);
+      if (
+        msg.type === 'cycleProgress' ||
+        msg.type === 'heatingProgress' ||
+        msg.type === 'mixingProgress' ||
+        msg.type === 'syringePercentage'
+      ) {
+        // Relay to all frontend clients
+        for (const client of clients) {
+          if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
+            client.send(JSON.stringify(msg));
+          }
+        }
+        return;
       }
 
       // Reset ESP recovery state when the cycle ends

@@ -77,8 +77,8 @@ function App() {
     sendParameters,
     sendButtonCommand,
     sendRecoveryUpdate,
-    resetRecoveryState, // Add this
-  } = useWebSocket();
+    resetRecoveryState,
+  } = useWebSocket(); // <-- Remove argument
 
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
   const [activeTab, setActiveTab] = useState('parameters');
@@ -274,6 +274,14 @@ function App() {
       .catch((err) => console.error('Failed to reset ESP recovery state:', err));
   };
 
+  // Handler for endOfCycles: log cycle, then end cycle
+  const handleEndOfCycles = () => {
+    handleLogCycle();
+    setTimeout(() => {
+      handleEndCycle();
+    }, 500); // 500ms delay to ensure log finishes
+  };
+
   return (
     <div className="container" style={{ position: 'relative' }}>
       {/* Vial Setup Overlay */}
@@ -447,13 +455,20 @@ function App() {
             <div className="columns is-full is-multiline">
               <div className="column is-full">
                 <label className="label is-small">Cycle Progress</label>
-                <progress className="progress is-info is-small" value={espOutputs.cycleProgress} max="100">
-                  {espOutputs.cycleProgress}%
+                <progress className="progress is-info is-small" value={espOutputs.cycleProgress || 0} max="100">
+                  {espOutputs.cycleProgress || 0}%
                 </progress>
               </div>
-              <div className="column is-half">
+              <div className="column is-three-quarters">
                 <label className="label is-small"># Cycles Completed</label>
-                <input type="text" className="input is-small" value={espOutputs.cyclesCompleted} readOnly />
+                <input
+                    type="text"
+                    className="input is-small"
+                    value={
+                        `${espOutputs.cyclesCompleted || 0} of ${parameters.numberOfCycles || 0} cycles completed`
+                    }
+                    readOnly
+                />
               </div>
               <div className="column is-full">
                 <label className="label is-small">Temperature Data</label>
