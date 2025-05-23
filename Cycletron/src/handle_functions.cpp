@@ -95,7 +95,7 @@ void handleStateCommand(const String &name, const String &state)
 
 void handleRecoveryPacket(const JsonObject &data)
 {
-  if (!data["currentState"].is<const char*>() || !data["parameters"].is<JsonObject>())
+  if (!data["currentState"].is<const char *>() || !data["parameters"].is<JsonObject>())
   {
     Serial.println("Recovery packet is empty or invalid. Transitioning to IDLE state.");
     currentState = SystemState::IDLE;
@@ -171,12 +171,12 @@ void handleRecoveryPacket(const JsonObject &data)
 
 void handleParametersPacket(const JsonObject &parameters)
 {
-  volumeAddedPerCycle = atof(parameters["volumeAddedPerCycle"] | "0");
-  syringeDiameter = atof(parameters["syringeDiameter"] | "0");
-  desiredHeatingTemperature = atof(parameters["desiredHeatingTemperature"] | "0");
-  durationOfHeating = atof(parameters["durationOfHeating"] | "0");
-  durationOfMixing = atof(parameters["durationOfMixing"] | "0");
-  numberOfCycles = atoi(parameters["numberOfCycles"] | "0");
+  volumeAddedPerCycle = parameters["volumeAddedPerCycle"].is<float>() ? parameters["volumeAddedPerCycle"].as<float>() : 0.0;
+  syringeDiameter = parameters["syringeDiameter"].is<float>() ? parameters["syringeDiameter"].as<float>() : 0.0;
+  desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<float>() ? parameters["desiredHeatingTemperature"].as<float>() : 0.0;
+  durationOfHeating = parameters["durationOfHeating"].is<float>() ? parameters["durationOfHeating"].as<float>() : 0.0;
+  durationOfMixing = parameters["durationOfMixing"].is<float>() ? parameters["durationOfMixing"].as<float>() : 0.0;
+  numberOfCycles = parameters["numberOfCycles"].is<int>() ? parameters["numberOfCycles"].as<int>() : 0;
 
   sampleZoneCount = 0;
   if (parameters["sampleZonesToMix"].is<JsonArray>())
