@@ -176,6 +176,15 @@ export default function useWebSocket(onEndOfCycles) {
                 }
             })
             .catch((err) => console.error('Failed to reset recovery state:', err));
+        // Also reset ESP recovery state
+        fetch('/api/resetEspRecoveryState', { method: 'POST' })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) {
+                    console.log('ESP_Recovery.json reset');
+                }
+            })
+            .catch((err) => console.error('Failed to reset ESP recovery state:', err));
     }, []);
 
     return {

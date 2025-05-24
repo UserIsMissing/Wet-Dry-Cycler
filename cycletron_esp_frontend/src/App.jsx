@@ -260,18 +260,8 @@ function App() {
 
   // Function to reset both frontend and ESP recovery state
   const resetRecoveryData = () => {
-    // Reset frontend recovery state
+    // Reset frontend and ESP recovery state
     resetRecoveryState();
-    // Reset ESP recovery state
-    fetch('/api/resetEspRecoveryState', { method: 'POST' })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          // Optionally, you can show a notification or reload
-          console.log('ESP_Recovery.json reset');
-        }
-      })
-      .catch((err) => console.error('Failed to reset ESP recovery state:', err));
   };
 
   // Handler for endOfCycles: log cycle, then end cycle

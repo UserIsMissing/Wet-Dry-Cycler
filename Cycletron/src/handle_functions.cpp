@@ -24,6 +24,7 @@ extern int sampleZoneCount;
 extern SystemState currentState;
 extern SystemState previousState;
 extern void setState(SystemState newState);
+extern void sendRecoveryPacketToServer();
 
 void handleStateCommand(const String &name, const String &state)
 {
@@ -199,4 +200,7 @@ void handleParametersPacket(const JsonObject &parameters)
   Serial.printf("  Number of cycles: %d\n", numberOfCycles);
 
   setState(SystemState::READY);
+
+  // Send recovery packet to server after parameters are set
+  sendRecoveryPacketToServer();
 }

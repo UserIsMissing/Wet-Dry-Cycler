@@ -15,6 +15,9 @@ extern int numberOfCycles;
 extern int completedCycles;
 extern SystemState currentState;
 
+extern int sampleZoneCount;
+extern int sampleZonesArray[];
+
 void sendHeartbeat()
 {
   ArduinoJson::JsonDocument doc;
@@ -187,6 +190,54 @@ void sendCurrentState()
     serializeJson(doc, buffer);
     webSocket.sendTXT(buffer);
     Serial.printf("[WS] Sent current state: %s\n", stateStr);
+}
+
+// Add this function to send a recovery packet to the server
+void sendRecoveryPacketToServer()
+{
+  ArduinoJson::JsonDocument doc;
+  doc["type"] = "espRecoveryState";
+  JsonObject data = doc["data"].to<JsonObject>();
+  // Save current state and all relevant parameters
+  switch (currentState) {
+    case SystemState::IDLE: data["currentState"] = "IDLE"; break;
+    case SystemState::READY: data["currentState"] = "READY"; break;
+    case SystemState::REHYDRATING: data["currentState"] = "REHYDRATING"; break;
+    case SystemState::HEATING: data["currentState"] = "HEATING"; break;
+    case SystemState::MIXING: data["currentState"] = "MIXING"; break;
+    case SystemState::REFILLING: data["currentState"] = "REFILLING"; break;
+    case SystemState::EXTRACTING: data["currentState"] = "EXTRACTING"; break;
+    case SystemState::LOGGING: data["currentState"] = "LOGGING"; break;
+    case SystemState::PAUSED: data["currentState"] = "PAUSED"; break;
+    case SystemState::ENDED: data["currentState"] = "ENDED"; break;
+    case SystemState::ERROR: data["currentState"] = "ERROR"; break;
+    default: data["currentState"] = "UNKNOWN"; break;
+  }
+  JsonObject parameters = data["parameters"].to<JsonObject>();
+  parameters["volumeAddedPerCycle"] = volumeAddedPerCycle;
+  parameters["syringeDiameter"] = syringeDiameter;
+  parameters["desiredHeatingTemperature"] = desiredHeatingTemperature;
+  parameters["durationOfHeating"] = durationOfHeating;
+  parameters["durationOfMixing"] = durationOfMixing;
+  parameters["numberOfCycles"] = numberOfCycles;
+  parameters["syringeStepCount"] = syringeStepCount;
+  parameters["heatingStartTime"] = heatingStartTime;
+  parameters["heatingStarted"] = heatingStarted;
+  parameters["mixingStartTime"] = mixingStartTime;
+  parameters["mixingStarted"] = mixingStarted;
+  parameters["completedCycles"] = completedCycles;
+  parameters["currentCycle"] = currentCycle;
+  parameters["heatingProgress"] = heatingProgressPercent;
+  parameters["mixingProgress"] = mixingProgressPercent;
+  JsonArray zones = parameters["sampleZonesToMix"].to<JsonArray>();
+  for (int i = 0; i < sampleZoneCount; i++) {
+    zones.add(sampleZonesArray[i]);
+  }
+  // Send to server
+  String message;
+  serializeJson(doc, message);
+  webSocket.sendTXT(message);
+  Serial.println("[WS] Sent ESP recovery packet to server");
 }
 
 
