@@ -24,6 +24,7 @@ extern int sampleZoneCount;
 extern SystemState currentState;
 extern SystemState previousState;
 extern void setState(SystemState newState);
+extern void sendRecoveryPacketToServer();
 
 void handleStateCommand(const String &name, const String &state)
 {
@@ -171,12 +172,12 @@ void handleRecoveryPacket(const JsonObject &data)
 
 void handleParametersPacket(const JsonObject &parameters)
 {
-  volumeAddedPerCycle = parameters["volumeAddedPerCycle"].is<float>() ? parameters["volumeAddedPerCycle"].as<float>() : 0.0;
-  syringeDiameter = parameters["syringeDiameter"].is<float>() ? parameters["syringeDiameter"].as<float>() : 0.0;
-  desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<float>() ? parameters["desiredHeatingTemperature"].as<float>() : 0.0;
-  durationOfHeating = parameters["durationOfHeating"].is<float>() ? parameters["durationOfHeating"].as<float>() : 0.0;
-  durationOfMixing = parameters["durationOfMixing"].is<float>() ? parameters["durationOfMixing"].as<float>() : 0.0;
-  numberOfCycles = parameters["numberOfCycles"].is<int>() ? parameters["numberOfCycles"].as<int>() : 0;
+  volumeAddedPerCycle = parameters["volumeAddedPerCycle"].is<const char *>() ? atof(parameters["volumeAddedPerCycle"].as<const char *>()) : 0.0;
+  syringeDiameter = parameters["syringeDiameter"].is<const char *>() ? atof(parameters["syringeDiameter"].as<const char *>()) : 0.0;
+  desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<const char *>() ? atof(parameters["desiredHeatingTemperature"].as<const char *>()) : 0.0;
+  durationOfHeating = parameters["durationOfHeating"].is<const char *>() ? atof(parameters["durationOfHeating"].as<const char *>()) : 0.0;
+  durationOfMixing = parameters["durationOfMixing"].is<const char *>() ? atof(parameters["durationOfMixing"].as<const char *>()) : 0.0;
+  numberOfCycles = parameters["numberOfCycles"].is<const char *>() ? atoi(parameters["numberOfCycles"].as<const char *>()) : 0;
 
   sampleZoneCount = 0;
   if (parameters["sampleZonesToMix"].is<JsonArray>())
@@ -199,4 +200,7 @@ void handleParametersPacket(const JsonObject &parameters)
   Serial.printf("  Number of cycles: %d\n", numberOfCycles);
 
   setState(SystemState::READY);
+
+  // Send recovery packet to server after parameters are set
+  sendRecoveryPacketToServer();
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import 'bulma/css/bulma.min.css';
 import useWebSocket from './hooks/useWebSocket';
 import './App.css';
@@ -77,8 +77,8 @@ function App() {
     sendParameters,
     sendButtonCommand,
     sendRecoveryUpdate,
-    resetRecoveryState, // Add this
-  } = useWebSocket();
+    resetRecoveryState,
+  } = useWebSocket(); // <-- Remove argument
 
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
   const [activeTab, setActiveTab] = useState('parameters');
@@ -260,83 +260,28 @@ function App() {
 
   // Function to reset both frontend and ESP recovery state
   const resetRecoveryData = () => {
-    // Reset frontend recovery state
+    // Reset frontend and ESP recovery state
     resetRecoveryState();
-    // Reset ESP recovery state
-    fetch('/api/resetEspRecoveryState', { method: 'POST' })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          // Optionally, you can show a notification or reload
-          console.log('ESP_Recovery.json reset');
-        }
-      })
-      .catch((err) => console.error('Failed to reset ESP recovery state:', err));
   };
+
+  // Handler for endOfCycles: log cycle, then end cycle
+  const handleEndOfCycles = () => {
+    handleLogCycle();
+    setTimeout(() => {
+      handleEndCycle();
+    }, 500); // 500ms delay to ensure log finishes
+  };
+
+  // Store the last valid temperature value
+  const lastTempRef = useRef(null);
+  useEffect(() => {
+    if (typeof currentTemp === 'number' && !isNaN(currentTemp)) {
+      lastTempRef.current = currentTemp;
+    }
+  }, [currentTemp]);
 
   return (
     <div className="container" style={{ position: 'relative' }}>
-      {/* Vial Setup Overlay */}
-      {vialSetupStep && (
-        <div
-          style={{
-            position: 'fixed',
-            zIndex: 1000,
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            background: 'rgba(255,255,255,0.98)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <h1 className="title is-2 mb-5">Vial Setup</h1>
-          {vialSetupStep === 'prompt' ? (
-            <>
-              <h2 className="title is-4 mb-5">Need to Prepare Vials?</h2>
-              <div>
-                <button
-                  className="button is-primary is-large mr-4"
-                  style={{ fontSize: '2rem', padding: '2rem 4rem' }}
-                  onClick={() => handleVialSetupStep('continue')}
-                >
-                  Yes
-                </button>
-                <button
-                  className="button is-light is-large"
-                  style={{ fontSize: '2rem', padding: '2rem 4rem' }}
-                  onClick={() => handleVialSetupStep(null)}
-                >
-                  No
-                </button>
-              </div>
-            </>
-          ) : (
-            <button
-              className="button is-primary is-large"
-              style={{ fontSize: '2rem', padding: '2rem 4rem' }}
-              onClick={() => handleVialSetupStep(null)}
-            >
-              Continue
-            </button>
-          )}
-        </div>
-      )}
-
-      <section className="box mt-4">
-        <h2 className="title is-5">Recovery State (Debug)</h2>
-        <pre>{JSON.stringify(recoveryState, null, 2)}</pre>
-        <button className="button is-small mt-2" onClick={() => sendRecoveryUpdate({ cycleStatus: 'paused' })}>
-          Send Recovery Update
-        </button>
-        <button className="button is-small mt-2 is-danger" onClick={resetRecoveryData}>
-          Reset Recovery Data
-        </button>
-      </section>
-
       <h1 className="title is-2">Wet-Dry Cycler Interface</h1>
 
       <div className="mb-4">
@@ -347,7 +292,59 @@ function App() {
       </div>
 
       <div className="columns">
-        <div className="column is-three-quarters">
+        <div className="column is-three-quarters" style={{ position: 'relative' }}>
+          {/* Vial Setup Overlay - now only covers the tabs/box area */}
+          {vialSetupStep && (
+            <div
+              style={{
+                position: 'absolute',
+                zIndex: 1000,
+                top: 0,
+                left: 0,
+                width: TAB_WIDTH,
+                maxWidth: '100%',
+                height: '100%',
+                background: 'rgba(255,255,255,0.98)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'auto',
+              }}
+            >
+              <h1 className="title is-2 mb-5">Vial Setup</h1>
+              {vialSetupStep === 'prompt' ? (
+                <>
+                  <h2 className="title is-4 mb-5">Need to Prepare Vials?</h2>
+                  <div>
+                    <button
+                      className="button is-primary is-large mr-4"
+                      style={{ fontSize: '2rem', padding: '2rem 4rem' }}
+                      onClick={() => handleVialSetupStep('continue')}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      className="button is-light is-large"
+                      style={{ fontSize: '2rem', padding: '2rem 4rem' }}
+                      onClick={() => handleVialSetupStep(null)}
+                    >
+                      No
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  className="button is-primary is-large"
+                  style={{ fontSize: '2rem', padding: '2rem 4rem' }}
+                  onClick={() => handleVialSetupStep(null)}
+                >
+                  Continue
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="tabs is-toggle is-fullwidth" style={{ maxWidth: TAB_WIDTH }}>
             <ul>
               <li className={activeTab === 'parameters' ? 'is-active' : ''}>
@@ -447,20 +444,30 @@ function App() {
             <div className="columns is-full is-multiline">
               <div className="column is-full">
                 <label className="label is-small">Cycle Progress</label>
-                <progress className="progress is-info is-small" value={espOutputs.cycleProgress} max="100">
-                  {espOutputs.cycleProgress}%
+                <progress className="progress is-info is-small" value={espOutputs.cycleProgress || 0} max="100">
+                  {espOutputs.cycleProgress || 0}%
                 </progress>
               </div>
-              <div className="column is-half">
+              <div className="column is-three-quarters">
                 <label className="label is-small"># Cycles Completed</label>
-                <input type="text" className="input is-small" value={espOutputs.cyclesCompleted} readOnly />
+                <input
+                    type="text"
+                    className="input is-small"
+                    value={
+                        `${espOutputs.cyclesCompleted || 0} of ${parameters.numberOfCycles || 0} cycles completed`
+                    }
+                    readOnly
+                />
               </div>
               <div className="column is-full">
                 <label className="label is-small">Temperature Data</label>
                 <input
                   type="text"
-                  // className="input is-small"
-                  value={currentTemp !== null ? `${currentTemp} °C` : 'N/A'}
+                  value={
+                    (typeof lastTempRef.current === 'number' && !isNaN(lastTempRef.current))
+                      ? `${lastTempRef.current} °C`
+                      : 'N/A'
+                  }
                   readOnly
                 />
               </div>
@@ -487,6 +494,22 @@ function App() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Recovery State (Debug) at the bottom */}
+      <div style={{ position: 'relative', marginTop: '2rem' }}>
+        <section className="box mt-4">
+          <div className="is-flex is-align-items-center mb-2">
+            <h2 className="title is-5 mb-0 mr-3" style={{ marginBottom: 0 }}>Recovery State (Debug)</h2>
+            <button className="button is-small mr-2" onClick={() => sendRecoveryUpdate({ cycleStatus: 'paused' })}>
+              Send Recovery Update
+            </button>
+            <button className="button is-small is-danger" onClick={resetRecoveryData}>
+              Reset Recovery Data
+            </button>
+          </div>
+          <pre>{JSON.stringify(recoveryState, null, 2)}</pre>
+        </section>
       </div>
     </div>
   );
