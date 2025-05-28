@@ -224,35 +224,16 @@ void IRAM_ATTR onMovementBackLimit()
  * the ISR service hasn't been initialized yet. It only attaches if
  * the pin is HIGH (i.e., unpressed).
  */
-void MOVEMENT_ConfigureInterrupts()
-{
+void MOVEMENT_ConfigureInterrupts() {
   pinMode(bumpers_m.front_bumper_pin, INPUT_PULLUP);
   pinMode(bumpers_m.back_bumper_pin, INPUT_PULLUP);
 
   movementFrontTriggered = false;
   movementBackTriggered = false;
 
-  // Attach front bumper ISR only if input is HIGH (not already pressed)
-  if (digitalRead(bumpers_m.front_bumper_pin) == HIGH)
-  {
-    attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, FALLING);
-  }
-  else
-  {
-    Serial.println("[MOVEMENT] Skipping front interrupt attach — pin LOW despite pullup");
-  }
-
-  // Attach back bumper ISR only if input is HIGH (not already pressed)
-  if (digitalRead(bumpers_m.back_bumper_pin) == HIGH)
-  {
-    attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, FALLING);
-  }
-  else
-  {
-    Serial.println("[MOVEMENT] Skipping back interrupt attach — pin LOW despite pullup");
-  }
+  attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, FALLING);
+  attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, FALLING);
 }
-
 /**
  * @brief Handles interrupts for front and back bumpers.
  *
@@ -260,35 +241,20 @@ void MOVEMENT_ConfigureInterrupts()
  * Interrupts are detached temporarily to prevent repeated firing and
  * re-attached only if the pin returns to HIGH state.
  */
-void MOVEMENT_HandleInterrupts()
-{
-  if (movementFrontTriggered)
-  {
+void MOVEMENT_HandleInterrupts() {
+  if (movementFrontTriggered) {
     movementFrontTriggered = false;
-
-    // Detach to prevent ISR from firing again immediately
     detachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin));
-    Serial.println("[INTERRUPT] Movement front limit triggered");
     MOVEMENT_Stop();
-
-    // Re-attach only if pin is HIGH again
-    if (digitalRead(bumpers_m.front_bumper_pin) == HIGH)
-    {
-      attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, FALLING);
-    }
+    attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, FALLING);
+    Serial.println("[MOVEMENT] Front bumper triggered, stopping movement.");
   }
 
-  if (movementBackTriggered)
-  {
+  if (movementBackTriggered) {
     movementBackTriggered = false;
-
     detachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin));
-    Serial.println("[INTERRUPT] Movement back limit triggered");
     MOVEMENT_Stop();
-
-    if (digitalRead(bumpers_m.back_bumper_pin) == HIGH)
-    {
-      attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, FALLING);
-    }
+    attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, FALLING);
+    Serial.println("[MOVEMENT] Back bumper triggered, stopping movement.");
   }
 }
