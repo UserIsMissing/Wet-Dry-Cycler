@@ -40,6 +40,13 @@ typedef struct
 // === API Functions ===
 
 /**
+ * @brief Initializes the movement motor and immediately disables it.
+ *
+ * Use this to ensure the motor is set up but not powered.
+ */
+void MOVEMENT_InitAndDisable();
+
+/**
  * @brief Initializes the MOVEMENT module.
  *
  * This function:
