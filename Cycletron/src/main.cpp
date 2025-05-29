@@ -11,22 +11,25 @@
 
 #include <stdlib.h> // for atof()
 
+// Add this prototype so the compiler knows about the function
+void sendRecoveryPacketToServer();
+
 // TESTS
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.135"
+#define ServerIP "10.0.0.202"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-// const char *ssid = "DonnaHouse";
-// const char *password = "guessthepassword";
+const char *ssid = "DonnaHouse";
+const char *password = "guessthepassword";
 
-const char *ssid = "TheDawgHouse";
-const char *password = "ThrowItBackForPalestine";
+// const char *ssid = "TheDawgHouse";
+// const char *password = "ThrowItBackForPalestine";
 
 // const char *ssid = "UCSC-Guest";
 // const char *password = "";
@@ -123,6 +126,9 @@ void setState(SystemState newState)
     previousState = currentState;
   }
   currentState = newState;
+
+  // Send recovery packet to server on every state change
+  sendRecoveryPacketToServer();
 }
 
 void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
@@ -423,6 +429,8 @@ void loop()
       completedCycles++;
       currentCycle++;
       sendCycleProgress();
+      // Add this to ensure recovery file is updated after increment
+      sendRecoveryPacketToServer();
       currentState = SystemState::REHYDRATING;
     }
 
@@ -454,10 +462,14 @@ void loop()
     completedCycles = 0;
     currentCycle = 0;
     currentState = SystemState::IDLE;
+    // Send recovery packet when ending
+    sendRecoveryPacketToServer();
     break;
 
   case SystemState::ERROR:
     Serial.println("System error — awaiting reset or external command.");
+    // Send recovery packet on error
+    sendRecoveryPacketToServer();
     break;
   }
   delay(10);

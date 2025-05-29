@@ -13,6 +13,7 @@ extern unsigned long mixingStartTime;
 extern float durationOfMixing;
 extern int numberOfCycles;
 extern int completedCycles;
+extern int currentCycle;
 extern SystemState currentState;
 
 extern int sampleZoneCount;
@@ -225,8 +226,8 @@ void sendRecoveryPacketToServer()
   parameters["heatingStarted"] = heatingStarted;
   parameters["mixingStartTime"] = mixingStartTime;
   parameters["mixingStarted"] = mixingStarted;
-  parameters["completedCycles"] = completedCycles;
-  parameters["currentCycle"] = currentCycle;
+  parameters["completedCycles"] = completedCycles; // <-- ensure this is up-to-date
+  parameters["currentCycle"] = currentCycle;       // <-- ensure this is up-to-date
   parameters["heatingProgress"] = heatingProgressPercent;
   parameters["mixingProgress"] = mixingProgressPercent;
   JsonArray zones = parameters["sampleZonesToMix"].to<JsonArray>();

@@ -13,7 +13,7 @@
 #include <Arduino.h>
 #include "DRV8825.h"
 
-#define DRV8825_TEST
+// #define DRV8825_TEST
 
 /**
  * @brief Initializes all GPIO pins used by the DRV8825 motor driver.

@@ -1,0 +1,33 @@
+\contentsline {section}{\numberline {1}Abstract}{3}{section.1}%
+\contentsline {section}{\numberline {2}Introduction}{3}{section.2}%
+\contentsline {section}{\numberline {3}Top Level Overview}{4}{section.3}%
+\contentsline {section}{\numberline {4}Subsystem Overview}{7}{section.5}%
+\contentsline {section}{\numberline {5}Containment}{7}{section.6}%
+\contentsline {section}{\numberline {6}Electrical System}{7}{section.7}%
+\contentsline {subsection}{\numberline {6.1}Power System Design}{7}{subsection.8}%
+\contentsline {subsection}{\numberline {6.2}Power Budget and Load Requirements}{7}{subsection.9}%
+\contentsline {subsection}{\numberline {6.3}Power System Block Diagram}{8}{subsection.11}%
+\contentsline {section}{\numberline {7}Website}{8}{section.12}%
+\contentsline {subsection}{\numberline {7.1}Purpose and Role in System Architecture}{8}{subsection.13}%
+\contentsline {subsection}{\numberline {7.2}Technological Stack}{9}{subsection.14}%
+\contentsline {subsection}{\numberline {7.3}Key Features and Design Considerations}{10}{subsection.15}%
+\contentsline {subsection}{\numberline {7.4}State Machine Interface}{10}{subsection.16}%
+\contentsline {subsection}{\numberline {7.5}Tab-Based Input Access}{10}{subsection.17}%
+\contentsline {subsection}{\numberline {7.6}Robust Recovery and State Persistence}{10}{subsection.18}%
+\contentsline {subsection}{\numberline {7.7}Real-Time Feedback and Logging}{11}{subsection.19}%
+\contentsline {subsection}{\numberline {7.8}Challenges and Development Journey}{11}{subsection.20}%
+\contentsline {subsection}{\numberline {7.9}Learning Curve}{11}{subsection.21}%
+\contentsline {subsection}{\numberline {7.10}State Management and Synchronization}{11}{subsection.22}%
+\contentsline {subsection}{\numberline {7.11}UI Logic and Safety Constraints}{12}{subsection.23}%
+\contentsline {subsection}{\numberline {7.12}Design Evolution and Final Implementation}{12}{subsection.24}%
+\contentsline {subsection}{\numberline {7.13}Conclusion}{12}{subsection.25}%
+\contentsline {section}{\numberline {8}Heating}{13}{section.26}%
+\contentsline {section}{\numberline {9}Mixing}{13}{section.27}%
+\contentsline {section}{\numberline {10}Rehydration - Contributors: Ana Villa}{13}{section.28}%
+\contentsline {subsection}{\numberline {10.1}Materials and Methods}{13}{subsection.29}%
+\contentsline {subsection}{\numberline {10.2}Test and Results}{14}{subsection.30}%
+\contentsline {subsection}{\numberline {10.3}Discussion}{15}{subsection.32}%
+\contentsline {subsection}{\numberline {10.4}Conclusion}{15}{subsection.33}%
+\contentsline {section}{\numberline {11}Extraction}{16}{section.34}%
+\contentsline {section}{\numberline {12}Conclusion}{16}{section.35}%
+\contentsline {section}{\numberline {13}Appendix}{16}{section.36}%
