@@ -65,6 +65,20 @@ float calculate_uL_per_step(float syringeDiameterInches)
 }
 
 /**
+ * @brief Initializes the syringe pump motor and immediately disables it.
+ *
+ * Use this to ensure the motor is set up but not powered.
+ *
+ * @param syringeDiameterInches Syringe inner diameter in inches.
+ */
+void Rehydration_InitAndDisable()
+{
+    DRV8825_Init(&rehydrationMotor);
+    Serial.println("[REHYDRATION] Motor initialized and disabled.");
+}
+
+
+/**
  * @brief Initializes the syringe pump motor and prints calibration data.
  *
  * This function configures the DRV8825 motor with a default microstepping mode,
@@ -86,6 +100,8 @@ void Rehydration_Init(float syringeDiameterInches)
     Serial.printf("[REHYDRATION] Syringe diameter: %.2f in (%.2f mm)\n", syringeDiameterInches, syringeDiameterMM);
     Serial.printf("[REHYDRATION] uL per step = %.5f\n", uL_per_step);
 }
+
+
 
 /**
  * @brief Dispenses fluid by pushing the syringe plunger forward.

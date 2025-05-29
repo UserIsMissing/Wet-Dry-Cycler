@@ -15,18 +15,18 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.135"
+#define ServerIP "10.0.0.203"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-// const char *ssid = "DonnaHouse";
-// const char *password = "guessthepassword";
+const char *ssid = "DonnaHouse";
+const char *password = "guessthepassword";
 
-const char *ssid = "TheDawgHouse";
-const char *password = "ThrowItBackForPalestine";
+// const char *ssid = "TheDawgHouse";
+// const char *password = "ThrowItBackForPalestine";
 
 // const char *ssid = "UCSC-Guest";
 // const char *password = "";
@@ -237,6 +237,8 @@ void setup()
   Serial0.println(WiFi.macAddress());
   HEATING_Init();
   MIXING_Init();
+  Rehydration_InitAndDisable();
+  MOVEMENT_InitAndDisable();
 
   MOVEMENT_ConfigureInterrupts();
   REHYDRATION_ConfigureInterrupts();
@@ -297,6 +299,7 @@ void loop()
 
   case SystemState::REHYDRATING:
   {
+    Rehydration_Init(syringeDiameter);
     // Only send state once on entry (handled by setState)
     Serial.println("[STATE] Rehydrating...");
     if (currentCycle >= numberOfCycles)
@@ -379,7 +382,7 @@ void loop()
   {
     if (!heatingStarted)
     {
-      Serial.println("[HEATING] Starting...");
+      Serial.printf("[HEATING] Starting... durationOfHeating = %.2f\n", durationOfHeating);
       unsigned long heatTime = heatingProgressPercent > 0
                                    ? (unsigned long)((1.0 - (heatingProgressPercent / 100.0)) * durationOfHeating * 1000)
                                    : (unsigned long)(durationOfHeating * 1000);
@@ -453,7 +456,7 @@ void loop()
   case SystemState::ENDED:
     completedCycles = 0;
     currentCycle = 0;
-    currentState = SystemState::IDLE;
+    currentState = SystemState::VIAL_SETUP;
     break;
 
   case SystemState::ERROR:

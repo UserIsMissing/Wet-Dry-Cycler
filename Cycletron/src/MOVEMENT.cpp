@@ -35,6 +35,18 @@ BUMPER_t bumpers_m = {
     .back_bumper_pin = 46,
   };
 
+
+  /**
+ * @brief Initializes the movement motor and immediately disables it.
+ *
+ * Use this to ensure the motor is set up but not powered.
+ */
+void MOVEMENT_InitAndDisable()
+{
+  DRV8825_Init(&movementMotor);
+  Serial.println("[MOVEMENT] Motor initialized and disabled.");
+}
+
 /**
  * @brief Applies small reverse motion to unstuck the mechanism.
  *

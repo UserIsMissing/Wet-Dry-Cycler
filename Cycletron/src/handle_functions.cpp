@@ -119,7 +119,7 @@ void handleRecoveryPacket(const JsonObject &data)
   JsonObject parameters = data["parameters"];
   volumeAddedPerCycle = parameters["volumeAddedPerCycle"].is<float>() ? parameters["volumeAddedPerCycle"].as<float>() : 0.0;
   syringeDiameter = parameters["syringeDiameter"].is<float>() ? parameters["syringeDiameter"].as<float>() : 0.0;
-  desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<float>() ? parameters["desiredHeatingTemperature"].as<float>() : 0.0;
+  desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<int>() ? parameters["desiredHeatingTemperature"].as<int>() : 0.0;
   durationOfHeating = parameters["durationOfHeating"].is<float>() ? parameters["durationOfHeating"].as<float>() : 0.0;
   durationOfMixing = parameters["durationOfMixing"].is<float>() ? parameters["durationOfMixing"].as<float>() : 0.0;
   numberOfCycles = parameters["numberOfCycles"].is<int>() ? parameters["numberOfCycles"].as<int>() : 0;

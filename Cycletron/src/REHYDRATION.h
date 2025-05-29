@@ -67,6 +67,15 @@ float calculate_uL_per_step(float syringeDiameterInches);
 void Rehydration_Init(float syringeDiameterInches);
 
 /**
+ * @brief Initializes the syringe pump motor and immediately disables it.
+ *
+ * Use this to ensure the motor is set up but not powered.
+ *
+ * 
+ */
+void Rehydration_InitAndDisable();
+
+/**
  * @brief Dispenses a specific volume of liquid in microliters by pushing the plunger forward.
  *
  * Converts the desired microliters to motor steps based on syringe and leadscrew dimensions,
