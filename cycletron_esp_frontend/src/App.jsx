@@ -150,7 +150,7 @@ function App() {
     setActiveButton(null);
     sendRecoveryUpdate({
       machineStep: 'started',
-      cycleState: 'started', // <-- important!
+      cycleState: 'started', // <-- add comma here
       lastAction: 'startCycle',
       progress: 0,
     });
@@ -185,10 +185,10 @@ function App() {
       lastAction: 'endCycle',
       progress: 0,
       activeTab: 'parameters',
+      vialSetupStep: 'prompt', // Always show vial setup after ending cycle
     });
-    // setParameters(INITIAL_PARAMETERS); // Reset parameters to initial state
-    setVialSetupStep('prompt'); // Reset the vial setup step
-    setShowVialSetup(true); // Show the vial setup prompt again
+    setVialSetupStep('prompt'); // Always show vial setup overlay
+    setShowVialSetup(true); // Always show vial setup overlay
     setActiveTab('parameters'); // Switch to the "Set Parameters" tab
   };
 
