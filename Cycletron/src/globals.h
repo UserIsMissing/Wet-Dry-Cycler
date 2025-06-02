@@ -47,4 +47,9 @@ extern int currentCycle;
 extern float heatingProgressPercent;
 extern float mixingProgressPercent;
 
+extern int sampleZonesArray[3];
+extern int sampleZoneCount;
+
+extern volatile bool recoveryStateDirty;
+
 #endif // GLOBALS_H

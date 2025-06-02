@@ -16,3 +16,8 @@ extern int completedCycles;
 extern int currentCycle;
 extern float heatingProgressPercent;
 extern float mixingProgressPercent;
+
+extern int sampleZonesArray[3];
+extern int sampleZoneCount;
+
+volatile bool recoveryStateDirty = false;

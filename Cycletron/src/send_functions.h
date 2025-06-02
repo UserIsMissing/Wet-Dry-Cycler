@@ -9,3 +9,4 @@ void sendCycleProgress();
 void sendEndOfCycles();
 void sendSyringeResetInfo();
 void sendCurrentState();
+void sendEspRecoveryState();

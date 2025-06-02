@@ -189,6 +189,52 @@ void sendCurrentState()
     Serial.printf("[WS] Sent current state: %s\n", stateStr);
 }
 
+void sendEspRecoveryState()
+{
+  static bool inSend = false;
+  if (inSend) {
+    Serial.println("[ERROR] sendEspRecoveryState called reentrantly! Skipping send to prevent crash.");
+    return;
+  }
+  inSend = true;
+  if (!webSocket.isConnected()) {
+    Serial.println("[DEBUG] WebSocket not connected, not sending ESP recovery state");
+    inSend = false;
+    return;
+  }
+  ArduinoJson::JsonDocument doc;
+  doc["type"] = "updateEspRecoveryState";
+  JsonObject data = doc["data"].to<JsonObject>();
+  data["currentState"] = (int)currentState;
+  data["volumeAddedPerCycle"] = volumeAddedPerCycle;
+  data["syringeDiameter"] = syringeDiameter;
+  data["desiredHeatingTemperature"] = desiredHeatingTemperature;
+  data["durationOfHeating"] = durationOfHeating;
+  data["durationOfMixing"] = durationOfMixing;
+  data["numberOfCycles"] = numberOfCycles;
+  data["syringeStepCount"] = syringeStepCount;
+  data["heatingStartTime"] = heatingStartTime;
+  data["mixingStartTime"] = mixingStartTime;
+  data["heatingStarted"] = heatingStarted;
+  data["mixingStarted"] = mixingStarted;
+  data["completedCycles"] = completedCycles;
+  data["currentCycle"] = currentCycle;
+  data["heatingProgress"] = heatingProgressPercent;
+  data["mixingProgress"] = mixingProgressPercent;
+  JsonArray zones = data["sampleZonesToMix"].to<JsonArray>();
+  for (int i = 0; i < sampleZoneCount; ++i) zones.add(sampleZonesArray[i]);
+
+  String jsonStr;
+  serializeJson(doc, jsonStr);
+  Serial.print("[DEBUG] sendEspRecoveryState: sending to server (len=");
+  Serial.print(jsonStr.length());
+  Serial.print("): ");
+  Serial.println(jsonStr);
+  webSocket.sendTXT(jsonStr);
+  Serial.println("[WS] Sent ESP recovery state to server.");
+  inSend = false;
+}
+
 
 
 

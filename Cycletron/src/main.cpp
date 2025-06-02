@@ -79,8 +79,13 @@ WebSocketsClient webSocket;
 unsigned long pausedElapsedTime = 0;
 unsigned long pausedAtTime = 0;
 
+#define DEBUG_RECOVERY 1
+
 void setState(SystemState newState)
 {
+  if (DEBUG_RECOVERY) {
+    Serial.printf("[DEBUG] setState: %d -> %d\n", (int)currentState, (int)newState);
+  }
   // --- PAUSE/RESUME LOGIC ---
   if (newState == SystemState::PAUSED ||
       newState == SystemState::EXTRACTING ||
@@ -123,17 +128,21 @@ void setState(SystemState newState)
     previousState = currentState;
   }
   currentState = newState;
+  if (DEBUG_RECOVERY) {
+    Serial.println("[DEBUG] Marked recoveryStateDirty = true");
+  }
 }
 
 void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
 {
+  Serial.printf("[DEBUG] Entered onWebSocketEvent: type=%d\n", type);
   switch (type)
   {
   case WStype_CONNECTED:
     Serial.println("WebSocket connected");
     // Send heartbeat packet
     {
-      ArduinoJson::JsonDocument doc; // auto-resizing with latest versions
+      ArduinoJson::JsonDocument doc;
       doc["from"] = "esp32";
       doc["type"] = "heartbeat";
       char buffer[64];
@@ -147,19 +156,17 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     break;
   case WStype_TEXT:
   {
-    Serial.printf("Received: %s\n", payload);
-    ArduinoJson::JsonDocument doc; // auto-resizing with latest versions
+    Serial.printf("[DEBUG] Received: %s\n", payload);
+    ArduinoJson::JsonDocument doc;
     auto err = deserializeJson(doc, payload, length);
-    if (err)
-    {
-      Serial.print("JSON parse failed: ");
+    if (err) {
+      Serial.print("[ERROR] Failed to parse JSON: ");
       Serial.println(err.c_str());
       break;
     }
-
     // --- VIAL SETUP PACKET HANDLING ---
-    if (doc["type"] == "vialSetup" && doc["status"].is<const char*>())
-    {
+    if (doc["type"] == "vialSetup" && doc["status"].is<const char*>()) {
+      Serial.println("[DEBUG] Handling vialSetup packet");
       String status = doc["status"].as<String>();
       if (status == "yes") {
         Serial.println("[VIAL_SETUP] Vial setup confirmed. Transitioning to VIAL_SETUP state...");
@@ -173,42 +180,44 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
           setState(SystemState::WAITING);
         }
       }
+      // DO NOT call sendEspRecoveryState() here!
+      Serial.println("[DEBUG] Marked recoveryStateDirty = true (vialSetup)");
       break;
     }
-    // --- END VIAL SETUP PACKET HANDLING ---
-
-    if (doc["type"] == "espRecoveryState" && doc["data"].is<JsonObject>())
-    {
+    // --- END VIAL SETUP PACKET HANDLING ---    // Handle recovery packet from server
+    if (doc["type"] == "espRecoveryState" && doc["data"].is<JsonObject>()) {
+      Serial.println("[DEBUG] Handling espRecoveryState packet");
       JsonObject data = doc["data"].as<JsonObject>();
       handleRecoveryPacket(data);
+      Serial.println("[RECOVERY] ESP32 state restored from server recovery file.");
+      // DO NOT call sendEspRecoveryState() here!
+      break;
     }
-    else if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
-    {
-      JsonObject parameters = doc["data"].as<JsonObject>();
-      // Only allow transition to READY from WAITING
-      if (currentState == SystemState::WAITING) {
-        handleParametersPacket(parameters); // This should call setState(SystemState::READY)
-      } else {
-        Serial0.printf("[PARAMETERS] Ignoring parameters packet in state: %d\n", static_cast<int>(currentState));
-      }
+
+    // Handle parameters packet from frontend
+    if (doc["type"] == "parameters" && doc["data"].is<JsonObject>()) {
+      Serial.println("[DEBUG] Handling parameters packet");
+      JsonObject data = doc["data"].as<JsonObject>();
+      handleParametersPacket(data);
+      break;
     }
-    else if (doc["name"].is<const char *>() && doc["state"].is<const char *>() && String(doc["name"].as<const char*>()) != "vialSetup")
-    {
+
+    // Handle button commands from frontend
+    if (doc["type"] == "button" && doc["name"].is<const char*>() && doc["state"].is<const char*>()) {
+      Serial.println("[DEBUG] Handling button command");
       String name = doc["name"].as<String>();
       String state = doc["state"].as<String>();
-      Serial0.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
-
       handleStateCommand(name, state);
+      break;
     }
-    else
-    {
-      Serial.println("Invalid packet received");
-    }
+
+    // Handle other message types as needed
     break;
   }
   default:
     break;
   }
+  Serial.println("[DEBUG] Exiting onWebSocketEvent");
 }
 
 
@@ -247,6 +256,12 @@ void loop()
   webSocket.loop();
   MOVEMENT_HandleInterrupts();
   REHYDRATION_HandleInterrupts();
+
+  // Send recovery state if it's dirty
+  if (recoveryStateDirty) {
+    sendEspRecoveryState();
+    recoveryStateDirty = false;
+  }
 
   unsigned long now = millis();
   switch (currentState)
@@ -461,6 +476,14 @@ void loop()
     break;
   }
   delay(10);
+
+  // At the end of the loop, if recovery state is dirty, send it
+  if (recoveryStateDirty) {
+    Serial.println("[DEBUG] loop: recoveryStateDirty is true, calling sendEspRecoveryState()");
+    sendEspRecoveryState();
+    recoveryStateDirty = false;
+    Serial.println("[DEBUG] loop: recoveryStateDirty cleared");
+  }
 }
 
 #endif // TESTING_MAIN

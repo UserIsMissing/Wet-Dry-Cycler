@@ -9,8 +9,9 @@ const { exec } = require('child_process'); // For opening file location in Explo
 const app = express();
 const PORT = 5175;
 
-const recoveryFile = 'recovery_state.json';
-const espRecoveryFile = 'ESP_Recovery.json'; // File for ESP32 recovery state
+// Change recovery file paths to be in the /server/ folder and update names
+const recoveryFile = path.join(__dirname, 'Frontend_Recovery.json');
+const espRecoveryFile = path.join(__dirname, 'ESP_Recovery.json'); // File for ESP32 recovery state
 
 let recoveryState = {};
 let espRecoveryState = {};
@@ -75,7 +76,7 @@ app.get('/api/history', (req, res) => {
 app.post('/api/resetRecoveryState', (req, res) => {
   if (fs.existsSync(recoveryFile)) {
     fs.unlinkSync(recoveryFile);
-    console.log('recovery_state.json deleted by request.');
+    console.log('Frontend_Recovery.json deleted by request.');
   }
   recoveryState = {}; // Reset in-memory state
   res.json({ success: true });
@@ -94,6 +95,7 @@ const espClients = new Set();
 
 wss.on('connection', (ws) => {
   let isEspClient = false; // Track if this client is an ESP32
+  let espRecoverySent = false; // Ensure we only send recovery once per connection
 
   if (!clients.has(ws)) {
     clients.add(ws);
@@ -101,26 +103,41 @@ wss.on('connection', (ws) => {
   }
 
   ws.on('message', (message) => {
+    console.log('[WS DEBUG] Received message:', message);
     try {
       const msg = JSON.parse(message);
 
+      // Debug: log all message types
+      if (msg.type) {
+        console.log(`[WS DEBUG] Message type: ${msg.type}`);
+      }
+
       // Detect ESP32 by a message property (e.g., type === 'esp_announce')
       if (msg.from === 'esp32') {
-        if (!espClients.has(ws)) {
-          espClients.add(ws);
-          isEspClient = true;
-          console.log('Registered ESP32 WebSocket client');
-          broadcastExcept(ws, JSON.stringify({ type: 'status', status: 'connected' }));
-
-          // Send ESP recovery state to ESP32 on connection
-          if (Object.keys(espRecoveryState).length > 0) {
-            ws.send(JSON.stringify({ type: 'espRecoveryState', data: espRecoveryState }));
-            console.log('Sent ESP recovery state to ESP32:', espRecoveryState);
-          } else {
-            console.log('ESP recovery state is empty. ESP32 will start fresh.');
+        isEspClient = true;
+        espClients.add(ws);        // On ESP32 connect, send recovery state if available and not already sent
+        if (!espRecoverySent && fs.existsSync(espRecoveryFile)) {
+          try {
+            const fileContent = fs.readFileSync(espRecoveryFile, 'utf8');
+            if (fileContent && fileContent.trim() !== '{}' && fileContent.trim() !== '') {
+              const recoveryData = JSON.parse(fileContent);
+              ws.send(JSON.stringify({ type: 'espRecoveryState', data: recoveryData }));
+              console.log('Sent ESP recovery state to ESP32:', recoveryData);
+              espRecoverySent = true;
+            }
+          } catch (e) {
+            console.error('Failed to send ESP recovery state:', e);
           }
         }
-        return; // ESP32 never gets recoveryState
+        return;
+      }
+
+      // Handle ESP32 updating its recovery state
+      if (msg.type === 'updateEspRecoveryState' && isEspClient) {
+        espRecoveryState = msg.data || {};
+        saveEspRecoveryState();
+        console.log('[WS DEBUG] Updated ESP recovery state and saved to ESP_Recovery.json:', espRecoveryState);
+        return;
       }
 
       // Handle heartbeat packets from ESP32
@@ -257,7 +274,7 @@ wss.on('connection', (ws) => {
       if (msg.type === 'resetRecoveryState') {
         if (fs.existsSync(recoveryFile)) {
           fs.unlinkSync(recoveryFile);
-          console.log('recovery_state.json deleted by frontend request.');
+          console.log('Frontend_Recovery.json deleted by frontend request.');
         }
         recoveryState = {};
         // Notify all clients of the reset state
