@@ -15,7 +15,7 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.202"
+#define ServerIP "10.0.0.135"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===

@@ -74,11 +74,21 @@ app.get('/api/history', (req, res) => {
 
 // Add this route to reset the recovery state
 app.post('/api/resetRecoveryState', (req, res) => {
+  // Delete frontend recovery state
   if (fs.existsSync(recoveryFile)) {
     fs.unlinkSync(recoveryFile);
     console.log('Frontend_Recovery.json deleted by request.');
   }
-  recoveryState = {}; // Reset in-memory state
+  
+  // Delete ESP32 recovery state
+  if (fs.existsSync(espRecoveryFile)) {
+    fs.unlinkSync(espRecoveryFile);
+    console.log('ESP_Recovery.json deleted by request.');
+  }
+  
+  recoveryState = {}; // Reset frontend in-memory state
+  espRecoveryState = {}; // Reset ESP32 in-memory state
+  
   res.json({ success: true });
 });
 
@@ -305,17 +315,29 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.type === 'resetRecoveryState') {
+        // Delete frontend recovery file
         if (fs.existsSync(recoveryFile)) {
           fs.unlinkSync(recoveryFile);
           console.log('Frontend_Recovery.json deleted by frontend request.');
         }
+        
+        // Delete ESP32 recovery file
+        if (fs.existsSync(espRecoveryFile)) {
+          fs.unlinkSync(espRecoveryFile);
+          console.log('ESP_Recovery.json deleted by frontend request.');
+        }
+        
+        // Reset in-memory states
         recoveryState = {};
+        espRecoveryState = {};
+        
         // Notify all clients of the reset state
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type: 'recoveryState', data: recoveryState }));
           }
         });
+        
         return;
       }
 
