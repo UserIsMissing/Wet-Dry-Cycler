@@ -62,9 +62,24 @@ else
 fi
 cd "$SCRIPT_DIR"
 
-# === Start Backend Server with nodemon (using nodemon.json config) ===
+# === Kill any existing servers ===
+echo "Checking for existing server processes..."
+PID_5175=$(lsof -ti:5175 2>/dev/null)
+PID_5174=$(lsof -ti:5174 2>/dev/null)
+
+if [ ! -z "$PID_5175" ]; then
+  echo "Killing existing process on port 5175 (PID: $PID_5175)..."
+  kill -9 $PID_5175
+fi
+
+if [ ! -z "$PID_5174" ]; then
+  echo "Killing existing process on port 5174 (PID: $PID_5174)..."
+  kill -9 $PID_5174
+fi
+
+# === Start Backend Server with nodemon (ignoring recovery files) ===
 echo "Starting backend server with nodemon on port 5175..."
-osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'/server\" && nodemon"'
+osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'/server\" && nodemon server.js --ignore Frontend_Recovery.json --ignore ESP_Recovery.json"'
 
 # === Start Frontend Vite Dev Server ===
 echo "Starting frontend (Vite) on default port..."
@@ -72,5 +87,6 @@ osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'\" && npm ru
 
 # === Open in Browser ===
 sleep 5
-echo "Opening frontend in browser..."
+echo "Opening frontend and backend in browser..."
+open http://localhost:5175
 open http://localhost:5174
