@@ -62,9 +62,9 @@ else
 fi
 cd "$SCRIPT_DIR"
 
-# === Start Backend Server with nodemon (ignoring recovery_state.json) ===
+# === Start Backend Server with nodemon (using nodemon.json config) ===
 echo "Starting backend server with nodemon on port 5175..."
-osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'/server\" && nodemon server.js --ignore recovery_state.json"'
+osascript -e 'tell app "Terminal" to do script "cd \"'"$SCRIPT_DIR"'/server\" && nodemon"'
 
 # === Start Frontend Vite Dev Server ===
 echo "Starting frontend (Vite) on default port..."
