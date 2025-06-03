@@ -2,37 +2,18 @@
 #include "globals.h"
 #include "send_functions.h"
 #include "handle_functions.h"
+#include "globals.h"
 
-// Use globals from globals.h
-extern float volumeAddedPerCycle;
-extern float syringeDiameter;
-extern float desiredHeatingTemperature;
-extern float durationOfHeating;
-extern float durationOfMixing;
-extern int numberOfCycles;
-extern int syringeStepCount;
-extern unsigned long heatingStartTime;
-extern unsigned long mixingStartTime;
-extern bool heatingStarted;
-extern bool mixingStarted;
-extern int completedCycles;
-extern int currentCycle;
-extern float heatingProgressPercent;
-extern float mixingProgressPercent;
-extern int sampleZonesArray[3];
-extern int sampleZoneCount;
-extern SystemState currentState;
-extern SystemState previousState;
-extern void setState(SystemState newState);
-extern void sendRecoveryPacketToServer();
+
 
 void handleStateCommand(const String &name, const String &state)
 {
-  if (currentState == SystemState::IDLE)
+  if (name != "vialSetup" && currentState == SystemState::IDLE)
   {
     Serial.println("System is IDLE — cannot process commands until parameters are received.");
     return;
   }
+
   if (name == "startCycle" && state == "on")
   {
     setState(SystemState::REHYDRATING);
@@ -51,6 +32,19 @@ void handleStateCommand(const String &name, const String &state)
       Serial.printf("State RESUMED (currentState = %d)", static_cast<int>(currentState));
     }
   }
+  else if (name == "vialSetup")
+  {
+    if (state == "yes")
+    {
+      setState(SystemState::VIAL_SETUP);
+      shouldMoveForward = true; // Enable back-and-forth movement
+      Serial.println("State changed to VIAL_SETUP");
+    }
+    else if (state == "no")
+    {
+      shouldMoveBack = true; // Disable back-and-forth movement
+    }
+  }
   else if (name == "endCycle" && state == "on")
   {
     setState(SystemState::ENDED);
@@ -61,12 +55,12 @@ void handleStateCommand(const String &name, const String &state)
     if (state == "on")
     {
       setState(SystemState::EXTRACTING);
+      shouldMoveForward = true; // Enable back-and-forth movement
       Serial.println("Extraction started");
     }
     else
     {
-      setState(previousState);
-      Serial.println("Extraction ended — resuming");
+      shouldMoveBack = true; // Disable back-and-forth movement
     }
   }
   else if (name == "refill")
@@ -84,7 +78,6 @@ void handleStateCommand(const String &name, const String &state)
   }
   else if (name == "logCycle" && state == "on")
   {
-
     setState(SystemState::LOGGING);
     Serial.println("State changed to LOGGING");
   }
@@ -120,7 +113,7 @@ void handleRecoveryPacket(const JsonObject &data)
   JsonObject parameters = data["parameters"];
   volumeAddedPerCycle = parameters["volumeAddedPerCycle"].is<float>() ? parameters["volumeAddedPerCycle"].as<float>() : 0.0;
   syringeDiameter = parameters["syringeDiameter"].is<float>() ? parameters["syringeDiameter"].as<float>() : 0.0;
-  desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<float>() ? parameters["desiredHeatingTemperature"].as<float>() : 0.0;
+  desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<int>() ? parameters["desiredHeatingTemperature"].as<int>() : 0.0;
   durationOfHeating = parameters["durationOfHeating"].is<float>() ? parameters["durationOfHeating"].as<float>() : 0.0;
   durationOfMixing = parameters["durationOfMixing"].is<float>() ? parameters["durationOfMixing"].as<float>() : 0.0;
   numberOfCycles = parameters["numberOfCycles"].is<int>() ? parameters["numberOfCycles"].as<int>() : 0;
@@ -200,7 +193,4 @@ void handleParametersPacket(const JsonObject &parameters)
   Serial.printf("  Number of cycles: %d\n", numberOfCycles);
 
   setState(SystemState::READY);
-
-  // Send recovery packet to server after parameters are set
-  sendRecoveryPacketToServer();
 }

@@ -16,3 +16,11 @@ extern int completedCycles;
 extern int currentCycle;
 extern float heatingProgressPercent;
 extern float mixingProgressPercent;
+
+bool shouldMoveForward= false; // Initialize the flag to false
+bool shouldMoveBack = false; // Initialize the flag to false
+
+bool movementForwardDone = false;
+bool movementBackDone = false;
+
+
