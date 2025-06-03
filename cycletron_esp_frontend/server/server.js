@@ -81,12 +81,6 @@ app.post('/api/resetRecoveryState', (req, res) => {
   res.json({ success: true });
 });
 
-// Add this route to reset the ESP recovery state
-app.post('/api/resetEspRecoveryState', (req, res) => {
-  resetEspRecoveryState();
-  res.json({ success: true });
-});
-
 // ----------------- Static Frontend -----------------
 app.use(express.static(path.join(__dirname, '../dist')));
 
@@ -100,7 +94,6 @@ const espClients = new Set();
 
 wss.on('connection', (ws) => {
   let isEspClient = false; // Track if this client is an ESP32
-  let espRecoverySent = false; // Track if we've sent ESP recovery to this ESP
 
   if (!clients.has(ws)) {
     clients.add(ws);
@@ -119,10 +112,9 @@ wss.on('connection', (ws) => {
           console.log('Registered ESP32 WebSocket client');
           broadcastExcept(ws, JSON.stringify({ type: 'status', status: 'connected' }));
 
-          // Send ESP recovery state to ESP32 on connection (only once)
-          if (!espRecoverySent && Object.keys(espRecoveryState).length > 0) {
+          // Send ESP recovery state to ESP32 on connection
+          if (Object.keys(espRecoveryState).length > 0) {
             ws.send(JSON.stringify({ type: 'espRecoveryState', data: espRecoveryState }));
-            espRecoverySent = true;
             console.log('Sent ESP recovery state to ESP32:', espRecoveryState);
           } else {
             console.log('ESP recovery state is empty. ESP32 will start fresh.');
@@ -210,29 +202,17 @@ wss.on('connection', (ws) => {
         }
       }
 
-      // Handle ESP recovery packet from ESP32
-      if (msg.type === 'espRecoveryState' && msg.data) {
-        espRecoveryState = msg.data;
-        saveEspRecoveryState();
-        console.log('Updated ESP_Recovery.json:', espRecoveryState);
-        return;
-      }
-
-      // When frontend sends parameters, also store in ESP_Recovery.json (under a separate key)
-      if (msg.type === 'parameters' && msg.data) {
+      if (msg.type === 'parameters') {
+        console.log('Received parameters:', msg.data);
         // Forward parameters to all ESP32 clients
         for (const esp of espClients) {
           if (esp.readyState === WebSocket.OPEN) {
             esp.send(JSON.stringify(msg));
           }
         }
-        // Save parameters in ESP_Recovery.json under "frontendParameters"
-        espRecoveryState.frontendParameters = msg.data;
-        saveEspRecoveryState();
-        console.log('Saved frontend parameters to ESP_Recovery.json');
-        return;
       }
 
+      // Handle log cycle button
       if (msg.type === 'button' && msg.name === 'logCycle') {
         // Format: Log_Cycle_YYYY-MM-DD_HH-MM.json (safe for Windows/Mac)
         const now = new Date();

@@ -55,6 +55,17 @@ extern int BUMPER_STATE;
  */
 float calculate_uL_per_step(float syringeDiameterInches);
 
+
+/**
+ * @brief Initializes the syringe pump motor and immediately disables it.
+ *
+ * Use this to ensure the motor is set up but not powered.
+ *
+ * @param syringeDiameterInches Syringe inner diameter in inches.
+ */
+void Rehydration_InitAndDisable();
+
+
 /**
  * @brief Initializes the syringe pump stepper motor.
  *
