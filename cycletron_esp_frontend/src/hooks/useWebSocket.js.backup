@@ -5,6 +5,8 @@ const PORT = 5175;
 
 export default function useWebSocket(onEndOfCycles) {
     const socketRef = useRef(null);
+    const reconnectTimeoutRef = useRef(null);
+    const isConnectingRef = useRef(false);
     const [espOnline, setEspOnline] = useState(false);
     const [lastMessageTime, setLastMessageTime] = useState(Date.now());
     const [isConnected, setIsConnected] = useState(false);
@@ -20,16 +22,26 @@ export default function useWebSocket(onEndOfCycles) {
     });
 
     const connectWebSocket = useCallback(() => {
-        if (socketRef.current) return; // Prevent duplicate connections
+        // Prevent multiple simultaneous connection attempts
+        if (isConnectingRef.current || 
+            socketRef.current?.readyState === WebSocket.CONNECTING || 
+            socketRef.current?.readyState === WebSocket.OPEN) {
+            console.log('WebSocket connection already in progress or established');
+            return;
+        }
 
+        isConnectingRef.current = true;
+        console.log('Attempting WebSocket connection...');
+        
         const ws = new WebSocket(`ws://${window.location.hostname}:${PORT}`);
         socketRef.current = ws;
 
         ws.onopen = () => {
-            console.log('WebSocket connected');
+            console.log('WebSocket connected successfully');
+            isConnectingRef.current = false;
             setIsConnected(true);
             setEspOnline(true);
-            ws.send(JSON.stringify({ type: 'getRecoveryState' })); // <-- Add this here
+            ws.send(JSON.stringify({ type: 'getRecoveryState' }));
         };
 
         ws.onmessage = (event) => {
@@ -86,31 +98,56 @@ export default function useWebSocket(onEndOfCycles) {
             }
         };
 
-        ws.onclose = () => {
-            console.log('WebSocket disconnected');
+        ws.onclose = (event) => {
+            console.log('WebSocket disconnected:', event.code, event.reason);
+            isConnectingRef.current = false;
             setEspOnline(false);
             setIsConnected(false);
             socketRef.current = null;
-            setTimeout(connectWebSocket, RECONNECT_DELAY);
+            
+            // Clear any existing reconnection timeout
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
+            
+            // Only reconnect if it wasn't a clean close and we're not unmounting
+            if (event.code !== 1000) {
+                console.log(`Reconnecting in ${RECONNECT_DELAY}ms...`);
+                reconnectTimeoutRef.current = setTimeout(connectWebSocket, RECONNECT_DELAY);
+            }
         };
 
         ws.onerror = (err) => {
             console.error('WebSocket error:', err);
-            ws.close();
+            isConnectingRef.current = false;
+            setEspOnline(false);
+            setIsConnected(false);
         };
-    }, [onEndOfCycles]);
+    }, []);
 
     // Connect on mount
     useEffect(() => {
         connectWebSocket();
         return () => {
-            if (socketRef.current) {
-                socketRef.current.close();
-                socketRef.current = null;
-                setIsConnected(false);
+            console.log('Cleaning up WebSocket connection');
+            
+            // Clear reconnection timeout
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
             }
+            
+            // Close connection cleanly
+            if (socketRef.current) {
+                socketRef.current.close(1000, 'Component unmounting');
+                socketRef.current = null;
+            }
+            
+            isConnectingRef.current = false;
+            setIsConnected(false);
         };
-    }, [connectWebSocket]);
+    }, []); // Remove connectWebSocket dependency to prevent reconnection loops
 
     // Watchdog to check ESP silence
     useEffect(() => {
