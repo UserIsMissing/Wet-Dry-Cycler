@@ -15,7 +15,7 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.30"
+#define ServerIP "10.0.0.203"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
@@ -143,6 +143,7 @@ void setState(SystemState newState)
     previousState = currentState;
   }
   currentState = newState;
+  sendCurrentState();
 }
 
 void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
@@ -294,6 +295,7 @@ void loop()
       shouldMoveBack = false; // Reset back movement flag
       shouldMoveForward = false; // Reset forward movement flag
       currentState = SystemState::WAITING; // Transition back to the previous state
+      sendCurrentState();
     }
     // Only send state once on entry (handled by setState)
     break;
@@ -355,6 +357,7 @@ void loop()
     sendSyringePercentage();
 
     currentState = SystemState::MIXING;
+    sendCurrentState();
     break;
   }
 
@@ -399,6 +402,7 @@ void loop()
       MIXING_AllMotors_Off();
       mixingStarted = false;
       currentState = SystemState::HEATING;
+      sendCurrentState();
     }
     break;
   }
@@ -452,6 +456,7 @@ void loop()
       currentCycle++;
       sendCycleProgress();
       currentState = SystemState::REHYDRATING;
+      sendCurrentState();
     }
 
     break;
@@ -465,6 +470,8 @@ void loop()
       syringeStepCount = 0;          // Reset step counter
       sendSyringeResetInfo();        // Notify webserver
       refillingStarted = true;
+      currentState = SystemState::WAITING;
+      sendCurrentState();
     }
     break;
 
@@ -486,18 +493,21 @@ void loop()
       shouldMoveBack = false; // Reset back movement flag
       shouldMoveForward = false; // Reset forward movement flag
       currentState = previousState; // Transition back to the previous state
+      sendCurrentState();
     }
     break;
 
   case SystemState::LOGGING:
     Serial.println("Logging data...");
     currentState = previousState;
+    sendCurrentState();
     break;
 
   case SystemState::ENDED:
     completedCycles = 0;
     currentCycle = 0;
     currentState = SystemState::VIAL_SETUP;
+    sendCurrentState();
     break;
 
   case SystemState::ERROR:
