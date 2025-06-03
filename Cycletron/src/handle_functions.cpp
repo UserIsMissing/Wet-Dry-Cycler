@@ -10,7 +10,7 @@ void handleStateCommand(const String &name, const String &state)
 {
   if (name != "vialSetup" && currentState == SystemState::IDLE)
   {
-    Serial.println("System is IDLE — cannot process commands until parameters are received.");
+    Serial.println("System is IDLE — cannot process commands until Vial_Setup (yes/no) is received.");
     return;
   }
 
@@ -42,6 +42,7 @@ void handleStateCommand(const String &name, const String &state)
     }
     else if (state == "no")
     {
+      setState(SystemState::WAITING);
       shouldMoveBack = true; // Disable back-and-forth movement
     }
   }
