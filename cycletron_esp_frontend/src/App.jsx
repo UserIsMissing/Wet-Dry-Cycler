@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import 'bulma/css/bulma.min.css';
-import useWebSocket from './hooks/useWebSocket';
+import { useWebSocket } from './context/WebSocketContext';
 import './App.css';
 
 // Constants
@@ -78,7 +78,7 @@ function App() {
     sendButtonCommand,
     sendRecoveryUpdate,
     resetRecoveryState,
-  } = useWebSocket(); // <-- Remove argument
+  } = useWebSocket();
 
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
   const [activeTab, setActiveTab] = useState('parameters');

@@ -82,6 +82,11 @@ app.post('/api/resetRecoveryState', (req, res) => {
   res.json({ success: true });
 });
 
+// Add route to get recovery state
+app.get('/api/recoveryState', (req, res) => {
+  res.json({ recoveryState });
+});
+
 // ----------------- Static Frontend -----------------
 app.use(express.static(path.join(__dirname, '../dist')));
 
@@ -93,13 +98,17 @@ const wss = new WebSocket.Server({ server });
 const clients = new Set();
 const espClients = new Set();
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   let isEspClient = false; // Track if this client is an ESP32
   let espRecoverySent = false; // Ensure we only send recovery once per connection
 
+  const clientIP = req.socket.remoteAddress || 'unknown';
+  const clientPort = req.socket.remotePort || 'unknown';
+  console.log(`New WebSocket connection from ${clientIP}:${clientPort}`);
+
   if (!clients.has(ws)) {
     clients.add(ws);
-    console.log('New WebSocket connection established');
+    console.log(`Total WebSocket connections: ${clients.size}`);
   }
 
   ws.on('message', (message) => {
@@ -114,8 +123,12 @@ wss.on('connection', (ws) => {
 
       // Detect ESP32 by a message property (e.g., type === 'esp_announce')
       if (msg.from === 'esp32') {
-        isEspClient = true;
-        espClients.add(ws);        // On ESP32 connect, send recovery state if available and not already sent
+        if (!isEspClient) {
+          console.log(`[WS DEBUG] NEW ESP32 CLIENT DETECTED! Adding to espClients set.`);
+          isEspClient = true;
+          espClients.add(ws);
+        }
+        // On ESP32 connect, send recovery state if available and not already sent
         if (!espRecoverySent && fs.existsSync(espRecoveryFile)) {
           try {
             const fileContent = fs.readFileSync(espRecoveryFile, 'utf8');
@@ -129,7 +142,7 @@ wss.on('connection', (ws) => {
             console.error('Failed to send ESP recovery state:', e);
           }
         }
-        return;
+        // Don't return here - let ESP32 messages continue to be processed
       }
 
       // Handle ESP32 updating its recovery state
@@ -142,15 +155,32 @@ wss.on('connection', (ws) => {
 
       // Handle heartbeat packets from ESP32
       if (msg.type === 'heartbeat') {
-        // Forward status update to all frontend clients
+        // Forward heartbeat message to all frontend clients
         for (const client of clients) {
           if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
-            client.send(JSON.stringify({ type: 'status', status: 'connected' }));
+            client.send(JSON.stringify({ type: 'heartbeat', from: 'esp32' }));
           }
         }
         // Optionally, you can log the heartbeat
         // console.log('Received heartbeat from ESP32');
         return;
+      }
+
+      // Forward ALL ESP32 messages to frontend (unless they're ESP32-only commands)
+      if (isEspClient && msg.type && 
+          msg.type !== 'updateEspRecoveryState' && 
+          msg.type !== 'button' && 
+          msg.type !== 'parameters') {
+        console.log(`[WS DEBUG] Forwarding ESP32 message to frontend clients: ${msg.type}`);
+        // Forward this ESP32 message to all frontend clients
+        for (const client of clients) {
+          if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
+            console.log(`[WS DEBUG] Sending to frontend client`);
+            client.send(JSON.stringify(msg));
+          }
+        }
+      } else if (isEspClient) {
+        console.log(`[WS DEBUG] NOT forwarding ESP32 message: ${msg.type} (isEspClient: ${isEspClient})`);
       }
 
       // If a frontend connects, send recoveryState on request or after identification
@@ -162,10 +192,13 @@ wss.on('connection', (ws) => {
       }
 
       // Handle incoming message types
-      if (msg.type === 'temperature') {
+      if (msg.type === 'temperature' && isEspClient) {
+        console.log(`[WS DEBUG] Processing ESP32 temperature: ${msg.value}°C`);
         db.run('INSERT INTO temperature_log (value) VALUES (?)', [msg.value]);
         console.log(`Logged temperature: ${msg.value}°C`);
-        broadcastExcept(ws, JSON.stringify({ type: 'temperatureUpdate', value: msg.value }));
+        
+        // Temperature is already forwarded by the general ESP32 message forwarding above
+        // No need for duplicate temperatureUpdate messages
       }
 
       if (msg.type === 'button' && msg.name === 'startCycle') {
@@ -296,21 +329,8 @@ wss.on('connection', (ws) => {
         }
       }
 
-      // Handle state or progress updates from ESP32
-      if (
-        msg.type === 'cycleProgress' ||
-        msg.type === 'heatingProgress' ||
-        msg.type === 'mixingProgress' ||
-        msg.type === 'syringePercentage'
-      ) {
-        // Relay to all frontend clients
-        for (const client of clients) {
-          if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
-            client.send(JSON.stringify(msg));
-          }
-        }
-        return;
-      }
+      // Handle state or progress updates from ESP32 - now handled above
+      // This block can be removed as all ESP32 messages are forwarded above
 
       // Reset ESP recovery state when the cycle ends
       if (msg.type === 'button' && msg.name === 'endCycle') {
@@ -322,14 +342,18 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('close', () => {
+  ws.on('close', (code, reason) => {
     clients.delete(ws);
     espClients.delete(ws);
-    console.log('WebSocket client disconnected');
+    const clientType = isEspClient ? 'ESP32' : 'Frontend';
+    console.log(`${clientType} WebSocket client disconnected (code: ${code}, reason: ${reason})`);
+    console.log(`Remaining connections: ${clients.size}`);
   });
 
   ws.on('error', (err) => {
     console.error('WebSocket error:', err);
+    clients.delete(ws);
+    espClients.delete(ws);
   });
 });
 
@@ -342,6 +366,8 @@ function broadcastExcept(sender, message) {
   }
 }
 
-server.listen(PORT, () => {
-  console.log(`HTTP & WebSocket Server listening on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`HTTP & WebSocket Server listening on http://0.0.0.0:${PORT}`);
+  console.log(`Local access: http://localhost:${PORT}`);
+  console.log(`Platform: ${process.platform}`);
 });

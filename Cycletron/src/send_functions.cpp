@@ -18,6 +18,7 @@ extern SystemState currentState;
 void sendHeartbeat()
 {
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "heartbeat";
   doc["value"] = 1;
   char buffer[64];
@@ -30,6 +31,7 @@ void sendTemperature()
 {
   float temp = HEATING_Measure_Temp_Avg();
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "temperature";
   doc["value"] = temp;
 
@@ -44,6 +46,7 @@ void sendSyringePercentage()
   float percentUsed = (float)syringeStepCount / (float)MAX_SYRINGE_STEPS * 100.0;
 
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "syringePercentage";
   doc["value"] = percentUsed;
 
@@ -62,6 +65,7 @@ void sendHeatingProgress()
     percentDone = 100.0;
 
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "heatingProgress";
   doc["value"] = percentDone;
 
@@ -80,6 +84,7 @@ void sendMixingProgress()
     percentDone = 100.0;
 
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "mixingProgress";
   doc["value"] = percentDone;
 
@@ -99,6 +104,7 @@ void sendCycleProgress()
     percentDone = 100.0;
 
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "cycleProgress";
   doc["completed"] = completedCycles;
   doc["total"] = numberOfCycles;
@@ -114,6 +120,7 @@ void sendCycleProgress()
 void sendEndOfCycles()
 {
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "endOfCycles";
   doc["message"] = "All cycles completed.";
 
@@ -126,6 +133,7 @@ void sendEndOfCycles()
 void sendSyringeResetInfo()
 {
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "syringeReset";
   doc["steps"] = syringeStepCount;
 
@@ -180,6 +188,7 @@ void sendCurrentState()
     }
 
     ArduinoJson::JsonDocument doc;
+    doc["from"] = "esp32";
     doc["type"] = "currentState";
     doc["value"] = stateStr;
 
@@ -203,6 +212,7 @@ void sendEspRecoveryState()
     return;
   }
   ArduinoJson::JsonDocument doc;
+  doc["from"] = "esp32";
   doc["type"] = "updateEspRecoveryState";
   JsonObject data = doc["data"].to<JsonObject>();
   data["currentState"] = (int)currentState;

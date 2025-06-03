@@ -15,7 +15,7 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.135"
+#define ServerIP "10.0.0.202"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
@@ -140,15 +140,17 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
   {
   case WStype_CONNECTED:
     Serial.println("WebSocket connected");
-    // Send heartbeat packet
+    // Send temperature packet instead of heartbeat
     {
+      float temp = HEATING_Measure_Temp_Avg();
       ArduinoJson::JsonDocument doc;
       doc["from"] = "esp32";
-      doc["type"] = "heartbeat";
-      char buffer[64];
+      doc["type"] = "temperature";
+      doc["value"] = temp;
+      char buffer[100];
       serializeJson(doc, buffer);
       webSocket.sendTXT(buffer);
-      Serial.println("Sent heartbeat packet to frontend.");
+      Serial.printf("Sent initial temperature packet: %.2f°C\n", temp);
     }
     break;
   case WStype_DISCONNECTED:
@@ -270,7 +272,7 @@ void loop()
     // Await vialSetup packet from frontend
     if (now - lastSent >= 1000)
     {
-      sendHeartbeat();
+      sendTemperature();
       lastSent = now;
     }
     break;
@@ -279,7 +281,7 @@ void loop()
     // Perform vial setup actions here if needed
     if (now - lastSent >= 1000)
     {
-      sendHeartbeat();
+      sendTemperature();
       lastSent = now;
     }
     // Only send state once on entry (handled by setState)
@@ -290,7 +292,7 @@ void loop()
     // Only send state once on entry (handled by setState)
     if (now - lastSent >= 1000)
     {
-      sendHeartbeat();
+      sendTemperature();
       lastSent = now;
     }
     break;
@@ -298,14 +300,14 @@ void loop()
   case SystemState::READY:
     if (now - lastSent >= 1000)
     {
-      sendHeartbeat();
+      sendTemperature();
       lastSent = now;
     }
     break;
   case SystemState::PAUSED:
     if (now - lastSent >= 1000)
     {
-      sendHeartbeat();
+      sendTemperature();
       lastSent = now;
     }
     break;
