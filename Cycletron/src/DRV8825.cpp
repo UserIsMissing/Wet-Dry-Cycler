@@ -101,10 +101,10 @@
  
    for (int i = 0; i < steps; i++) {
      // Stop if fault is detected
-     if (DRV8825_Check_Fault(motor)) {
-       Serial.printf("[DRV8825] Fault detected at step %d\n", i);
-       break;
-     }
+    //  if (DRV8825_Check_Fault(motor)) {
+    //    Serial.printf("[DRV8825] Fault detected at step %d\n", i);
+    //    break;
+    //  }
  
      DRV8825_Step(motor);         // Send one step pulse
      delayMicroseconds(delay_us); // Wait before next pulse
@@ -118,10 +118,10 @@
   *        Calls both direction-setting and stepping functions.
   */
  void DRV8825_Move(DRV8825_t *motor, int steps, int direction, int delay_us) {
-   if (DRV8825_Check_Fault(motor)) {
-     Serial.println("[DRV8825] Fault detected before move. Aborting.");
-     return;
-   }
+  //  if (DRV8825_Check_Fault(motor)) {
+  //    Serial.println("[DRV8825] Fault detected before move. Aborting.");
+  //    return;
+  //  }
  
    DRV8825_Set_Direction(motor, direction);      // Set rotation direction
    DRV8825_Step_N(motor, steps, delay_us);       // Execute movement

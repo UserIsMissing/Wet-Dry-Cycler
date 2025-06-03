@@ -15,10 +15,12 @@ extern int numberOfCycles;
 extern int completedCycles;
 extern SystemState currentState;
 
+extern int sampleZoneCount;
+extern int sampleZonesArray[];
+
 void sendHeartbeat()
 {
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "heartbeat";
   doc["value"] = 1;
   char buffer[64];
@@ -31,7 +33,6 @@ void sendTemperature()
 {
   float temp = HEATING_Measure_Temp_Avg();
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "temperature";
   doc["value"] = temp;
 
@@ -46,7 +47,6 @@ void sendSyringePercentage()
   float percentUsed = (float)syringeStepCount / (float)MAX_SYRINGE_STEPS * 100.0;
 
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "syringePercentage";
   doc["value"] = percentUsed;
 
@@ -65,7 +65,6 @@ void sendHeatingProgress()
     percentDone = 100.0;
 
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "heatingProgress";
   doc["value"] = percentDone;
 
@@ -84,7 +83,6 @@ void sendMixingProgress()
     percentDone = 100.0;
 
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "mixingProgress";
   doc["value"] = percentDone;
 
@@ -104,7 +102,6 @@ void sendCycleProgress()
     percentDone = 100.0;
 
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "cycleProgress";
   doc["completed"] = completedCycles;
   doc["total"] = numberOfCycles;
@@ -120,7 +117,6 @@ void sendCycleProgress()
 void sendEndOfCycles()
 {
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "endOfCycles";
   doc["message"] = "All cycles completed.";
 
@@ -133,7 +129,6 @@ void sendEndOfCycles()
 void sendSyringeResetInfo()
 {
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
   doc["type"] = "syringeReset";
   doc["steps"] = syringeStepCount;
 
@@ -188,7 +183,6 @@ void sendCurrentState()
     }
 
     ArduinoJson::JsonDocument doc;
-    doc["from"] = "esp32";
     doc["type"] = "currentState";
     doc["value"] = stateStr;
 
@@ -198,51 +192,52 @@ void sendCurrentState()
     Serial.printf("[WS] Sent current state: %s\n", stateStr);
 }
 
-void sendEspRecoveryState()
+// Add this function to send a recovery packet to the server
+void sendRecoveryPacketToServer()
 {
-  static bool inSend = false;
-  if (inSend) {
-    Serial.println("[ERROR] sendEspRecoveryState called reentrantly! Skipping send to prevent crash.");
-    return;
-  }
-  inSend = true;
-  if (!webSocket.isConnected()) {
-    Serial.println("[DEBUG] WebSocket not connected, not sending ESP recovery state");
-    inSend = false;
-    return;
-  }
   ArduinoJson::JsonDocument doc;
-  doc["from"] = "esp32";
-  doc["type"] = "updateEspRecoveryState";
+  doc["type"] = "espRecoveryState";
   JsonObject data = doc["data"].to<JsonObject>();
-  data["currentState"] = (int)currentState;
-  data["volumeAddedPerCycle"] = volumeAddedPerCycle;
-  data["syringeDiameter"] = syringeDiameter;
-  data["desiredHeatingTemperature"] = desiredHeatingTemperature;
-  data["durationOfHeating"] = durationOfHeating;
-  data["durationOfMixing"] = durationOfMixing;
-  data["numberOfCycles"] = numberOfCycles;
-  data["syringeStepCount"] = syringeStepCount;
-  data["heatingStartTime"] = heatingStartTime;
-  data["mixingStartTime"] = mixingStartTime;
-  data["heatingStarted"] = heatingStarted;
-  data["mixingStarted"] = mixingStarted;
-  data["completedCycles"] = completedCycles;
-  data["currentCycle"] = currentCycle;
-  data["heatingProgress"] = heatingProgressPercent;
-  data["mixingProgress"] = mixingProgressPercent;
-  JsonArray zones = data["sampleZonesToMix"].to<JsonArray>();
-  for (int i = 0; i < sampleZoneCount; ++i) zones.add(sampleZonesArray[i]);
-
-  String jsonStr;
-  serializeJson(doc, jsonStr);
-  Serial.print("[DEBUG] sendEspRecoveryState: sending to server (len=");
-  Serial.print(jsonStr.length());
-  Serial.print("): ");
-  Serial.println(jsonStr);
-  webSocket.sendTXT(jsonStr);
-  Serial.println("[WS] Sent ESP recovery state to server.");
-  inSend = false;
+  // Save current state and all relevant parameters
+  switch (currentState) {
+    case SystemState::IDLE: data["currentState"] = "IDLE"; break;
+    case SystemState::READY: data["currentState"] = "READY"; break;
+    case SystemState::REHYDRATING: data["currentState"] = "REHYDRATING"; break;
+    case SystemState::HEATING: data["currentState"] = "HEATING"; break;
+    case SystemState::MIXING: data["currentState"] = "MIXING"; break;
+    case SystemState::REFILLING: data["currentState"] = "REFILLING"; break;
+    case SystemState::EXTRACTING: data["currentState"] = "EXTRACTING"; break;
+    case SystemState::LOGGING: data["currentState"] = "LOGGING"; break;
+    case SystemState::PAUSED: data["currentState"] = "PAUSED"; break;
+    case SystemState::ENDED: data["currentState"] = "ENDED"; break;
+    case SystemState::ERROR: data["currentState"] = "ERROR"; break;
+    default: data["currentState"] = "UNKNOWN"; break;
+  }
+  JsonObject parameters = data["parameters"].to<JsonObject>();
+  parameters["volumeAddedPerCycle"] = volumeAddedPerCycle;
+  parameters["syringeDiameter"] = syringeDiameter;
+  parameters["desiredHeatingTemperature"] = desiredHeatingTemperature;
+  parameters["durationOfHeating"] = durationOfHeating;
+  parameters["durationOfMixing"] = durationOfMixing;
+  parameters["numberOfCycles"] = numberOfCycles;
+  parameters["syringeStepCount"] = syringeStepCount;
+  parameters["heatingStartTime"] = heatingStartTime;
+  parameters["heatingStarted"] = heatingStarted;
+  parameters["mixingStartTime"] = mixingStartTime;
+  parameters["mixingStarted"] = mixingStarted;
+  parameters["completedCycles"] = completedCycles;
+  parameters["currentCycle"] = currentCycle;
+  parameters["heatingProgress"] = heatingProgressPercent;
+  parameters["mixingProgress"] = mixingProgressPercent;
+  JsonArray zones = parameters["sampleZonesToMix"].to<JsonArray>();
+  for (int i = 0; i < sampleZoneCount; i++) {
+    zones.add(sampleZonesArray[i]);
+  }
+  // Send to server
+  String message;
+  serializeJson(doc, message);
+  webSocket.sendTXT(message);
+  Serial.println("[WS] Sent ESP recovery packet to server");
 }
 
 

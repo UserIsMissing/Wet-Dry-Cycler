@@ -40,6 +40,13 @@ typedef struct
 // === API Functions ===
 
 /**
+ * @brief Initializes the movement motor and immediately disables it.
+ *
+ * Use this to ensure the motor is set up but not powered.
+ */
+void MOVEMENT_InitAndDisable();
+
+/**
  * @brief Initializes the MOVEMENT module.
  *
  * This function:
@@ -92,6 +99,20 @@ int CheckBumpers(void);
  * on which bumper is pressed when movement begins.
  */
 void MOVEMENT_Move(void);
+
+
+
+ /**
+  * @brief Moves motor based on bumper state.
+  *
+  * If front bumper is pressed, move backward until back is pressed.
+  * If back bumper is pressed, move forward until front is pressed.
+  * Movement stops immediately if target bumper is hit.
+  */
+ void MOVEMENT_Move_FORWARD();
+
+
+ void MOVEMENT_Move_BACKWARD();
 
 /**
  * @brief Immediately stops the motor.

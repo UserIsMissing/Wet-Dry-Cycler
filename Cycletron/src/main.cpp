@@ -15,18 +15,18 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.135"
+#define ServerIP "10.0.0.30"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-// const char *ssid = "DonnaHouse";
-// const char *password = "guessthepassword";
+const char *ssid = "DonnaHouse";
+const char *password = "guessthepassword";
 
-const char *ssid = "TheDawgHouse";
-const char *password = "ThrowItBackForPalestine";
+// const char *ssid = "TheDawgHouse";
+// const char *password = "ThrowItBackForPalestine";
 
 // const char *ssid = "UCSC-Guest";
 // const char *password = "";
@@ -79,13 +79,8 @@ WebSocketsClient webSocket;
 unsigned long pausedElapsedTime = 0;
 unsigned long pausedAtTime = 0;
 
-#define DEBUG_RECOVERY 1
-
 void setState(SystemState newState)
 {
-  if (DEBUG_RECOVERY) {
-    Serial.printf("[DEBUG] setState: %d -> %d\n", (int)currentState, (int)newState);
-  }
   // --- PAUSE/RESUME LOGIC ---
   if (newState == SystemState::PAUSED ||
       newState == SystemState::EXTRACTING ||
@@ -121,6 +116,26 @@ void setState(SystemState newState)
   }
   // --- END PAUSE/RESUME LOGIC ---
 
+  // Stop motors if transitioning to PAUSED state
+  if (newState == SystemState::PAUSED || newState == SystemState::EXTRACTING || newState == SystemState::ENDED || newState == SystemState::REFILLING || newState == SystemState::REFILLING)
+  {
+    if (currentState == SystemState::HEATING)
+    {
+      HEATING_Off();
+      heatingStarted = false;
+      Serial.println("[PAUSED] Mixing motors stopped due to state transition");
+    }
+    else if (currentState == SystemState::MIXING)
+    {
+      MIXING_AllMotors_Off();
+      mixingStarted = false;
+      Serial.println("[PAUSED] Motors stopped due to state transition");
+    }
+  }
+  
+
+
+
   if (currentState != SystemState::PAUSED &&
       currentState != SystemState::REFILLING &&
       currentState != SystemState::EXTRACTING)
@@ -128,102 +143,86 @@ void setState(SystemState newState)
     previousState = currentState;
   }
   currentState = newState;
-  if (DEBUG_RECOVERY) {
-    Serial.println("[DEBUG] Marked recoveryStateDirty = true");
-  }
 }
 
 void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
 {
-  Serial.printf("[DEBUG] Entered onWebSocketEvent: type=%d\n", type);
-  switch (type)
-  {
-  case WStype_CONNECTED:
-    Serial.println("WebSocket connected");
-    // Send temperature packet instead of heartbeat
+    switch (type)
     {
-      float temp = HEATING_Measure_Temp_Avg();
-      ArduinoJson::JsonDocument doc;
-      doc["from"] = "esp32";
-      doc["type"] = "temperature";
-      doc["value"] = temp;
-      char buffer[100];
-      serializeJson(doc, buffer);
-      webSocket.sendTXT(buffer);
-      Serial.printf("Sent initial temperature packet: %.2f°C\n", temp);
-    }
-    break;
-  case WStype_DISCONNECTED:
-    Serial.println("WebSocket disconnected");
-    break;
-  case WStype_TEXT:
-  {
-    Serial.printf("[DEBUG] Received: %s\n", payload);
-    ArduinoJson::JsonDocument doc;
-    auto err = deserializeJson(doc, payload, length);
-    if (err) {
-      Serial.print("[ERROR] Failed to parse JSON: ");
-      Serial.println(err.c_str());
-      break;
-    }
-    // --- VIAL SETUP PACKET HANDLING ---
-    if (doc["type"] == "vialSetup" && doc["status"].is<const char*>()) {
-      Serial.println("[DEBUG] Handling vialSetup packet");
-      String status = doc["status"].as<String>();
-      if (status == "yes") {
-        Serial.println("[VIAL_SETUP] Vial setup confirmed. Transitioning to VIAL_SETUP state...");
-        setState(SystemState::VIAL_SETUP);
-      } else if (status == "no") {
-        if (currentState == SystemState::VIAL_SETUP) {
-          Serial.println("[VIAL_SETUP] Vial setup complete while in VIAL_SETUP. Going to WAITING state.");
-          setState(SystemState::WAITING);
-        } else {
-          Serial.println("[VIAL_SETUP] Vial setup declined. Going to WAITING state.");
-          setState(SystemState::WAITING);
+    case WStype_CONNECTED:
+        Serial.println("WebSocket connected");
+        {
+            ArduinoJson::DynamicJsonDocument doc(256); // Ensure proper scope
+            doc["from"] = "esp32";
+            doc["type"] = "heartbeat";
+            char buffer[64];
+            serializeJson(doc, buffer);
+            webSocket.sendTXT(buffer);
+            Serial.println("Sent heartbeat packet to frontend.");
         }
-      }
-      // DO NOT call sendEspRecoveryState() here!
-      Serial.println("[DEBUG] Marked recoveryStateDirty = true (vialSetup)");
-      break;
-    }
-    // --- END VIAL SETUP PACKET HANDLING ---    // Handle recovery packet from server
-    if (doc["type"] == "espRecoveryState" && doc["data"].is<JsonObject>()) {
-      Serial.println("[DEBUG] Handling espRecoveryState packet");
-      JsonObject data = doc["data"].as<JsonObject>();
-      handleRecoveryPacket(data);
-      Serial.println("[RECOVERY] ESP32 state restored from server recovery file.");
-      // DO NOT call sendEspRecoveryState() here!
-      break;
-    }
+        break;
 
-    // Handle parameters packet from frontend
-    if (doc["type"] == "parameters" && doc["data"].is<JsonObject>()) {
-      Serial.println("[DEBUG] Handling parameters packet");
-      JsonObject data = doc["data"].as<JsonObject>();
-      handleParametersPacket(data);
-      break;
-    }
+    case WStype_DISCONNECTED:
+        Serial.println("WebSocket disconnected");
+        break;
 
-    // Handle button commands from frontend
-    if (doc["type"] == "button" && doc["name"].is<const char*>() && doc["state"].is<const char*>()) {
-      Serial.println("[DEBUG] Handling button command");
-      String name = doc["name"].as<String>();
-      String state = doc["state"].as<String>();
-      handleStateCommand(name, state);
-      break;
-    }
+    case WStype_TEXT:
+        {
+            Serial.printf("Received: %s\n", payload);
+            ArduinoJson::DynamicJsonDocument doc(512); // Ensure proper scope
+            auto err = deserializeJson(doc, payload, length);
+            if (err)
+            {
+                Serial.print("JSON parse failed: ");
+                Serial.println(err.c_str());
+                break;
+            }
 
-    // Handle other message types as needed
-    break;
-  }
-  default:
-    break;
-  }
-  Serial.println("[DEBUG] Exiting onWebSocketEvent");
+            if (doc["type"] == "vialSetup" && doc["status"].is<const char *>())
+            {
+                String name = "vialSetup";
+                String state = doc["status"].as<String>();
+                Serial.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
+                handleStateCommand(name, state);
+            }
+            else if (doc["type"] == "espRecoveryState" && doc["data"].is<JsonObject>())
+            {
+                JsonObject data = doc["data"].as<JsonObject>();
+                handleRecoveryPacket(data);
+            }
+            else if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
+            {
+                JsonObject parameters = doc["data"].as<JsonObject>();
+                if (currentState == SystemState::WAITING)
+                {
+                    handleParametersPacket(parameters); // This should call setState(SystemState::READY)
+                }
+                else
+                {
+                    Serial0.printf("[PARAMETERS] Ignoring parameters packet in state: %d\n", static_cast<int>(currentState));
+                }
+            }
+            else if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
+            {
+                String name = doc["name"].as<String>();
+                String state = doc["state"].as<String>();
+                Serial0.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
+                handleStateCommand(name, state);
+            }
+            else
+            {
+                Serial.println("Invalid packet received");
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
 }
 
-
 #ifdef TESTING_MAIN
+
 
 void setup()
 {
@@ -248,9 +247,14 @@ void setup()
   Serial0.println(WiFi.macAddress());
   HEATING_Init();
   MIXING_Init();
+  Rehydration_InitAndDisable();
+  MOVEMENT_InitAndDisable();
 
   MOVEMENT_ConfigureInterrupts();
   REHYDRATION_ConfigureInterrupts();
+  Serial.println("[SYSTEM] Initialization complete. Starting main loop...");
+  MOVEMENT_Init();
+
 }
 
 void loop()
@@ -259,12 +263,6 @@ void loop()
   MOVEMENT_HandleInterrupts();
   REHYDRATION_HandleInterrupts();
 
-  // Send recovery state if it's dirty
-  if (recoveryStateDirty) {
-    sendEspRecoveryState();
-    recoveryStateDirty = false;
-  }
-
   unsigned long now = millis();
   switch (currentState)
   {
@@ -272,17 +270,30 @@ void loop()
     // Await vialSetup packet from frontend
     if (now - lastSent >= 1000)
     {
-      sendTemperature();
+      sendHeartbeat();
       lastSent = now;
     }
     break;
 
   case SystemState::VIAL_SETUP:
-    // Perform vial setup actions here if needed
-    if (now - lastSent >= 1000)
+
+    if (shouldMoveForward && !movementForwardDone)
     {
-      sendTemperature();
-      lastSent = now;
+      Serial.println("[VIAL_SETUP] Moving forward...");
+      MOVEMENT_Move_FORWARD();
+      movementForwardDone = true; // Mark forward movement as done
+    }
+    else if (shouldMoveBack && !movementBackDone)
+    {
+      Serial.println("[VIAL_SETUP] Flag down — moving backward...");
+      MOVEMENT_Move_BACKWARD();
+      movementForwardDone = true; // Reset forward movement flag
+      Serial.println("VIAL_SETUP] Ended - resuming");
+      movementBackDone = false;
+      movementForwardDone = false; // Reset both movement flag
+      shouldMoveBack = false; // Reset back movement flag
+      shouldMoveForward = false; // Reset forward movement flag
+      currentState = SystemState::WAITING; // Transition back to the previous state
     }
     // Only send state once on entry (handled by setState)
     break;
@@ -292,7 +303,7 @@ void loop()
     // Only send state once on entry (handled by setState)
     if (now - lastSent >= 1000)
     {
-      sendTemperature();
+      sendHeartbeat();
       lastSent = now;
     }
     break;
@@ -300,14 +311,14 @@ void loop()
   case SystemState::READY:
     if (now - lastSent >= 1000)
     {
-      sendTemperature();
+      sendHeartbeat();
       lastSent = now;
     }
     break;
   case SystemState::PAUSED:
     if (now - lastSent >= 1000)
     {
-      sendTemperature();
+      sendHeartbeat();
       lastSent = now;
     }
     break;
@@ -385,7 +396,7 @@ void loop()
     if (millis() - mixingStartTime >= mixingDurationRemaining)
     {
       Serial.println("[MIXING] Done. Turning off motors.");
-      MIXING_AllMotors_Off;
+      MIXING_AllMotors_Off();
       mixingStarted = false;
       currentState = SystemState::HEATING;
     }
@@ -396,7 +407,7 @@ void loop()
   {
     if (!heatingStarted)
     {
-      Serial.println("[HEATING] Starting...");
+      Serial.printf("[HEATING] Starting... durationOfHeating = %.2f\n", durationOfHeating);
       unsigned long heatTime = heatingProgressPercent > 0
                                    ? (unsigned long)((1.0 - (heatingProgressPercent / 100.0)) * durationOfHeating * 1000)
                                    : (unsigned long)(durationOfHeating * 1000);
@@ -458,8 +469,24 @@ void loop()
     break;
 
   case SystemState::EXTRACTING:
-    Serial.println("Extracting...");
-    currentState = SystemState::PAUSED;
+    if (shouldMoveForward && !movementForwardDone)
+    {
+      Serial.println("[EXTRACTING] Moving forward...");
+      MOVEMENT_Move_FORWARD();
+      movementForwardDone = true; // Mark forward movement as done
+    }
+    else if (shouldMoveBack && !movementBackDone)
+    {
+      Serial.println("[EXTRACTING] Flag down — moving backward...");
+      MOVEMENT_Move_BACKWARD();
+      movementForwardDone = true; // Reset forward movement flag
+      Serial.println("Extraction ended — resuming");
+      movementBackDone = false;
+      movementForwardDone = false; // Reset both movement flag
+      shouldMoveBack = false; // Reset back movement flag
+      shouldMoveForward = false; // Reset forward movement flag
+      currentState = previousState; // Transition back to the previous state
+    }
     break;
 
   case SystemState::LOGGING:
@@ -470,7 +497,7 @@ void loop()
   case SystemState::ENDED:
     completedCycles = 0;
     currentCycle = 0;
-    currentState = SystemState::IDLE;
+    currentState = SystemState::VIAL_SETUP;
     break;
 
   case SystemState::ERROR:
@@ -478,14 +505,6 @@ void loop()
     break;
   }
   delay(10);
-
-  // At the end of the loop, if recovery state is dirty, send it
-  if (recoveryStateDirty) {
-    Serial.println("[DEBUG] loop: recoveryStateDirty is true, calling sendEspRecoveryState()");
-    sendEspRecoveryState();
-    recoveryStateDirty = false;
-    Serial.println("[DEBUG] loop: recoveryStateDirty cleared");
-  }
 }
 
 #endif // TESTING_MAIN

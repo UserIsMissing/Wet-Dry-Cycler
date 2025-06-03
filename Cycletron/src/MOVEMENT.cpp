@@ -12,6 +12,7 @@
 
 #include <Arduino.h>
 #include "MOVEMENT.h"
+#include "globals.h"
 
 // === Constants ===
 #define MOVEMENT_STEP_DELAY_US 1000 // Delay between microsteps
@@ -31,9 +32,9 @@ DRV8825_t movementMotor = {
     .enable_pin = 8};
 
 BUMPER_t bumpers_m = {
-    .front_bumper_pin = 9,
-    .back_bumper_pin = 46,
-  };
+    .front_bumper_pin = 3,
+    .back_bumper_pin = 10,
+};
 
 /**
  * @brief Applies small reverse motion to unstuck the mechanism.
@@ -49,6 +50,19 @@ void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection)
 }
 
 /**
+ * @brief Initializes the movement motor and immediately disables it.
+ *
+ * Use this to ensure the motor is set up but not powered.
+ *
+ * .
+ */
+void MOVEMENT_InitAndDisable()
+{
+  DRV8825_Init(&movementMotor);
+  Serial.println("[MOVEMENT] Motor initialized and disabled.");
+}
+
+/**
  * @brief Initializes the MOVEMENT system.
  *
  * Calibrates motor direction using bumper input and prepares the system
@@ -57,91 +71,51 @@ void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection)
  */
 void MOVEMENT_Init()
 {
-  delay(500); // Delay for system stability
+    delay(500); // Delay for system stability
 
-  DRV8825_Init(&movementMotor); // Initialize motor driver
-  CheckBumpers();               // Read initial bumper state
+    DRV8825_Init(&movementMotor); // Initialize motor driver
+    CheckBumpers();               // Read initial bumper state
 
-  Serial.printf("Initial BUMPER_STATE: %d\n", BUMPER_STATE);
+    Serial.printf("Initial BUMPER_STATE: %d\n", BUMPER_STATE);
 
-  if (BUMPER_STATE == 0)
-  {
-    // No bumper pressed — back up until front is found
-    MOVEMENT_First_Steps(5, DRV8825_BACKWARD);
-    while (BUMPER_STATE == 0)
+    // Ensure no movement if the back bumper is already pressed
+    if (digitalRead(bumpers_m.back_bumper_pin) == HIGH)
     {
-      DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US);
-      CheckBumpers();
+        Serial.println("[MOVEMENT] Back bumper already pressed. No movement required.");
+        DRV8825_Disable(&movementMotor);
     }
-    DRV8825_Disable(&movementMotor);
-  }
-  else if (BUMPER_STATE == 1)
-  {
-    // Already at front bumper — do safety repositioning
-    MOVEMENT_First_Steps(5000, DRV8825_FORWARD);
-    MOVEMENT_First_Steps(1000, DRV8825_BACKWARD);
-    DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP);
-    delay(2000);
-    CheckBumpers();
-
-    while (BUMPER_STATE != 1)
+    else
     {
-      DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US);
-      CheckBumpers();
+        while (BUMPER_STATE != 2)
+        {
+            DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US);
+            CheckBumpers();
+        }
+        DRV8825_Disable(&movementMotor);
     }
-    DRV8825_Disable(&movementMotor);
-  }
-  else if (BUMPER_STATE == 2)
-  {
-    // At back bumper — move forward until front bumper reached
-    MOVEMENT_First_Steps(50, DRV8825_BACKWARD);
-    while (BUMPER_STATE != 1)
-    {
-      DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US);
-      CheckBumpers();
-    }
-    DRV8825_Disable(&movementMotor);
-  }
-  else
-  {
-    Serial.println("[MOVEMENT] Impossible bumper state.");
-  }
 
-  Serial.println("[MOVEMENT] Initialization complete.");
+    Serial.println("[MOVEMENT] Initialization complete.");
 }
 
 /**
- * @brief Checks if the DRV8825 driver is reporting a fault.
+ * @brief Reads bumper interrupt flags and updates global BUMPER_STATE.
  *
- * @return 1 if fault detected, 0 otherwise
- */
-int CheckFAULT(DRV8825_t *motor)
-{
-  if (digitalRead(motor->fault_pin) == HIGH)
-  {
-    Serial.println("[MOVEMENT] Fault detected!");
-    return 1;
-  }
-  return 0;
-}
-
-/**
- * @brief Reads bumper GPIOs and updates global BUMPER_STATE.
- *
- * @return 1 = front bumper, 2 = back bumper, 0 = none
+ * @return 1 = front bumper triggered, 2 = back bumper triggered, 0 = none
  */
 int CheckBumpers()
 {
-  if (digitalRead(bumpers_m.front_bumper_pin) == LOW)
+  if (movementFrontTriggered)
   {
+    movementFrontTriggered = false; // Reset flag
     BUMPER_STATE = 1;
-    Serial.println("[MOVEMENT] Front bumper pressed.");
+    Serial.println("[MOVEMENT] Front bumper triggered.");
     return 1;
   }
-  if (digitalRead(bumpers_m.back_bumper_pin) == LOW)
+  if (movementBackTriggered)
   {
+    movementBackTriggered = false; // Reset flag
     BUMPER_STATE = 2;
-    Serial.println("[MOVEMENT] Back bumper pressed.");
+    Serial.println("[MOVEMENT] Back bumper triggered.");
     return 2;
   }
   BUMPER_STATE = 0;
@@ -155,33 +129,31 @@ int CheckBumpers()
  * If back bumper is pressed, move forward until front is pressed.
  * Movement stops immediately if target bumper is hit.
  */
-void MOVEMENT_Move()
+void MOVEMENT_Move_FORWARD()
 {
+  // MOVEMENT_First_Steps(); //may need to add to unstick mechanism
+  DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP);
+  CheckBumpers();
+  while (BUMPER_STATE != 1)
+  {
+    DRV8825_Move(&movementMotor, 1, DRV8825_FORWARD, MOVEMENT_STEP_DELAY_US);
+    CheckBumpers();
+  }
+  MOVEMENT_Stop();
+}
+
+void MOVEMENT_Move_BACKWARD()
+{
+  // MOVEMENT_First_Steps(); //may need to add to unstick mechanism
   DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP);
   CheckBumpers();
 
-  if (BUMPER_STATE == 1)
+  while (BUMPER_STATE != 2)
   {
-    while (BUMPER_STATE != 2)
-    {
-      DRV8825_Move(&movementMotor, 1, DRV8825_FORWARD, MOVEMENT_STEP_DELAY_US);
-      CheckBumpers();
-    }
-    MOVEMENT_Stop();
+    DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US);
+    CheckBumpers();
   }
-  else if (BUMPER_STATE == 2)
-  {
-    while (BUMPER_STATE != 1)
-    {
-      DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US);
-      CheckBumpers();
-    }
-    MOVEMENT_Stop();
-  }
-  else
-  {
-    CheckFAULT(&movementMotor);
-  }
+  MOVEMENT_Stop();
 }
 
 /**
@@ -201,7 +173,13 @@ void MOVEMENT_Stop()
  */
 void IRAM_ATTR onMovementFrontLimit()
 {
-  movementFrontTriggered = true;
+  static volatile unsigned long lastFrontInterruptTime = 0;
+  unsigned long currentTime = millis();
+  if (currentTime - lastFrontInterruptTime > 50)
+  { // Debounce threshold: 50 ms
+    movementFrontTriggered = true;
+    lastFrontInterruptTime = currentTime;
+  }
 }
 
 /**
@@ -211,7 +189,13 @@ void IRAM_ATTR onMovementFrontLimit()
  */
 void IRAM_ATTR onMovementBackLimit()
 {
-  movementBackTriggered = true;
+  static volatile unsigned long lastBackInterruptTime = 0;
+  unsigned long currentTime = millis();
+  if (currentTime - lastBackInterruptTime > 50)
+  { // Debounce threshold: 50 ms
+    movementBackTriggered = true;
+    lastBackInterruptTime = currentTime;
+  }
 }
 
 /**
@@ -226,33 +210,15 @@ void IRAM_ATTR onMovementBackLimit()
  */
 void MOVEMENT_ConfigureInterrupts()
 {
-  pinMode(bumpers_m.front_bumper_pin, INPUT_PULLUP);
-  pinMode(bumpers_m.back_bumper_pin, INPUT_PULLUP);
+  pinMode(bumpers_m.front_bumper_pin, INPUT_PULLDOWN);
+  pinMode(bumpers_m.back_bumper_pin, INPUT_PULLDOWN);
 
   movementFrontTriggered = false;
   movementBackTriggered = false;
 
-  // Attach front bumper ISR only if input is HIGH (not already pressed)
-  if (digitalRead(bumpers_m.front_bumper_pin) == HIGH)
-  {
-    attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, FALLING);
-  }
-  else
-  {
-    Serial.println("[MOVEMENT] Skipping front interrupt attach — pin LOW despite pullup");
-  }
-
-  // Attach back bumper ISR only if input is HIGH (not already pressed)
-  if (digitalRead(bumpers_m.back_bumper_pin) == HIGH)
-  {
-    attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, FALLING);
-  }
-  else
-  {
-    Serial.println("[MOVEMENT] Skipping back interrupt attach — pin LOW despite pullup");
-  }
+  attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, RISING);
+  attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, RISING);
 }
-
 /**
  * @brief Handles interrupts for front and back bumpers.
  *
@@ -265,30 +231,14 @@ void MOVEMENT_HandleInterrupts()
   if (movementFrontTriggered)
   {
     movementFrontTriggered = false;
-
-    // Detach to prevent ISR from firing again immediately
     detachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin));
-    Serial.println("[INTERRUPT] Movement front limit triggered");
-    MOVEMENT_Stop();
-
-    // Re-attach only if pin is HIGH again
-    if (digitalRead(bumpers_m.front_bumper_pin) == HIGH)
-    {
-      attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, FALLING);
-    }
+    attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, FALLING);
   }
 
   if (movementBackTriggered)
   {
     movementBackTriggered = false;
-
     detachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin));
-    Serial.println("[INTERRUPT] Movement back limit triggered");
-    MOVEMENT_Stop();
-
-    if (digitalRead(bumpers_m.back_bumper_pin) == HIGH)
-    {
-      attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, FALLING);
-    }
+    attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, FALLING);
   }
 }

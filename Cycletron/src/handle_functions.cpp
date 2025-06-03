@@ -2,37 +2,18 @@
 #include "globals.h"
 #include "send_functions.h"
 #include "handle_functions.h"
+#include "globals.h"
 
-// Use globals from globals.h
-extern float volumeAddedPerCycle;
-extern float syringeDiameter;
-extern float desiredHeatingTemperature;
-extern float durationOfHeating;
-extern float durationOfMixing;
-extern int numberOfCycles;
-extern int syringeStepCount;
-extern unsigned long heatingStartTime;
-extern unsigned long mixingStartTime;
-extern bool heatingStarted;
-extern bool mixingStarted;
-extern int completedCycles;
-extern int currentCycle;
-extern float heatingProgressPercent;
-extern float mixingProgressPercent;
-extern int sampleZonesArray[3];
-extern int sampleZoneCount;
-extern SystemState currentState;
-extern SystemState previousState;
-extern void setState(SystemState newState);
+
 
 void handleStateCommand(const String &name, const String &state)
 {
-  Serial.printf("[DEBUG] handleStateCommand: name=%s, state=%s\n", name.c_str(), state.c_str());
-  if (currentState == SystemState::IDLE)
+  if (name != "vialSetup" && currentState == SystemState::IDLE)
   {
     Serial.println("System is IDLE — cannot process commands until parameters are received.");
     return;
   }
+
   if (name == "startCycle" && state == "on")
   {
     setState(SystemState::REHYDRATING);
@@ -51,6 +32,19 @@ void handleStateCommand(const String &name, const String &state)
       Serial.printf("State RESUMED (currentState = %d)", static_cast<int>(currentState));
     }
   }
+  else if (name == "vialSetup")
+  {
+    if (state == "yes")
+    {
+      setState(SystemState::VIAL_SETUP);
+      shouldMoveForward = true; // Enable back-and-forth movement
+      Serial.println("State changed to VIAL_SETUP");
+    }
+    else if (state == "no")
+    {
+      shouldMoveBack = true; // Disable back-and-forth movement
+    }
+  }
   else if (name == "endCycle" && state == "on")
   {
     setState(SystemState::ENDED);
@@ -61,12 +55,12 @@ void handleStateCommand(const String &name, const String &state)
     if (state == "on")
     {
       setState(SystemState::EXTRACTING);
+      shouldMoveForward = true; // Enable back-and-forth movement
       Serial.println("Extraction started");
     }
     else
     {
-      setState(previousState);
-      Serial.println("Extraction ended — resuming");
+      shouldMoveBack = true; // Disable back-and-forth movement
     }
   }
   else if (name == "refill")
@@ -84,7 +78,6 @@ void handleStateCommand(const String &name, const String &state)
   }
   else if (name == "logCycle" && state == "on")
   {
-
     setState(SystemState::LOGGING);
     Serial.println("State changed to LOGGING");
   }
@@ -92,89 +85,82 @@ void handleStateCommand(const String &name, const String &state)
   {
     Serial.printf("Unknown or ignored command: %s with state: %s\n", name.c_str(), state.c_str());
   }
-  // Only set recoveryStateDirty, never call sendEspRecoveryState here
-  recoveryStateDirty = true;
-  Serial.println("[DEBUG] handleStateCommand: Marked recoveryStateDirty = true");
 }
 
 void handleRecoveryPacket(const JsonObject &data)
 {
-  Serial.println("[DEBUG] handleRecoveryPacket called");
-  
-  // Check if we have valid recovery data
-  if (data.isNull() || data.size() == 0) {
+  if (!data["currentState"].is<const char *>() || !data["parameters"].is<JsonObject>())
+  {
     Serial.println("Recovery packet is empty or invalid. Transitioning to IDLE state.");
-    setState(SystemState::IDLE);
+    currentState = SystemState::IDLE;
     return;
   }
 
-  // Restore the parameters first
-  volumeAddedPerCycle = data["volumeAddedPerCycle"].is<float>() ? data["volumeAddedPerCycle"].as<float>() : 0.0;
-  syringeDiameter = data["syringeDiameter"].is<float>() ? data["syringeDiameter"].as<float>() : 0.0;
-  desiredHeatingTemperature = data["desiredHeatingTemperature"].is<float>() ? data["desiredHeatingTemperature"].as<float>() : 0.0;
-  durationOfHeating = data["durationOfHeating"].is<float>() ? data["durationOfHeating"].as<float>() : 0.0;
-  durationOfMixing = data["durationOfMixing"].is<float>() ? data["durationOfMixing"].as<float>() : 0.0;
-  numberOfCycles = data["numberOfCycles"].is<int>() ? data["numberOfCycles"].as<int>() : 0;
-  syringeStepCount = data["syringeStepCount"].is<int>() ? data["syringeStepCount"].as<int>() : 0;
-  heatingStartTime = data["heatingStartTime"].is<unsigned long>() ? data["heatingStartTime"].as<unsigned long>() : 0;
-  heatingStarted = data["heatingStarted"].is<bool>() ? data["heatingStarted"].as<bool>() : false;
-  mixingStartTime = data["mixingStartTime"].is<unsigned long>() ? data["mixingStartTime"].as<unsigned long>() : 0;
-  mixingStarted = data["mixingStarted"].is<bool>() ? data["mixingStarted"].as<bool>() : false;
-  completedCycles = data["completedCycles"].is<int>() ? data["completedCycles"].as<int>() : 0;
-  currentCycle = data["currentCycle"].is<int>() ? data["currentCycle"].as<int>() : 0;
-  heatingProgressPercent = data["heatingProgress"].is<float>() ? data["heatingProgress"].as<float>() : 0.0;
-  mixingProgressPercent = data["mixingProgress"].is<float>() ? data["mixingProgress"].as<float>() : 0.0;
+  // Restore the last known state
+  String recoveredState = data["currentState"].as<String>();
+  if (recoveredState == "HEATING")
+    currentState = SystemState::HEATING;
+  else if (recoveredState == "REHYDRATING")
+    currentState = SystemState::REHYDRATING;
+  else if (recoveredState == "MIXING")
+    currentState = SystemState::MIXING;
+  else if (recoveredState == "READY")
+    currentState = SystemState::READY;
+  else
+    currentState = SystemState::IDLE;
 
+  // Restore parameters
+  JsonObject parameters = data["parameters"];
+  volumeAddedPerCycle = parameters["volumeAddedPerCycle"].is<float>() ? parameters["volumeAddedPerCycle"].as<float>() : 0.0;
+  syringeDiameter = parameters["syringeDiameter"].is<float>() ? parameters["syringeDiameter"].as<float>() : 0.0;
+  desiredHeatingTemperature = parameters["desiredHeatingTemperature"].is<int>() ? parameters["desiredHeatingTemperature"].as<int>() : 0.0;
+  durationOfHeating = parameters["durationOfHeating"].is<float>() ? parameters["durationOfHeating"].as<float>() : 0.0;
+  durationOfMixing = parameters["durationOfMixing"].is<float>() ? parameters["durationOfMixing"].as<float>() : 0.0;
+  numberOfCycles = parameters["numberOfCycles"].is<int>() ? parameters["numberOfCycles"].as<int>() : 0;
+  syringeStepCount = parameters["syringeStepCount"].is<int>() ? parameters["syringeStepCount"].as<int>() : 0;
+  heatingStartTime = parameters["heatingStartTime"].is<long>() ? parameters["heatingStartTime"].as<long>() : 0;
+  heatingStarted = parameters["heatingStarted"].is<bool>() ? parameters["heatingStarted"].as<bool>() : false;
+  mixingStartTime = parameters["mixingStartTime"].is<long>() ? parameters["mixingStartTime"].as<long>() : 0;
+  mixingStarted = parameters["mixingStarted"].is<bool>() ? parameters["mixingStarted"].as<bool>() : false;
+  completedCycles = parameters["completedCycles"].is<int>() ? parameters["completedCycles"].as<int>() : 0;
+  currentCycle = parameters["currentCycle"].is<int>() ? parameters["currentCycle"].as<int>() : 0;
+  heatingProgressPercent = parameters["heatingProgress"].is<float>() ? parameters["heatingProgress"].as<float>() : 0.0;
+  mixingProgressPercent = parameters["mixingProgress"].is<float>() ? parameters["mixingProgress"].as<float>() : 0.0;
   // Restore sample zones
   sampleZoneCount = 0;
-  if (data["sampleZonesToMix"].is<JsonArray>())
+  if (parameters["sampleZonesToMix"].is<JsonArray>())
   {
-    JsonArray zones = data["sampleZonesToMix"].as<JsonArray>();
+    JsonArray zones = parameters["sampleZonesToMix"].as<JsonArray>();
     for (JsonVariant val : zones)
     {
-      if (val.is<int>() && sampleZoneCount < 3)
+      if (val.is<int>() && sampleZoneCount < 10)
       {
         sampleZonesArray[sampleZoneCount++] = val.as<int>();
       }
     }
   }
 
-  // Restore the state last
-  int stateInt = data["currentState"].is<int>() ? data["currentState"].as<int>() : (int)SystemState::IDLE;
-  SystemState recoveredState = (SystemState)stateInt;
-  
-  // Adjust timing for states that are time-dependent
-  unsigned long currentTime = millis();
-  if (recoveredState == SystemState::HEATING && heatingStarted) {
-    // Adjust heating start time based on progress
-    float progressFraction = heatingProgressPercent / 100.0;
-    unsigned long elapsedTime = (unsigned long)(progressFraction * durationOfHeating * 1000.0);
-    heatingStartTime = currentTime - elapsedTime;
-  }
-  
-  if (recoveredState == SystemState::MIXING && mixingStarted) {
-    // Adjust mixing start time based on progress
-    float progressFraction = mixingProgressPercent / 100.0;
-    unsigned long elapsedTime = (unsigned long)(progressFraction * durationOfMixing * 1000.0);
-    mixingStartTime = currentTime - elapsedTime;
+  if (heatingStarted == true)
+  {
+    float heatingDurationRemaining = (1.0 - (heatingProgressPercent / 100.0)) * durationOfHeating * 1000.0;
   }
 
-  setState(recoveredState);
-
-  // Mark recovery as clean since we just restored from it
-  recoveryStateDirty = false;
+  if (mixingStarted == true)
+  {
+    float mixingDurationRemaining = (1.0 - (mixingProgressPercent / 100.0)) * durationOfMixing * 1000.0;
+  }
 
   // Log recovery details
   Serial.println("[RECOVERY] Restored system state and parameters:");
-  Serial.printf("  Current state: %d\n", (int)recoveredState);
+  Serial.printf("  Current state: %s\n", recoveredState.c_str());
   Serial.printf("  Volume per cycle: %.2f µL\n", volumeAddedPerCycle);
   Serial.printf("  Syringe diameter: %.2f in\n", syringeDiameter);
   Serial.printf("  Heating temp: %.2f °C for %.2f s\n", desiredHeatingTemperature, durationOfHeating);
   Serial.printf("  Mixing duration: %.2f s with %d zone(s)\n", durationOfMixing, sampleZoneCount);
   Serial.printf("  Number of cycles: %d (completed: %d, current: %d)\n", numberOfCycles, completedCycles, currentCycle);
   Serial.printf("  Syringe Step Count: %d\n", syringeStepCount);
-  Serial.printf("  HeatingStarted: %s | HeatingProgress: %.2f%%\n", heatingStarted ? "true" : "false", heatingProgressPercent);
-  Serial.printf("  MixingStarted: %s | MixingProgress: %.2f%%\n", mixingStarted ? "true" : "false", mixingProgressPercent);
+  Serial.printf("  HeatingStarted: %s | HeatingStartTime: %lu\n", heatingStarted ? "true" : "false", heatingProgressPercent);
+  Serial.printf("  MixingStarted: %s | MixingStartTime: %lu\n", mixingStarted ? "true" : "false", mixingProgressPercent);
 }
 
 void handleParametersPacket(const JsonObject &parameters)

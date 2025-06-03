@@ -17,7 +17,10 @@ extern int currentCycle;
 extern float heatingProgressPercent;
 extern float mixingProgressPercent;
 
-extern int sampleZonesArray[3];
-extern int sampleZoneCount;
+bool shouldMoveForward= false; // Initialize the flag to false
+bool shouldMoveBack = false; // Initialize the flag to false
 
-volatile bool recoveryStateDirty = false;
+bool movementForwardDone = false;
+bool movementBackDone = false;
+
+
