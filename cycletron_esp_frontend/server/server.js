@@ -146,6 +146,13 @@ wss.on('connection', (ws, req) => {
               const recoveryData = JSON.parse(fileContent);
               ws.send(JSON.stringify({ type: 'espRecoveryState', data: recoveryData }));
               console.log('Sent ESP recovery state to ESP32:', recoveryData);
+              
+              // Also send parameters if available in frontend recovery state
+              if (recoveryState.parameters) {
+                ws.send(JSON.stringify({ type: 'parameters', data: recoveryState.parameters }));
+                console.log('Sent parameters to ESP32 for recovery:', recoveryState.parameters);
+              }
+              
               espRecoverySent = true;
             }
           } catch (e) {
@@ -317,6 +324,41 @@ wss.on('connection', (ws, req) => {
 
       if (msg.type === 'parameters') {
         console.log('Received parameters:', msg.data);
+        
+        // Store parameters in recovery state for later ESP32 recovery
+        recoveryState.parameters = msg.data;
+        saveRecoveryState();
+        
+        // Update ESP recovery state with all set parameters
+        if (msg.data) {
+          if (!espRecoveryState.parameters) espRecoveryState.parameters = {};
+          
+          // Store all the set parameters
+          espRecoveryState.parameters.volumeAddedPerCycle = parseFloat(msg.data.volumeAddedPerCycle) || 0;
+          espRecoveryState.parameters.syringeDiameter = parseFloat(msg.data.syringeDiameter) || 0;
+          espRecoveryState.parameters.desiredHeatingTemperature = parseFloat(msg.data.desiredHeatingTemperature) || 0;
+          espRecoveryState.parameters.durationOfHeating = parseFloat(msg.data.durationOfHeating) || 0;
+          espRecoveryState.parameters.durationOfMixing = parseFloat(msg.data.durationOfMixing) || 0;
+          espRecoveryState.parameters.numberOfCycles = parseInt(msg.data.numberOfCycles) || 0;
+          espRecoveryState.parameters.totalCycles = parseInt(msg.data.numberOfCycles) || 0;
+          espRecoveryState.parameters.sampleZonesToMix = msg.data.sampleZonesToMix || [];
+          
+          // Update timestamp
+          espRecoveryState.timestamp = new Date().toISOString();
+          
+          saveEspRecoveryState();
+          console.log(`[ESP RECOVERY] Updated with set parameters:`, {
+            volumeAddedPerCycle: espRecoveryState.parameters.volumeAddedPerCycle,
+            syringeDiameter: espRecoveryState.parameters.syringeDiameter,
+            desiredHeatingTemperature: espRecoveryState.parameters.desiredHeatingTemperature,
+            durationOfHeating: espRecoveryState.parameters.durationOfHeating,
+            durationOfMixing: espRecoveryState.parameters.durationOfMixing,
+            numberOfCycles: espRecoveryState.parameters.numberOfCycles,
+            totalCycles: espRecoveryState.parameters.totalCycles,
+            sampleZonesToMix: espRecoveryState.parameters.sampleZonesToMix
+          });
+        }
+        
         // Forward parameters to all ESP32 clients
         for (const esp of espClients) {
           if (esp.readyState === WebSocket.OPEN) {
