@@ -155,12 +155,65 @@ wss.on('connection', (ws, req) => {
         // Don't return here - let ESP32 messages continue to be processed
       }
 
-      // Handle ESP32 updating its recovery state
-      if (msg.type === 'updateEspRecoveryState' && isEspClient) {
+      // Handle ESP32 updating its recovery state - accept both message types
+      if ((msg.type === 'updateEspRecoveryState' || msg.type === 'espRecoveryState') && isEspClient) {
         espRecoveryState = msg.data || {};
         saveEspRecoveryState();
         console.log('[WS DEBUG] Updated ESP recovery state and saved to ESP_Recovery.json:', espRecoveryState);
         return;
+      }
+
+      // Build ESP recovery state from individual ESP32 messages
+      if (isEspClient && msg.type) {
+        let shouldSave = false;
+        
+        // Ensure espRecoveryState has the required structure
+        if (!espRecoveryState.currentState) espRecoveryState.currentState = 'IDLE';
+        if (!espRecoveryState.parameters) espRecoveryState.parameters = {};
+        if (!espRecoveryState.timestamp) espRecoveryState.timestamp = new Date().toISOString();
+        
+        switch (msg.type) {
+          case 'currentState':
+            if (espRecoveryState.currentState !== msg.value) {
+              espRecoveryState.currentState = msg.value;
+              espRecoveryState.timestamp = new Date().toISOString();
+              shouldSave = true;
+              console.log(`[ESP RECOVERY] Updated current state to: ${msg.value}`);
+            }
+            break;
+            
+          case 'temperature':
+            espRecoveryState.parameters.currentTemperature = msg.value;
+            shouldSave = true;
+            break;
+            
+          case 'heatingProgress':
+            espRecoveryState.parameters.heatingProgress = msg.value;
+            shouldSave = true;
+            break;
+            
+          case 'mixingProgress':
+            espRecoveryState.parameters.mixingProgress = msg.value;
+            shouldSave = true;
+            break;
+            
+          case 'cycleProgress':
+            espRecoveryState.parameters.completedCycles = msg.completed;
+            espRecoveryState.parameters.totalCycles = msg.total;
+            espRecoveryState.parameters.cycleProgressPercent = msg.percent;
+            shouldSave = true;
+            break;
+            
+          case 'syringePercentage':
+            espRecoveryState.parameters.syringePercentage = msg.value;
+            shouldSave = true;
+            break;
+        }
+        
+        if (shouldSave) {
+          saveEspRecoveryState();
+          console.log(`[ESP RECOVERY] Updated from ${msg.type} message`);
+        }
       }
 
       // Handle heartbeat packets from ESP32
