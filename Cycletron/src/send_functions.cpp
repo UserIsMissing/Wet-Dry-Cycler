@@ -147,6 +147,9 @@ void sendCurrentState()
     case SystemState::IDLE:
         stateStr = "IDLE";
         break;
+    case SystemState::WAITING:
+        stateStr = "WAITING";
+        break;
     case SystemState::READY:
         stateStr = "READY";
         break;

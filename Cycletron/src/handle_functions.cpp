@@ -40,10 +40,18 @@ void handleStateCommand(const String &name, const String &state)
       shouldMoveForward = true; // Enable back-and-forth movement
       Serial.println("State changed to VIAL_SETUP");
     }
-    else if (state == "no")
+    else if (state == "continue")
+    {
+      shouldMoveBack = true; // Disable back-and-forth movement
+    }
+    else if  (state == "no")
     {
       setState(SystemState::WAITING);
-      shouldMoveBack = true; // Disable back-and-forth movement
+    }
+    else 
+    {
+      Serial.printf("[ERROR] Unknown state for vialSetup: %s\n", state.c_str());
+      return; // Ignore unknown states
     }
   }
   else if (name == "endCycle" && state == "on")
