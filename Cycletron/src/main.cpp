@@ -241,7 +241,7 @@ void setup()
   }
   Serial.println("\nWiFi connected. IP: " + WiFi.localIP().toString());
 
-  webSocket.begin(ServerIP, ServerPort, "/ws");
+  webSocket.begin(ServerIP, ServerPort, "/");
   webSocket.onEvent(onWebSocketEvent);
 
   Serial0.print("ESP32 MAC Address: ");
