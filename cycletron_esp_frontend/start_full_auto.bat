@@ -1,6 +1,10 @@
 @echo off
 setlocal
 
+REM === Kill any existing servers on ports 5175 and 5174 ===
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5175') do taskkill /F /PID %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5174') do taskkill /F /PID %%a >nul 2>&1
+
 REM === Frontend Dependencies ===
 echo Checking frontend dependencies...
 if exist node_modules (
