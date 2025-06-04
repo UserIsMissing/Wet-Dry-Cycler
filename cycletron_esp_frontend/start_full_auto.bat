@@ -40,9 +40,9 @@ if %errorlevel% neq 0 (
 )
 cd ..
 
-REM === Start Backend Server with nodemon (ignoring recovery_state.json) ===
+REM === Start Backend Server with nodemon (ignoring Frontend_Recovery.json) ===
 echo Starting backend server with nodemon on port 5175...
-start "Backend" cmd /k nodemon server/server.js --ignore recovery_state.json
+start "Backend" cmd /k nodemon server/server.js --ignore Frontend_Recovery.json
 
 REM === Start Frontend Vite Dev Server ===
 echo Starting frontend (Vite) on default port...

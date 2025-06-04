@@ -9,8 +9,9 @@ const { exec } = require('child_process'); // For opening file location in Explo
 const app = express();
 const PORT = 5175;
 
-const recoveryFile = 'recovery_state.json';
-const espRecoveryFile = 'ESP_Recovery.json'; // File for ESP32 recovery state
+// Change recovery file paths to be in the /server/ folder and update names
+const recoveryFile = path.join(__dirname, 'Frontend_Recovery.json');
+const espRecoveryFile = path.join(__dirname, 'ESP_Recovery.json'); // File for ESP32 recovery state
 
 let recoveryState = {};
 let espRecoveryState = {};
@@ -73,12 +74,27 @@ app.get('/api/history', (req, res) => {
 
 // Add this route to reset the recovery state
 app.post('/api/resetRecoveryState', (req, res) => {
+  // Delete frontend recovery state
   if (fs.existsSync(recoveryFile)) {
     fs.unlinkSync(recoveryFile);
-    console.log('recovery_state.json deleted by request.');
+    console.log('Frontend_Recovery.json deleted by request.');
   }
-  recoveryState = {}; // Reset in-memory state
+  
+  // Delete ESP32 recovery state
+  if (fs.existsSync(espRecoveryFile)) {
+    fs.unlinkSync(espRecoveryFile);
+    console.log('ESP_Recovery.json deleted by request.');
+  }
+  
+  recoveryState = {}; // Reset frontend in-memory state
+  espRecoveryState = {}; // Reset ESP32 in-memory state
+  
   res.json({ success: true });
+});
+
+// Add route to get recovery state
+app.get('/api/recoveryState', (req, res) => {
+  res.json({ recoveryState });
 });
 
 // ----------------- Static Frontend -----------------
@@ -92,48 +108,150 @@ const wss = new WebSocket.Server({ server });
 const clients = new Set();
 const espClients = new Set();
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   let isEspClient = false; // Track if this client is an ESP32
+  let espRecoverySent = false; // Ensure we only send recovery once per connection
+
+  const clientIP = req.socket.remoteAddress || 'unknown';
+  const clientPort = req.socket.remotePort || 'unknown';
+  console.log(`New WebSocket connection from ${clientIP}:${clientPort}`);
 
   if (!clients.has(ws)) {
     clients.add(ws);
-    console.log('New WebSocket connection established');
+    console.log(`Total WebSocket connections: ${clients.size}`);
   }
 
   ws.on('message', (message) => {
+    console.log('[WS DEBUG] Received message:', message);
     try {
       const msg = JSON.parse(message);
 
+      // Debug: log all message types
+      if (msg.type) {
+        console.log(`[WS DEBUG] Message type: ${msg.type}`);
+      }
+
       // Detect ESP32 by a message property (e.g., type === 'esp_announce')
       if (msg.from === 'esp32') {
-        if (!espClients.has(ws)) {
-          espClients.add(ws);
+        if (!isEspClient) {
+          console.log(`[WS DEBUG] NEW ESP32 CLIENT DETECTED! Adding to espClients set.`);
           isEspClient = true;
-          console.log('Registered ESP32 WebSocket client');
-          broadcastExcept(ws, JSON.stringify({ type: 'status', status: 'connected' }));
-
-          // Send ESP recovery state to ESP32 on connection
-          if (Object.keys(espRecoveryState).length > 0) {
-            ws.send(JSON.stringify({ type: 'espRecoveryState', data: espRecoveryState }));
-            console.log('Sent ESP recovery state to ESP32:', espRecoveryState);
-          } else {
-            console.log('ESP recovery state is empty. ESP32 will start fresh.');
+          espClients.add(ws);
+        }
+        // On ESP32 connect, send recovery state if available and not already sent
+        if (!espRecoverySent && fs.existsSync(espRecoveryFile)) {
+          try {
+            const fileContent = fs.readFileSync(espRecoveryFile, 'utf8');
+            if (fileContent && fileContent.trim() !== '{}' && fileContent.trim() !== '') {
+              const recoveryData = JSON.parse(fileContent);
+              ws.send(JSON.stringify({ type: 'espRecoveryState', data: recoveryData }));
+              console.log('Sent ESP recovery state to ESP32:', recoveryData);
+              
+              // Only send separate parameters if ESP recovery state doesn't have them
+              // or if frontend has newer parameters
+              if (recoveryState.parameters && !recoveryData.parameters) {
+                ws.send(JSON.stringify({ type: 'parameters', data: recoveryState.parameters }));
+                console.log('Sent additional parameters to ESP32 for recovery:', recoveryState.parameters);
+              }
+              
+              espRecoverySent = true;
+            }
+          } catch (e) {
+            console.error('Failed to send ESP recovery state:', e);
           }
         }
-        return; // ESP32 never gets recoveryState
+        // Don't return here - let ESP32 messages continue to be processed
+      }
+
+      // Handle ESP32 updating its recovery state - accept both message types
+      if ((msg.type === 'updateEspRecoveryState' || msg.type === 'espRecoveryState') && isEspClient) {
+        espRecoveryState = msg.data || {};
+        saveEspRecoveryState();
+        console.log('[WS DEBUG] Updated ESP recovery state and saved to ESP_Recovery.json:', espRecoveryState);
+        return;
+      }
+
+      // Build ESP recovery state from individual ESP32 messages
+      if (isEspClient && msg.type) {
+        let shouldSave = false;
+        
+        // Ensure espRecoveryState has the required structure
+        if (!espRecoveryState.currentState) espRecoveryState.currentState = 'IDLE';
+        if (!espRecoveryState.parameters) espRecoveryState.parameters = {};
+        if (!espRecoveryState.timestamp) espRecoveryState.timestamp = new Date().toISOString();
+        
+        switch (msg.type) {
+          case 'currentState':
+            if (espRecoveryState.currentState !== msg.value) {
+              espRecoveryState.currentState = msg.value;
+              espRecoveryState.timestamp = new Date().toISOString();
+              shouldSave = true;
+              console.log(`[ESP RECOVERY] Updated current state to: ${msg.value}`);
+            }
+            break;
+            
+          case 'temperature':
+            espRecoveryState.parameters.currentTemperature = msg.value;
+            shouldSave = true;
+            break;
+            
+          case 'heatingProgress':
+            espRecoveryState.parameters.heatingProgress = msg.value;
+            shouldSave = true;
+            break;
+            
+          case 'mixingProgress':
+            espRecoveryState.parameters.mixingProgress = msg.value;
+            shouldSave = true;
+            break;
+            
+          case 'cycleProgress':
+            espRecoveryState.parameters.completedCycles = msg.completed;
+            espRecoveryState.parameters.totalCycles = msg.total;
+            espRecoveryState.parameters.cycleProgressPercent = msg.percent;
+            shouldSave = true;
+            break;
+            
+          case 'syringePercentage':
+            espRecoveryState.parameters.syringePercentage = msg.value;
+            shouldSave = true;
+            break;
+        }
+        
+        if (shouldSave) {
+          saveEspRecoveryState();
+          console.log(`[ESP RECOVERY] Updated from ${msg.type} message`);
+        }
       }
 
       // Handle heartbeat packets from ESP32
       if (msg.type === 'heartbeat') {
-        // Forward status update to all frontend clients
+        // Forward heartbeat message to all frontend clients
         for (const client of clients) {
           if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
-            client.send(JSON.stringify({ type: 'status', status: 'connected' }));
+            client.send(JSON.stringify({ type: 'heartbeat', from: 'esp32' }));
           }
         }
         // Optionally, you can log the heartbeat
         // console.log('Received heartbeat from ESP32');
         return;
+      }
+
+      // Forward ALL ESP32 messages to frontend (unless they're ESP32-only commands)
+      if (isEspClient && msg.type && 
+          msg.type !== 'updateEspRecoveryState' && 
+          msg.type !== 'button' && 
+          msg.type !== 'parameters') {
+        console.log(`[WS DEBUG] Forwarding ESP32 message to frontend clients: ${msg.type}`);
+        // Forward this ESP32 message to all frontend clients
+        for (const client of clients) {
+          if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
+            console.log(`[WS DEBUG] Sending to frontend client`);
+            client.send(JSON.stringify(msg));
+          }
+        }
+      } else if (isEspClient) {
+        console.log(`[WS DEBUG] NOT forwarding ESP32 message: ${msg.type} (isEspClient: ${isEspClient})`);
       }
 
       // If a frontend connects, send recoveryState on request or after identification
@@ -145,10 +263,13 @@ wss.on('connection', (ws) => {
       }
 
       // Handle incoming message types
-      if (msg.type === 'temperature') {
+      if (msg.type === 'temperature' && isEspClient) {
+        console.log(`[WS DEBUG] Processing ESP32 temperature: ${msg.value}°C`);
         db.run('INSERT INTO temperature_log (value) VALUES (?)', [msg.value]);
         console.log(`Logged temperature: ${msg.value}°C`);
-        broadcastExcept(ws, JSON.stringify({ type: 'temperatureUpdate', value: msg.value }));
+        
+        // Temperature is already forwarded by the general ESP32 message forwarding above
+        // No need for duplicate temperatureUpdate messages
       }
 
       if (msg.type === 'button' && msg.name === 'startCycle') {
@@ -167,10 +288,13 @@ wss.on('connection', (ws) => {
       // Handles button commands
       if (msg.type === 'button') {
         console.log(`Button command received: ${msg.name} -> ${msg.state}`);
-        // Forward the button command to all ESP32 clients
-        for (const esp of espClients) {
-          if (esp.readyState === WebSocket.OPEN) {
-            esp.send(JSON.stringify(msg));
+        // Skip vialSetup buttons as they have their own specific handler below
+        if (msg.name !== 'vialSetup') {
+          // Forward the button command to all ESP32 clients
+          for (const esp of espClients) {
+            if (esp.readyState === WebSocket.OPEN) {
+              esp.send(JSON.stringify(msg));
+            }
           }
         }
       }
@@ -204,6 +328,41 @@ wss.on('connection', (ws) => {
 
       if (msg.type === 'parameters') {
         console.log('Received parameters:', msg.data);
+        
+        // Store parameters in recovery state for later ESP32 recovery
+        recoveryState.parameters = msg.data;
+        saveRecoveryState();
+        
+        // Update ESP recovery state with all set parameters
+        if (msg.data) {
+          if (!espRecoveryState.parameters) espRecoveryState.parameters = {};
+          
+          // Store all the set parameters
+          espRecoveryState.parameters.volumeAddedPerCycle = parseFloat(msg.data.volumeAddedPerCycle) || 0;
+          espRecoveryState.parameters.syringeDiameter = parseFloat(msg.data.syringeDiameter) || 0;
+          espRecoveryState.parameters.desiredHeatingTemperature = parseFloat(msg.data.desiredHeatingTemperature) || 0;
+          espRecoveryState.parameters.durationOfHeating = parseFloat(msg.data.durationOfHeating) || 0;
+          espRecoveryState.parameters.durationOfMixing = parseFloat(msg.data.durationOfMixing) || 0;
+          espRecoveryState.parameters.numberOfCycles = parseInt(msg.data.numberOfCycles) || 0;
+          espRecoveryState.parameters.totalCycles = parseInt(msg.data.numberOfCycles) || 0;
+          espRecoveryState.parameters.sampleZonesToMix = msg.data.sampleZonesToMix || [];
+          
+          // Update timestamp
+          espRecoveryState.timestamp = new Date().toISOString();
+          
+          saveEspRecoveryState();
+          console.log(`[ESP RECOVERY] Updated with set parameters:`, {
+            volumeAddedPerCycle: espRecoveryState.parameters.volumeAddedPerCycle,
+            syringeDiameter: espRecoveryState.parameters.syringeDiameter,
+            desiredHeatingTemperature: espRecoveryState.parameters.desiredHeatingTemperature,
+            durationOfHeating: espRecoveryState.parameters.durationOfHeating,
+            durationOfMixing: espRecoveryState.parameters.durationOfMixing,
+            numberOfCycles: espRecoveryState.parameters.numberOfCycles,
+            totalCycles: espRecoveryState.parameters.totalCycles,
+            sampleZonesToMix: espRecoveryState.parameters.sampleZonesToMix
+          });
+        }
+        
         // Forward parameters to all ESP32 clients
         for (const esp of espClients) {
           if (esp.readyState === WebSocket.OPEN) {
@@ -255,17 +414,29 @@ wss.on('connection', (ws) => {
       }
 
       if (msg.type === 'resetRecoveryState') {
+        // Delete frontend recovery file
         if (fs.existsSync(recoveryFile)) {
           fs.unlinkSync(recoveryFile);
-          console.log('recovery_state.json deleted by frontend request.');
+          console.log('Frontend_Recovery.json deleted by frontend request.');
         }
+        
+        // Delete ESP32 recovery file
+        if (fs.existsSync(espRecoveryFile)) {
+          fs.unlinkSync(espRecoveryFile);
+          console.log('ESP_Recovery.json deleted by frontend request.');
+        }
+        
+        // Reset in-memory states
         recoveryState = {};
+        espRecoveryState = {};
+        
         // Notify all clients of the reset state
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type: 'recoveryState', data: recoveryState }));
           }
         });
+        
         return;
       }
 
@@ -279,21 +450,8 @@ wss.on('connection', (ws) => {
         }
       }
 
-      // Handle state or progress updates from ESP32
-      if (
-        msg.type === 'cycleProgress' ||
-        msg.type === 'heatingProgress' ||
-        msg.type === 'mixingProgress' ||
-        msg.type === 'syringePercentage'
-      ) {
-        // Relay to all frontend clients
-        for (const client of clients) {
-          if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
-            client.send(JSON.stringify(msg));
-          }
-        }
-        return;
-      }
+      // Handle state or progress updates from ESP32 - now handled above
+      // This block can be removed as all ESP32 messages are forwarded above
 
       // Reset ESP recovery state when the cycle ends
       if (msg.type === 'button' && msg.name === 'endCycle') {
@@ -305,14 +463,18 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('close', () => {
+  ws.on('close', (code, reason) => {
     clients.delete(ws);
     espClients.delete(ws);
-    console.log('WebSocket client disconnected');
+    const clientType = isEspClient ? 'ESP32' : 'Frontend';
+    console.log(`${clientType} WebSocket client disconnected (code: ${code}, reason: ${reason})`);
+    console.log(`Remaining connections: ${clients.size}`);
   });
 
   ws.on('error', (err) => {
     console.error('WebSocket error:', err);
+    clients.delete(ws);
+    espClients.delete(ws);
   });
 });
 
@@ -325,6 +487,8 @@ function broadcastExcept(sender, message) {
   }
 }
 
-server.listen(PORT, () => {
-  console.log(`HTTP & WebSocket Server listening on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`HTTP & WebSocket Server listening on http://0.0.0.0:${PORT}`);
+  console.log(`Local access: http://localhost:${PORT}`);
+  console.log(`Platform: ${process.platform}`);
 });

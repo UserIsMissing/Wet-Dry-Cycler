@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import 'bulma/css/bulma.min.css';
-import useWebSocket from './hooks/useWebSocket';
+import { useWebSocket } from './context/WebSocketContext';
 import './App.css';
 
 // Constants
@@ -78,7 +78,7 @@ function App() {
     sendButtonCommand,
     sendRecoveryUpdate,
     resetRecoveryState,
-  } = useWebSocket(); // <-- Remove argument
+  } = useWebSocket();
 
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
   const [activeTab, setActiveTab] = useState('parameters');
@@ -223,8 +223,8 @@ function App() {
   };
 
   const handleLogCycle = () => {
-    // Exclude syringeLeft and extractionReady from espOutputs
-    const { syringeLeft, extractionReady, ...filteredEspOutputs } = espOutputs;
+    // Exclude extractionReady from espOutputs (syringeLeft is calculated, so no need to exclude)
+    const { extractionReady, ...filteredEspOutputs } = espOutputs;
     sendButtonCommand('logCycle', true, {
       parameters,
       espOutputs: filteredEspOutputs,
@@ -252,9 +252,17 @@ function App() {
   
     // Send vial setup packet to ESP32
     if (step === 'continue') {
+      // First dialog: "Yes" to needing vial preparation
       sendButtonCommand('vialSetup', true, { status: 'yes' }); // Send "yes" to ESP32
     } else if (step === null) {
-      sendButtonCommand('vialSetup', true, { status: 'no' }); // Send "no" to ESP32
+      // This could be either "No" from first dialog or "Continue" from second dialog
+      if (vialSetupStep === 'prompt') {
+        // Coming from first dialog: "No" to vial preparation
+        sendButtonCommand('vialSetup', true, { status: 'no' }); // Send "no" to ESP32
+      } else {
+        // Coming from second dialog: "Continue" after vial setup
+        sendButtonCommand('vialSetup', true, { status: 'continue' }); // Send "continue" to ESP32
+      }
     }
   };
 
@@ -483,8 +491,8 @@ function App() {
               </div>
               <div className="column is-full">
                 <label className="label is-small">% of Syringe Left</label>
-                <progress className="progress is-primary is-small" value={espOutputs.syringeLeft} max="100">
-                  {espOutputs.syringeLeft}%
+                <progress className="progress is-primary is-small" value={100 - (espOutputs.syringeUsed || 0)} max="100">
+                  {(100 - (espOutputs.syringeUsed || 0)).toFixed(2)}%
                 </progress>
               </div>
               <div className="column is-full">

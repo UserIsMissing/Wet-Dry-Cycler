@@ -1,0 +1,13 @@
+{
+  "watch": ["server.js"],
+  "ignore": [
+    "Frontend_Recovery.json",
+    "ESP_Recovery.json",
+    "esp_data.db",
+    "node_modules/"
+  ],
+  "ext": "js,json",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
