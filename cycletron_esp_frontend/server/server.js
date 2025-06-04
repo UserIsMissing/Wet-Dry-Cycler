@@ -147,10 +147,11 @@ wss.on('connection', (ws, req) => {
               ws.send(JSON.stringify({ type: 'espRecoveryState', data: recoveryData }));
               console.log('Sent ESP recovery state to ESP32:', recoveryData);
               
-              // Also send parameters if available in frontend recovery state
-              if (recoveryState.parameters) {
+              // Only send separate parameters if ESP recovery state doesn't have them
+              // or if frontend has newer parameters
+              if (recoveryState.parameters && !recoveryData.parameters) {
                 ws.send(JSON.stringify({ type: 'parameters', data: recoveryState.parameters }));
-                console.log('Sent parameters to ESP32 for recovery:', recoveryState.parameters);
+                console.log('Sent additional parameters to ESP32 for recovery:', recoveryState.parameters);
               }
               
               espRecoverySent = true;
@@ -287,10 +288,13 @@ wss.on('connection', (ws, req) => {
       // Handles button commands
       if (msg.type === 'button') {
         console.log(`Button command received: ${msg.name} -> ${msg.state}`);
-        // Forward the button command to all ESP32 clients
-        for (const esp of espClients) {
-          if (esp.readyState === WebSocket.OPEN) {
-            esp.send(JSON.stringify(msg));
+        // Skip vialSetup buttons as they have their own specific handler below
+        if (msg.name !== 'vialSetup') {
+          // Forward the button command to all ESP32 clients
+          for (const esp of espClients) {
+            if (esp.readyState === WebSocket.OPEN) {
+              esp.send(JSON.stringify(msg));
+            }
           }
         }
       }
