@@ -266,7 +266,7 @@ function App() {
     }
   };
 
-  // Function to reset both frontend and ESP recovery state
+  // Function to reset both frontend and ESP recovery state and restart ESP32
   const resetRecoveryData = () => {
     // Reset frontend recovery state
     resetRecoveryState();
@@ -275,8 +275,10 @@ function App() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          // Optionally, you can show a notification or reload
           console.log('ESP_Recovery.json reset');
+          // After successfully resetting recovery data, restart the ESP32
+          sendButtonCommand('restartESP32', true);
+          console.log('ESP32 restart command sent');
         }
       })
       .catch((err) => console.error('Failed to reset ESP recovery state:', err));
@@ -523,7 +525,7 @@ function App() {
               Send Recovery Update
             </button>
             <button className="button is-small is-danger" onClick={resetRecoveryData}>
-              Reset Recovery Data
+              Reset Recovery Data & Restart ESP32
             </button>
           </div>
           <pre>{JSON.stringify(recoveryState, null, 2)}</pre>

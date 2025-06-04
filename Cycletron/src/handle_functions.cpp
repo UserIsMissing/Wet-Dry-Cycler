@@ -4,8 +4,6 @@
 #include "handle_functions.h"
 #include "globals.h"
 
-
-
 void handleStateCommand(const String &name, const String &state)
 {
   if (name != "vialSetup" && currentState == SystemState::IDLE)
@@ -44,11 +42,11 @@ void handleStateCommand(const String &name, const String &state)
     {
       shouldMoveBack = true; // Disable back-and-forth movement
     }
-    else if  (state == "no")
+    else if (state == "no")
     {
       setState(SystemState::WAITING);
     }
-    else 
+    else
     {
       Serial.printf("[ERROR] Unknown state for vialSetup: %s\n", state.c_str());
       return; // Ignore unknown states
@@ -89,6 +87,12 @@ void handleStateCommand(const String &name, const String &state)
   {
     setState(SystemState::LOGGING);
     Serial.println("State changed to LOGGING");
+  }
+  else if (name == "restartESP32" && state == "on")
+  {
+    Serial.println("Restart command received - restarting ESP32...");
+    delay(100); // Brief delay to allow serial output
+    ESP.restart();
   }
   else
   {
