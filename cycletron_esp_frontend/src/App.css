@@ -1,0 +1,75 @@
+#root {
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 2rem;
+  text-align: left;
+}
+
+html, body {
+  margin: 0; /* Remove default margin */
+  padding: 0; /* Remove default padding */
+  height: 100%; /* Ensure full height */
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Align content to the top */
+  align-items: flex-start; /* Align content to the left */
+}
+
+.column.is-one-quarter {
+  flex: 0 0 30%; /* Adjust the width of the "ESP32 Outputs" column */
+  margin-left: -5rem;
+}
+
+.column.is-three-quarters {
+  flex: 0 0 75%; /* Adjust the width of the tabs column */
+  /* text-align: left; Align text to the left */
+  /* padding-left: none; Add some padding to the left */
+}
+
+.container {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 0em;
+}
+
+.read-the-docs {
+  color: #888;
+}
