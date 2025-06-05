@@ -291,9 +291,13 @@ wss.on('connection', (ws, req) => {
         // Skip vialSetup buttons as they have their own specific handler below
         if (msg.name !== 'vialSetup') {
           // Forward the button command to all ESP32 clients
+          console.log(`Forwarding button command '${msg.name}' to ${espClients.size} ESP32 client(s)`);
           for (const esp of espClients) {
             if (esp.readyState === WebSocket.OPEN) {
               esp.send(JSON.stringify(msg));
+              console.log(`Sent button command '${msg.name}' to ESP32 client`);
+            } else {
+              console.log(`ESP32 client not ready (readyState: ${esp.readyState})`);
             }
           }
         }
