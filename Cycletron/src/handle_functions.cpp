@@ -16,6 +16,7 @@ void handleStateCommand(const String &name, const String &state)
   {
     setState(SystemState::REHYDRATING);
     Serial.println("State changed to REHYDRATING");
+    return;
   }
   else if (name == "pauseCycle")
   {
@@ -29,6 +30,7 @@ void handleStateCommand(const String &name, const String &state)
       setState(previousState);
       Serial.printf("State RESUMED (currentState = %d)", static_cast<int>(currentState));
     }
+    return;
   }
   else if (name == "vialSetup")
   {
@@ -51,11 +53,13 @@ void handleStateCommand(const String &name, const String &state)
       Serial.printf("[ERROR] Unknown state for vialSetup: %s\n", state.c_str());
       return; // Ignore unknown states
     }
+    return;
   }
   else if (name == "endCycle" && state == "on")
   {
     setState(SystemState::ENDED);
     Serial.println("State changed to ENDED");
+    return;
   }
   else if (name == "extract")
   {
@@ -69,6 +73,7 @@ void handleStateCommand(const String &name, const String &state)
     {
       shouldMoveBack = true; // Disable back-and-forth movement
     }
+    return;
   }
   else if (name == "refill")
   {
@@ -82,17 +87,20 @@ void handleStateCommand(const String &name, const String &state)
       setState(previousState);
       Serial.println("Refill ended — resuming");
     }
+    return;
   }
   else if (name == "logCycle" && state == "on")
   {
     setState(SystemState::LOGGING);
     Serial.println("State changed to LOGGING");
+    return;
   }
   else if (name == "restartESP32" && state == "on")
   {
     Serial.println("Restart command received - restarting ESP32...");
     delay(100); // Brief delay to allow serial output
     ESP.restart();
+    return;
   }
   else
   {

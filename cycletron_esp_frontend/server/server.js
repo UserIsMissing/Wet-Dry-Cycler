@@ -39,19 +39,35 @@ if (fs.existsSync(espRecoveryFile)) {
 }
 
 function saveRecoveryState() {
-  fs.writeFileSync(recoveryFile, JSON.stringify(recoveryState, null, 2));
+  // Use async file write to prevent blocking the event loop
+  fs.writeFile(recoveryFile, JSON.stringify(recoveryState, null, 2), (err) => {
+    if (err) {
+      console.error('Failed to save recovery state:', err);
+    }
+  });
 }
 
 // Function to save ESP recovery state
 function saveEspRecoveryState() {
-  fs.writeFileSync(espRecoveryFile, JSON.stringify(espRecoveryState, null, 2));
+  // Use async file write to prevent blocking the event loop
+  fs.writeFile(espRecoveryFile, JSON.stringify(espRecoveryState, null, 2), (err) => {
+    if (err) {
+      console.error('Failed to save ESP recovery state:', err);
+    }
+  });
 }
 
 // Reset ESP recovery state
 function resetEspRecoveryState() {
   if (fs.existsSync(espRecoveryFile)) {
-    fs.unlinkSync(espRecoveryFile);
-    console.log('ESP_Recovery.json deleted.');
+    // Use async file deletion to prevent blocking
+    fs.unlink(espRecoveryFile, (err) => {
+      if (err) {
+        console.error('Failed to delete ESP recovery file:', err);
+      } else {
+        console.log('ESP_Recovery.json deleted.');
+      }
+    });
   }
   espRecoveryState = {};
 }
@@ -74,16 +90,20 @@ app.get('/api/history', (req, res) => {
 
 // Add this route to reset the recovery state
 app.post('/api/resetRecoveryState', (req, res) => {
-  // Delete frontend recovery state
+  // Delete frontend recovery state (async)
   if (fs.existsSync(recoveryFile)) {
-    fs.unlinkSync(recoveryFile);
-    console.log('Frontend_Recovery.json deleted by request.');
+    fs.unlink(recoveryFile, (err) => {
+      if (err) console.error('Failed to delete frontend recovery file:', err);
+      else console.log('Frontend_Recovery.json deleted by request.');
+    });
   }
   
-  // Delete ESP32 recovery state
+  // Delete ESP32 recovery state (async)
   if (fs.existsSync(espRecoveryFile)) {
-    fs.unlinkSync(espRecoveryFile);
-    console.log('ESP_Recovery.json deleted by request.');
+    fs.unlink(espRecoveryFile, (err) => {
+      if (err) console.error('Failed to delete ESP recovery file:', err);
+      else console.log('ESP_Recovery.json deleted by request.');
+    });
   }
   
   recoveryState = {}; // Reset frontend in-memory state
@@ -123,13 +143,16 @@ wss.on('connection', (ws, req) => {
 
   ws.on('message', (message) => {
     console.log('[WS DEBUG] Received message:', message);
-    try {
-      const msg = JSON.parse(message);
+    
+    // Use setImmediate to process message in next tick, preventing blocking
+    setImmediate(() => {
+      try {
+        const msg = JSON.parse(message);
 
-      // Debug: log all message types
-      if (msg.type) {
-        console.log(`[WS DEBUG] Message type: ${msg.type}`);
-      }
+        // Debug: log all message types
+        if (msg.type) {
+          console.log(`[WS DEBUG] Message type: ${msg.type}`);
+        }
 
       // Detect ESP32 by a message property (e.g., type === 'esp_announce')
       if (msg.from === 'esp32') {
@@ -141,23 +164,29 @@ wss.on('connection', (ws, req) => {
         // On ESP32 connect, send recovery state if available and not already sent
         if (!espRecoverySent && fs.existsSync(espRecoveryFile)) {
           try {
-            const fileContent = fs.readFileSync(espRecoveryFile, 'utf8');
-            if (fileContent && fileContent.trim() !== '{}' && fileContent.trim() !== '') {
-              const recoveryData = JSON.parse(fileContent);
-              ws.send(JSON.stringify({ type: 'espRecoveryState', data: recoveryData }));
-              console.log('Sent ESP recovery state to ESP32:', recoveryData);
-              
-              // Only send separate parameters if ESP recovery state doesn't have them
-              // or if frontend has newer parameters
-              if (recoveryState.parameters && !recoveryData.parameters) {
-                ws.send(JSON.stringify({ type: 'parameters', data: recoveryState.parameters }));
-                console.log('Sent additional parameters to ESP32 for recovery:', recoveryState.parameters);
+            // Use async file read to prevent blocking
+            fs.readFile(espRecoveryFile, 'utf8', (err, fileContent) => {
+              if (!err && fileContent && fileContent.trim() !== '{}' && fileContent.trim() !== '') {
+                try {
+                  const recoveryData = JSON.parse(fileContent);
+                  if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'espRecoveryState', data: recoveryData }));
+                    console.log('Sent ESP recovery state to ESP32:', recoveryData);
+                    
+                    // Only send separate parameters if ESP recovery state doesn't have them
+                    if (recoveryState.parameters && !recoveryData.parameters) {
+                      ws.send(JSON.stringify({ type: 'parameters', data: recoveryState.parameters }));
+                      console.log('Sent additional parameters to ESP32 for recovery:', recoveryState.parameters);
+                    }
+                  }
+                } catch (parseError) {
+                  console.error('Failed to parse ESP recovery state:', parseError);
+                }
               }
-              
-              espRecoverySent = true;
-            }
+            });
+            espRecoverySent = true;
           } catch (e) {
-            console.error('Failed to send ESP recovery state:', e);
+            console.error('Failed to read ESP recovery state:', e);
           }
         }
         // Don't return here - let ESP32 messages continue to be processed
@@ -246,8 +275,14 @@ wss.on('connection', (ws, req) => {
         // Forward this ESP32 message to all frontend clients
         for (const client of clients) {
           if (client.readyState === WebSocket.OPEN && !espClients.has(client)) {
-            console.log(`[WS DEBUG] Sending to frontend client`);
-            client.send(JSON.stringify(msg));
+            try {
+              console.log(`[WS DEBUG] Sending to frontend client`);
+              client.send(JSON.stringify(msg));
+            } catch (sendError) {
+              console.error(`[WS ERROR] Failed to send message to frontend client:`, sendError);
+              // Remove broken client
+              clients.delete(client);
+            }
           }
         }
       } else if (isEspClient) {
@@ -289,17 +324,23 @@ wss.on('connection', (ws, req) => {
       if (msg.type === 'button') {
         console.log(`Button command received: ${msg.name} -> ${msg.state}`);
         // Skip vialSetup buttons as they have their own specific handler below
-        if (msg.name !== 'vialSetup') {
-          // Forward the button command to all ESP32 clients
-          console.log(`Forwarding button command '${msg.name}' to ${espClients.size} ESP32 client(s)`);
-          for (const esp of espClients) {
-            if (esp.readyState === WebSocket.OPEN) {
+        if (msg.name !== 'vialSetup') {        // Forward the button command to all ESP32 clients
+        console.log(`Forwarding button command '${msg.name}' to ${espClients.size} ESP32 client(s)`);
+        for (const esp of espClients) {
+          if (esp.readyState === WebSocket.OPEN) {
+            try {
               esp.send(JSON.stringify(msg));
               console.log(`Sent button command '${msg.name}' to ESP32 client`);
-            } else {
-              console.log(`ESP32 client not ready (readyState: ${esp.readyState})`);
+            } catch (sendError) {
+              console.error(`Failed to send button command to ESP32:`, sendError);
+              // Remove broken ESP client
+              espClients.delete(esp);
+              clients.delete(esp);
             }
+          } else {
+            console.log(`ESP32 client not ready (readyState: ${esp.readyState})`);
           }
+        }
         }
       }
 
@@ -370,7 +411,14 @@ wss.on('connection', (ws, req) => {
         // Forward parameters to all ESP32 clients
         for (const esp of espClients) {
           if (esp.readyState === WebSocket.OPEN) {
-            esp.send(JSON.stringify(msg));
+            try {
+              esp.send(JSON.stringify(msg));
+            } catch (sendError) {
+              console.error(`Failed to send parameters to ESP32:`, sendError);
+              // Remove broken ESP client
+              espClients.delete(esp);
+              clients.delete(esp);
+            }
           }
         }
       }
@@ -403,31 +451,40 @@ wss.on('connection', (ws, req) => {
           espOutputs: msg.espOutputs || null,
         };
 
-        // Write the entry to a new file
-        fs.writeFileSync(logFile, JSON.stringify(entry, null, 2));
-        console.log('Logged cycle to:', logFile);
+        // Write the entry to a new file (async to prevent blocking)
+        fs.writeFile(logFile, JSON.stringify(entry, null, 2), (err) => {
+          if (err) {
+            console.error('Failed to write log file:', err);
+          } else {
+            console.log('Logged cycle to:', logFile);
 
-        // Optionally open the file location
-        if (process.platform === 'win32') {
-          exec(`explorer.exe /select,"${logFile.replace(/\//g, '\\')}"`);
-        } else if (process.platform === 'darwin') {
-          exec(`open -R "${logFile}"`);
-        } else {
-          console.log('Automatic file opening not supported on this OS.');
-        }
+            // Optionally open the file location
+            if (process.platform === 'win32') {
+              exec(`explorer.exe /select,"${logFile.replace(/\//g, '\\')}"`);
+            } else if (process.platform === 'darwin') {
+              exec(`open -R "${logFile}"`);
+            } else {
+              console.log('Automatic file opening not supported on this OS.');
+            }
+          }
+        });
       }
 
       if (msg.type === 'resetRecoveryState') {
-        // Delete frontend recovery file
+        // Delete frontend recovery file (async)
         if (fs.existsSync(recoveryFile)) {
-          fs.unlinkSync(recoveryFile);
-          console.log('Frontend_Recovery.json deleted by frontend request.');
+          fs.unlink(recoveryFile, (err) => {
+            if (err) console.error('Failed to delete frontend recovery file:', err);
+            else console.log('Frontend_Recovery.json deleted by frontend request.');
+          });
         }
         
-        // Delete ESP32 recovery file
+        // Delete ESP32 recovery file (async)
         if (fs.existsSync(espRecoveryFile)) {
-          fs.unlinkSync(espRecoveryFile);
-          console.log('ESP_Recovery.json deleted by frontend request.');
+          fs.unlink(espRecoveryFile, (err) => {
+            if (err) console.error('Failed to delete ESP recovery file:', err);
+            else console.log('ESP_Recovery.json deleted by frontend request.');
+          });
         }
         
         // Reset in-memory states
@@ -449,7 +506,14 @@ wss.on('connection', (ws, req) => {
         // Forward the vial setup status to all ESP32 clients
         for (const esp of espClients) {
           if (esp.readyState === WebSocket.OPEN) {
-            esp.send(JSON.stringify({ type: 'vialSetup', status: msg.status }));
+            try {
+              esp.send(JSON.stringify({ type: 'vialSetup', status: msg.status }));
+            } catch (sendError) {
+              console.error(`Failed to send vial setup to ESP32:`, sendError);
+              // Remove broken ESP client
+              espClients.delete(esp);
+              clients.delete(esp);
+            }
           }
         }
       }
@@ -465,6 +529,7 @@ wss.on('connection', (ws, req) => {
     } catch (e) {
       console.error('Bad message:', e);
     }
+    }); // End setImmediate
   });
 
   ws.on('close', (code, reason) => {
