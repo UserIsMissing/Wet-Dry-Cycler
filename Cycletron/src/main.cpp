@@ -185,11 +185,13 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
                 String state = doc["status"].as<String>();
                 Serial.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
                 handleStateCommand(name, state);
+                break;
             }
             else if (doc["type"] == "espRecoveryState" && doc["data"].is<JsonObject>())
             {
                 JsonObject data = doc["data"].as<JsonObject>();
                 handleRecoveryPacket(data);
+                break;
             }
             else if (doc["type"] == "parameters" && doc["data"].is<JsonObject>())
             {
@@ -202,6 +204,7 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
                 {
                     Serial0.printf("[PARAMETERS] Ignoring parameters packet in state: %d\n", static_cast<int>(currentState));
                 }
+                break;
             }
             else if (doc["name"].is<const char *>() && doc["state"].is<const char *>())
             {
@@ -209,10 +212,12 @@ void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length)
                 String state = doc["state"].as<String>();
                 Serial0.printf("Parsed: name = %s, state = %s\n", name.c_str(), state.c_str());
                 handleStateCommand(name, state);
+                break;
             }
             else
             {
                 Serial.println("Invalid packet received");
+                break;
             }
         }
         break;

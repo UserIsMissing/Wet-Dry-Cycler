@@ -1,17 +1,29 @@
 @echo off
 setlocal
 
-REM === Kill any existing servers on ports 5175 and 5174 ===
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5175') do taskkill /F /PID %%a >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5174') do taskkill /F /PID %%a >nul 2>&1
+REM === Kill existing processes on ports ===
+echo Checking for processes using ports 5174 and 5175...
+powershell -Command "Get-NetTCPConnection -LocalPort 5174,5175 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"
+echo Cleaned up any existing processes on ports 5174 and 5175
+timeout /t 2 >nul
 
 REM === Frontend Dependencies ===
 echo Checking frontend dependencies...
-if exist node_modules (
-  echo Frontend node_modules found, skipping install
+
+REM Check if package-lock.json exists (indicates npm was run before)
+if exist package-lock.json (
+  echo Updating frontend dependencies...
+  call npm install
 ) else (
-  echo Frontend node_modules not found, running npm install...
-  npm install
+  echo Installing frontend dependencies for the first time...
+  call npm install
+)
+
+REM Ensure Vite is installed
+echo Checking if Vite is installed...
+call npm list vite || (
+  echo Installing Vite...
+  call npm install vite
 )
 
 REM Ensure Bulma is installed
@@ -19,7 +31,7 @@ echo Checking if Bulma is installed...
 findstr /C:"\"bulma\"" package.json >nul
 if %errorlevel% neq 0 (
   echo Bulma not found in dependencies, installing Bulma...
-  npm install bulma
+  call npm install bulma
 ) else (
   echo Bulma is already installed.
 )
