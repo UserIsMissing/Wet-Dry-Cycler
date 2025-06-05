@@ -11,10 +11,8 @@ const PORT = 5175;
 
 // Change recovery file paths to be in the /server/ folder and update names
 const recoveryFile = path.join(__dirname, 'Frontend_Recovery.json');
-const espRecoveryFile = path.join(__dirname, 'ESP_Recovery.json'); // File for ESP32 recovery state
 
 let recoveryState = {};
-let espRecoveryState = {};
 
 // Load recovery state if the file exists
 if (fs.existsSync(recoveryFile)) {
@@ -27,17 +25,6 @@ if (fs.existsSync(recoveryFile)) {
   }
 }
 
-// Load ESP recovery state if the file exists
-if (fs.existsSync(espRecoveryFile)) {
-  try {
-    espRecoveryState = JSON.parse(fs.readFileSync(espRecoveryFile));
-    console.log("Loaded ESP recovery state:", espRecoveryState);
-  } catch (e) {
-    console.error("Failed to load ESP recovery state file:", e);
-    espRecoveryState = {};
-  }
-}
-
 function saveRecoveryState() {
   // Use async file write to prevent blocking the event loop
   fs.writeFile(recoveryFile, JSON.stringify(recoveryState, null, 2), (err) => {
@@ -45,31 +32,6 @@ function saveRecoveryState() {
       console.error('Failed to save recovery state:', err);
     }
   });
-}
-
-// Function to save ESP recovery state
-function saveEspRecoveryState() {
-  // Use async file write to prevent blocking the event loop
-  fs.writeFile(espRecoveryFile, JSON.stringify(espRecoveryState, null, 2), (err) => {
-    if (err) {
-      console.error('Failed to save ESP recovery state:', err);
-    }
-  });
-}
-
-// Reset ESP recovery state
-function resetEspRecoveryState() {
-  if (fs.existsSync(espRecoveryFile)) {
-    // Use async file deletion to prevent blocking
-    fs.unlink(espRecoveryFile, (err) => {
-      if (err) {
-        console.error('Failed to delete ESP recovery file:', err);
-      } else {
-        console.log('ESP_Recovery.json deleted.');
-      }
-    });
-  }
-  espRecoveryState = {};
 }
 
 // ----------------- SQLite DB Setup -----------------
@@ -98,16 +60,7 @@ app.post('/api/resetRecoveryState', (req, res) => {
     });
   }
   
-  // Delete ESP32 recovery state (async)
-  if (fs.existsSync(espRecoveryFile)) {
-    fs.unlink(espRecoveryFile, (err) => {
-      if (err) console.error('Failed to delete ESP recovery file:', err);
-      else console.log('ESP_Recovery.json deleted by request.');
-    });
-  }
-  
   recoveryState = {}; // Reset frontend in-memory state
-  espRecoveryState = {}; // Reset ESP32 in-memory state
   
   res.json({ success: true });
 });
@@ -130,7 +83,6 @@ const espClients = new Set();
 
 wss.on('connection', (ws, req) => {
   let isEspClient = false; // Track if this client is an ESP32
-  let espRecoverySent = false; // Ensure we only send recovery once per connection
 
   const clientIP = req.socket.remoteAddress || 'unknown';
   const clientPort = req.socket.remotePort || 'unknown';
@@ -152,108 +104,15 @@ wss.on('connection', (ws, req) => {
         // Debug: log all message types
         if (msg.type) {
           console.log(`[WS DEBUG] Message type: ${msg.type}`);
-        }
-
-      // Detect ESP32 by a message property (e.g., type === 'esp_announce')
+        }      // Detect ESP32 by a message property (e.g., type === 'esp_announce')
       if (msg.from === 'esp32') {
         if (!isEspClient) {
           console.log(`[WS DEBUG] NEW ESP32 CLIENT DETECTED! Adding to espClients set.`);
           isEspClient = true;
           espClients.add(ws);
         }
-        // On ESP32 connect, send recovery state if available and not already sent
-        if (!espRecoverySent && fs.existsSync(espRecoveryFile)) {
-          try {
-            // Use async file read to prevent blocking
-            fs.readFile(espRecoveryFile, 'utf8', (err, fileContent) => {
-              if (!err && fileContent && fileContent.trim() !== '{}' && fileContent.trim() !== '') {
-                try {
-                  const recoveryData = JSON.parse(fileContent);
-                  if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: 'espRecoveryState', data: recoveryData }));
-                    console.log('Sent ESP recovery state to ESP32:', recoveryData);
-                    
-                    // Only send separate parameters if ESP recovery state doesn't have them
-                    if (recoveryState.parameters && !recoveryData.parameters) {
-                      ws.send(JSON.stringify({ type: 'parameters', data: recoveryState.parameters }));
-                      console.log('Sent additional parameters to ESP32 for recovery:', recoveryState.parameters);
-                    }
-                  }
-                } catch (parseError) {
-                  console.error('Failed to parse ESP recovery state:', parseError);
-                }
-              }
-            });
-            espRecoverySent = true;
-          } catch (e) {
-            console.error('Failed to read ESP recovery state:', e);
-          }
-        }
         // Don't return here - let ESP32 messages continue to be processed
-      }
-
-      // Handle ESP32 updating its recovery state - accept both message types
-      if ((msg.type === 'updateEspRecoveryState' || msg.type === 'espRecoveryState') && isEspClient) {
-        espRecoveryState = msg.data || {};
-        saveEspRecoveryState();
-        console.log('[WS DEBUG] Updated ESP recovery state and saved to ESP_Recovery.json:', espRecoveryState);
-        return;
-      }
-
-      // Build ESP recovery state from individual ESP32 messages
-      if (isEspClient && msg.type) {
-        let shouldSave = false;
-        
-        // Ensure espRecoveryState has the required structure
-        if (!espRecoveryState.currentState) espRecoveryState.currentState = 'IDLE';
-        if (!espRecoveryState.parameters) espRecoveryState.parameters = {};
-        if (!espRecoveryState.timestamp) espRecoveryState.timestamp = new Date().toISOString();
-        
-        switch (msg.type) {
-          case 'currentState':
-            if (espRecoveryState.currentState !== msg.value) {
-              espRecoveryState.currentState = msg.value;
-              espRecoveryState.timestamp = new Date().toISOString();
-              shouldSave = true;
-              console.log(`[ESP RECOVERY] Updated current state to: ${msg.value}`);
-            }
-            break;
-            
-          case 'temperature':
-            espRecoveryState.parameters.currentTemperature = msg.value;
-            shouldSave = true;
-            break;
-            
-          case 'heatingProgress':
-            espRecoveryState.parameters.heatingProgress = msg.value;
-            shouldSave = true;
-            break;
-            
-          case 'mixingProgress':
-            espRecoveryState.parameters.mixingProgress = msg.value;
-            shouldSave = true;
-            break;
-            
-          case 'cycleProgress':
-            espRecoveryState.parameters.completedCycles = msg.completed;
-            espRecoveryState.parameters.totalCycles = msg.total;
-            espRecoveryState.parameters.cycleProgressPercent = msg.percent;
-            shouldSave = true;
-            break;
-            
-          case 'syringePercentage':
-            espRecoveryState.parameters.syringePercentage = msg.value;
-            shouldSave = true;
-            break;
-        }
-        
-        if (shouldSave) {
-          saveEspRecoveryState();
-          console.log(`[ESP RECOVERY] Updated from ${msg.type} message`);
-        }
-      }
-
-      // Handle heartbeat packets from ESP32
+      }      // Handle heartbeat packets from ESP32
       if (msg.type === 'heartbeat') {
         // Forward heartbeat message to all frontend clients
         for (const client of clients) {
@@ -268,7 +127,6 @@ wss.on('connection', (ws, req) => {
 
       // Forward ALL ESP32 messages to frontend (unless they're ESP32-only commands)
       if (isEspClient && msg.type && 
-          msg.type !== 'updateEspRecoveryState' && 
           msg.type !== 'button' && 
           msg.type !== 'parameters') {
         console.log(`[WS DEBUG] Forwarding ESP32 message to frontend clients: ${msg.type}`);
@@ -369,44 +227,12 @@ wss.on('connection', (ws, req) => {
             client.send(JSON.stringify({ type: 'recoveryState', data: recoveryState }));
           }
         }
-      }
-
-      if (msg.type === 'parameters') {
+      }      if (msg.type === 'parameters') {
         console.log('Received parameters:', msg.data);
         
         // Store parameters in recovery state for later ESP32 recovery
         recoveryState.parameters = msg.data;
         saveRecoveryState();
-        
-        // Update ESP recovery state with all set parameters
-        if (msg.data) {
-          if (!espRecoveryState.parameters) espRecoveryState.parameters = {};
-          
-          // Store all the set parameters
-          espRecoveryState.parameters.volumeAddedPerCycle = parseFloat(msg.data.volumeAddedPerCycle) || 0;
-          espRecoveryState.parameters.syringeDiameter = parseFloat(msg.data.syringeDiameter) || 0;
-          espRecoveryState.parameters.desiredHeatingTemperature = parseFloat(msg.data.desiredHeatingTemperature) || 0;
-          espRecoveryState.parameters.durationOfHeating = parseFloat(msg.data.durationOfHeating) || 0;
-          espRecoveryState.parameters.durationOfMixing = parseFloat(msg.data.durationOfMixing) || 0;
-          espRecoveryState.parameters.numberOfCycles = parseInt(msg.data.numberOfCycles) || 0;
-          espRecoveryState.parameters.totalCycles = parseInt(msg.data.numberOfCycles) || 0;
-          espRecoveryState.parameters.sampleZonesToMix = msg.data.sampleZonesToMix || [];
-          
-          // Update timestamp
-          espRecoveryState.timestamp = new Date().toISOString();
-          
-          saveEspRecoveryState();
-          console.log(`[ESP RECOVERY] Updated with set parameters:`, {
-            volumeAddedPerCycle: espRecoveryState.parameters.volumeAddedPerCycle,
-            syringeDiameter: espRecoveryState.parameters.syringeDiameter,
-            desiredHeatingTemperature: espRecoveryState.parameters.desiredHeatingTemperature,
-            durationOfHeating: espRecoveryState.parameters.durationOfHeating,
-            durationOfMixing: espRecoveryState.parameters.durationOfMixing,
-            numberOfCycles: espRecoveryState.parameters.numberOfCycles,
-            totalCycles: espRecoveryState.parameters.totalCycles,
-            sampleZonesToMix: espRecoveryState.parameters.sampleZonesToMix
-          });
-        }
         
         // Forward parameters to all ESP32 clients
         for (const esp of espClients) {
@@ -468,9 +294,7 @@ wss.on('connection', (ws, req) => {
             }
           }
         });
-      }
-
-      if (msg.type === 'resetRecoveryState') {
+      }      if (msg.type === 'resetRecoveryState') {
         // Delete frontend recovery file (async)
         if (fs.existsSync(recoveryFile)) {
           fs.unlink(recoveryFile, (err) => {
@@ -479,17 +303,8 @@ wss.on('connection', (ws, req) => {
           });
         }
         
-        // Delete ESP32 recovery file (async)
-        if (fs.existsSync(espRecoveryFile)) {
-          fs.unlink(espRecoveryFile, (err) => {
-            if (err) console.error('Failed to delete ESP recovery file:', err);
-            else console.log('ESP_Recovery.json deleted by frontend request.');
-          });
-        }
-        
         // Reset in-memory states
         recoveryState = {};
-        espRecoveryState = {};
         
         // Notify all clients of the reset state
         wss.clients.forEach(client => {
@@ -516,15 +331,10 @@ wss.on('connection', (ws, req) => {
             }
           }
         }
-      }
-
-      // Handle state or progress updates from ESP32 - now handled above
+      }      // Handle state or progress updates from ESP32 - now handled above
       // This block can be removed as all ESP32 messages are forwarded above
 
-      // Reset ESP recovery state when the cycle ends
-      if (msg.type === 'button' && msg.name === 'endCycle') {
-        resetEspRecoveryState();
-      }
+      // No more ESP recovery state reset on endCycle since we removed ESP recovery
 
     } catch (e) {
       console.error('Bad message:', e);

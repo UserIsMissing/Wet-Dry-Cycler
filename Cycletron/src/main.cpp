@@ -15,18 +15,18 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.203"
+#define ServerIP "10.0.0.135"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
 // const char* ssid = "UCSC-Devices";
 // const char* password = "o9ANAjrZ9zkjYKy2yL";
 
-const char *ssid = "DonnaHouse";
-const char *password = "guessthepassword";
+// const char *ssid = "DonnaHouse";
+// const char *password = "guessthepassword";
 
-// const char *ssid = "TheDawgHouse";
-// const char *password = "ThrowItBackForPalestine";
+const char *ssid = "TheDawgHouse";
+const char *password = "ThrowItBackForPalestine";
 
 // const char *ssid = "UCSC-Guest";
 // const char *password = "";
@@ -252,14 +252,14 @@ void setup()
   Serial0.print("ESP32 MAC Address: ");
   Serial0.println(WiFi.macAddress());
   HEATING_Init();
-  MIXING_Init();
+  // MIXING_Init();
   Rehydration_InitAndDisable();
   MOVEMENT_InitAndDisable();
 
   MOVEMENT_ConfigureInterrupts();
   REHYDRATION_ConfigureInterrupts();
   Serial.println("[SYSTEM] Initialization complete. Starting main loop...");
-  MOVEMENT_Init();
+  // MOVEMENT_Init();
 
 }
 
@@ -286,13 +286,13 @@ void loop()
     if (shouldMoveForward && !movementForwardDone)
     {
       Serial.println("[VIAL_SETUP] Moving forward...");
-      MOVEMENT_Move_FORWARD();
+      // MOVEMENT_Move_FORWARD();
       movementForwardDone = true; // Mark forward movement as done
     }
     else if (shouldMoveBack && !movementBackDone)
     {
       Serial.println("[VIAL_SETUP] Flag down — moving backward...");
-      MOVEMENT_Move_BACKWARD();
+      // MOVEMENT_Move_BACKWARD();
       movementForwardDone = true; // Reset forward movement flag
       Serial.println("VIAL_SETUP] Ended - resuming");
       movementBackDone = false;
@@ -484,13 +484,13 @@ void loop()
     if (shouldMoveForward && !movementForwardDone)
     {
       Serial.println("[EXTRACTING] Moving forward...");
-      MOVEMENT_Move_FORWARD();
+      // MOVEMENT_Move_FORWARD();
       movementForwardDone = true; // Mark forward movement as done
     }
     else if (shouldMoveBack && !movementBackDone)
     {
       Serial.println("[EXTRACTING] Flag down — moving backward...");
-      MOVEMENT_Move_BACKWARD();
+      // MOVEMENT_Move_BACKWARD();
       movementForwardDone = true; // Reset forward movement flag
       Serial.println("Extraction ended — resuming");
       movementBackDone = false;
