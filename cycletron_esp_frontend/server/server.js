@@ -139,6 +139,39 @@ function loadEspRecoveryStateFromDatabase() {
   );
 }
 
+// Send ESP recovery state to a newly connected ESP32 client
+function sendEspRecoveryStateToClient(espClient) {
+  // Load the latest state from database first
+  db.get(
+    'SELECT current_state, data, timestamp FROM esp_recovery_state WHERE id = 1',
+    (err, row) => {
+      if (err) {
+        console.error('Failed to load ESP recovery state for new client:', err);
+        return;
+      }
+      
+      if (row && row.data) {
+        try {
+          const savedState = JSON.parse(row.data);
+          console.log(`[ESP RECOVERY] Sending saved state to newly connected ESP32:`, savedState);
+            // Send recovery state to ESP32
+          if (espClient.readyState === WebSocket.OPEN) {
+            espClient.send(JSON.stringify({
+              type: 'espRecoveryState',
+              data: savedState
+            }));
+            console.log(`[ESP RECOVERY] Recovery state sent to ESP32: ${savedState.currentState}`);
+          }
+        } catch (parseErr) {
+          console.error('Failed to parse ESP recovery state for new client:', parseErr);
+        }
+      } else {
+        console.log('[ESP RECOVERY] No saved state found for new ESP32 client');
+      }
+    }
+  );
+}
+
 // ----------------- SQLite DB Setup -----------------
 const db = new sqlite3.Database('esp_data.db');
 db.run(`CREATE TABLE IF NOT EXISTS temperature_log (
@@ -239,6 +272,9 @@ wss.on('connection', (ws, req) => {
           console.log(`[WS DEBUG] NEW ESP32 CLIENT DETECTED! Adding to espClients set.`);
           isEspClient = true;
           espClients.add(ws);
+          
+          // Send recovery state to newly connected ESP32 if available
+          sendEspRecoveryStateToClient(ws);
         }
         // Don't return here - let ESP32 messages continue to be processed
       }      // DEBOUNCED ESP Recovery: Only track state changes from ESP32 (with delayed file writes)
@@ -247,9 +283,13 @@ wss.on('connection', (ws, req) => {
         
         // Only update in memory if the state actually changed
         if (!espRecoveryState.currentState || espRecoveryState.currentState !== newState) {
+          // Preserve existing parameters when updating state
+          const existingParameters = espRecoveryState.parameters || {};
+          
           espRecoveryState = {
             currentState: newState,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            parameters: existingParameters  // Keep existing parameters
           };
           
           // Use debounced file saving to prevent frequent I/O
@@ -378,6 +418,14 @@ wss.on('connection', (ws, req) => {
         // Store parameters in recovery state for later ESP32 recovery
         recoveryState.parameters = msg.data;
         saveRecoveryState();
+        
+        // Also store parameters in ESP recovery state for ESP32 recovery
+        if (!espRecoveryState.parameters) {
+          espRecoveryState.parameters = {};
+        }
+        espRecoveryState.parameters = msg.data;
+        saveEspRecoveryStateToDatabase();
+        console.log('[ESP RECOVERY] Parameters stored for ESP32 recovery');
         
         // Forward parameters to all ESP32 clients
         for (const esp of espClients) {
