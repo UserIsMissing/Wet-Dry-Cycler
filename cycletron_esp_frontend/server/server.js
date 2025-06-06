@@ -11,8 +11,14 @@ const PORT = 5175;
 
 // Change recovery file paths to be in the /server/ folder and update names
 const recoveryFile = path.join(__dirname, 'Frontend_Recovery.json');
+const espRecoveryFile = path.join(__dirname, 'ESP_Recovery.json'); // File for ESP32 recovery state
 
 let recoveryState = {};
+let espRecoveryState = {};
+
+// ESP Recovery file write debouncing
+let espRecoveryWriteTimeout = null;
+let pendingEspRecoveryWrite = false;
 
 // Load recovery state if the file exists
 if (fs.existsSync(recoveryFile)) {
@@ -25,6 +31,21 @@ if (fs.existsSync(recoveryFile)) {
   }
 }
 
+// Load ESP recovery state if the file exists
+// DISABLED: File I/O causes ESP32 disconnections on Windows
+// Will keep ESP recovery state in memory only for now
+/*
+if (fs.existsSync(espRecoveryFile)) {
+  try {
+    espRecoveryState = JSON.parse(fs.readFileSync(espRecoveryFile));
+    console.log("Loaded ESP recovery state:", espRecoveryState);
+  } catch (e) {
+    console.error("Failed to load ESP recovery state file:", e);
+    espRecoveryState = {};
+  }
+}
+*/
+
 function saveRecoveryState() {
   // Use async file write to prevent blocking the event loop
   fs.writeFile(recoveryFile, JSON.stringify(recoveryState, null, 2), (err) => {
@@ -34,6 +55,90 @@ function saveRecoveryState() {
   });
 }
 
+// Function to save ESP recovery state - MEMORY ONLY (File I/O disabled to prevent ESP32 disconnections)
+function saveEspRecoveryStateDebounced() {
+  // DISABLED: File I/O causes ESP32 disconnections on Windows
+  // Keeping function for consistency but only tracking in memory
+  console.log('ESP recovery state updated (memory only):', espRecoveryState);
+  
+  // NEW: Save to SQLite database instead of JSON file
+  saveEspRecoveryStateToDatabase();
+  
+  // TODO: Implement alternative storage solution (SQLite database) when file I/O issue is resolved
+  /*
+  // Cancel any pending write
+  if (espRecoveryWriteTimeout) {
+    clearTimeout(espRecoveryWriteTimeout);
+  }
+  
+  // Mark that we have a pending write
+  pendingEspRecoveryWrite = true;
+  
+  // Schedule the write to happen after 2 seconds of no more state changes
+  espRecoveryWriteTimeout = setTimeout(() => {
+    if (pendingEspRecoveryWrite) {
+      // Use async file write to prevent blocking the event loop
+      fs.writeFile(espRecoveryFile, JSON.stringify(espRecoveryState, null, 2), (err) => {
+        if (err) {
+          console.error('Failed to save ESP recovery state:', err);
+        } else {
+          console.log('ESP recovery state saved (debounced):', espRecoveryState);
+        }
+        pendingEspRecoveryWrite = false;
+      });
+    }
+  }, 2000); // 2 second delay
+  */
+}
+
+// Save ESP recovery state to SQLite database (non-blocking)
+function saveEspRecoveryStateToDatabase() {
+  if (Object.keys(espRecoveryState).length === 0) return; // Don't save empty state
+  
+  const currentState = espRecoveryState.currentState || 'unknown';
+  const dataJson = JSON.stringify(espRecoveryState);
+  
+  // Use INSERT OR REPLACE to upsert (update or insert) with id=1
+  db.run(
+    'INSERT OR REPLACE INTO esp_recovery_state (id, current_state, data) VALUES (1, ?, ?)',
+    [currentState, dataJson],
+    function(err) {
+      if (err) {
+        console.error('Failed to save ESP recovery state to database:', err);
+      } else {
+        console.log('ESP recovery state saved to database:', currentState);
+      }
+    }
+  );
+}
+
+// Load ESP recovery state from SQLite database
+function loadEspRecoveryStateFromDatabase() {
+  db.get(
+    'SELECT current_state, data, timestamp FROM esp_recovery_state WHERE id = 1',
+    (err, row) => {
+      if (err) {
+        console.error('Failed to load ESP recovery state from database:', err);
+        return;
+      }
+      
+      if (row) {
+        try {
+          espRecoveryState = JSON.parse(row.data);
+          console.log('Loaded ESP recovery state from database:', espRecoveryState);
+          console.log('Last updated:', row.timestamp);
+        } catch (parseErr) {
+          console.error('Failed to parse ESP recovery state from database:', parseErr);
+          espRecoveryState = {};
+        }
+      } else {
+        console.log('No ESP recovery state found in database');
+        espRecoveryState = {};
+      }
+    }
+  );
+}
+
 // ----------------- SQLite DB Setup -----------------
 const db = new sqlite3.Database('esp_data.db');
 db.run(`CREATE TABLE IF NOT EXISTS temperature_log (
@@ -41,6 +146,17 @@ db.run(`CREATE TABLE IF NOT EXISTS temperature_log (
   timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
   value REAL
 )`);
+
+// Create ESP recovery state table
+db.run(`CREATE TABLE IF NOT EXISTS esp_recovery_state (
+  id INTEGER PRIMARY KEY,
+  current_state TEXT,
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+  data TEXT
+)`, () => {
+  // Load ESP recovery state from database after table is ensured to exist
+  loadEspRecoveryStateFromDatabase();
+});
 
 // ----------------- API Routes -----------------
 app.get('/api/history', (req, res) => {
@@ -58,9 +174,22 @@ app.post('/api/resetRecoveryState', (req, res) => {
       if (err) console.error('Failed to delete frontend recovery file:', err);
       else console.log('Frontend_Recovery.json deleted by request.');
     });
+  }  // Delete ESP32 recovery state (async)
+  if (fs.existsSync(espRecoveryFile)) {
+    fs.unlink(espRecoveryFile, (err) => {
+      if (err) console.error('Failed to delete ESP recovery file:', err);
+      else console.log('ESP_Recovery.json deleted by request.');
+    });
   }
   
+  // Clear ESP recovery state from database
+  db.run('DELETE FROM esp_recovery_state WHERE id = 1', (err) => {
+    if (err) console.error('Failed to clear ESP recovery state from database:', err);
+    else console.log('ESP recovery state cleared from database.');
+  });
+  
   recoveryState = {}; // Reset frontend in-memory state
+  espRecoveryState = {}; // Reset ESP32 in-memory state
   
   res.json({ success: true });
 });
@@ -112,7 +241,23 @@ wss.on('connection', (ws, req) => {
           espClients.add(ws);
         }
         // Don't return here - let ESP32 messages continue to be processed
-      }      // Handle heartbeat packets from ESP32
+      }      // DEBOUNCED ESP Recovery: Only track state changes from ESP32 (with delayed file writes)
+      if (msg.type === 'currentState' && isEspClient) {
+        const newState = msg.value;
+        
+        // Only update in memory if the state actually changed
+        if (!espRecoveryState.currentState || espRecoveryState.currentState !== newState) {
+          espRecoveryState = {
+            currentState: newState,
+            timestamp: new Date().toISOString()
+          };
+          
+          // Use debounced file saving to prevent frequent I/O
+          saveEspRecoveryStateDebounced();
+          console.log(`[ESP RECOVERY] State changed to: ${newState} (will save after delay)`);
+        }
+        // Continue processing the message normally
+      }// Handle heartbeat packets from ESP32
       if (msg.type === 'heartbeat') {
         // Forward heartbeat message to all frontend clients
         for (const client of clients) {
@@ -301,10 +446,24 @@ wss.on('connection', (ws, req) => {
             if (err) console.error('Failed to delete frontend recovery file:', err);
             else console.log('Frontend_Recovery.json deleted by frontend request.');
           });
+        }        // Delete ESP32 recovery file (async) - RE-ENABLED for user-initiated reset
+        // This is safe because it's a manual user action, not automatic ESP32 state changes
+        if (fs.existsSync(espRecoveryFile)) {
+          fs.unlink(espRecoveryFile, (err) => {
+            if (err) console.error('Failed to delete ESP recovery file:', err);
+            else console.log('ESP_Recovery.json deleted by frontend request.');
+          });
         }
+        
+        // Clear ESP recovery state from database
+        db.run('DELETE FROM esp_recovery_state WHERE id = 1', (err) => {
+          if (err) console.error('Failed to clear ESP recovery state from database:', err);
+          else console.log('ESP recovery state cleared from database by frontend request.');
+        });
         
         // Reset in-memory states
         recoveryState = {};
+        espRecoveryState = {};
         
         // Notify all clients of the reset state
         wss.clients.forEach(client => {
