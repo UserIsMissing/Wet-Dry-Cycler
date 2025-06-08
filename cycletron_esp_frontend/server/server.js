@@ -232,6 +232,32 @@ app.get('/api/recoveryState', (req, res) => {
   res.json({ recoveryState });
 });
 
+// Add route to get server network IP
+app.get('/api/serverIP', (req, res) => {
+  const os = require('os');
+  const networkInterfaces = os.networkInterfaces();
+  
+  // Find the first non-internal IPv4 address
+  let serverIP = 'localhost';
+  
+  for (const interfaceName in networkInterfaces) {
+    const interfaces = networkInterfaces[interfaceName];
+    for (const iface of interfaces) {
+      // Skip internal (loopback) and non-IPv4 addresses
+      if (!iface.internal && iface.family === 'IPv4') {
+        serverIP = iface.address;
+        break;
+      }
+    }
+    if (serverIP !== 'localhost') break;
+  }
+  
+  res.json({ 
+    serverIP: serverIP,
+    serverAddress: `${serverIP}:${PORT}`
+  });
+});
+
 // ----------------- Static Frontend -----------------
 app.use(express.static(path.join(__dirname, '../dist')));
 

@@ -87,6 +87,21 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [showVialSetup, setShowVialSetup] = useState(true);
   const [vialSetupStep, setVialSetupStep] = useState('prompt');
+  const [serverIP, setServerIP] = useState('localhost:5175');
+
+  // Fetch server IP on component mount
+  useEffect(() => {
+    fetch('/api/serverIP')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.serverAddress) {
+          setServerIP(data.serverAddress);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch server IP:', err);
+      });
+  }, []);
 
   // Restore UI state from recoveryState
   useEffect(() => {
@@ -305,6 +320,11 @@ function App() {
   return (
     <div className="container" style={{ position: 'relative' }}>
       <h1 className="title is-2">Wet-Dry Cycler Interface</h1>
+      
+      <div className="mb-3">
+        <span className="has-text-weight-semibold">Server IP: </span>
+        <span className="has-text-link">{serverIP}</span>
+      </div>
 
       <div className="mb-4">
         <span className="tag is-medium" style={{ backgroundColor: espOnline ? 'green' : 'red' }}></span>
@@ -487,7 +507,7 @@ function App() {
                   type="text"
                   value={
                     (typeof lastTempRef.current === 'number' && !isNaN(lastTempRef.current))
-                      ? `${lastTempRef.current} °C`
+                      ? `${lastTempRef.current.toFixed(2)} °C`
                       : 'N/A'
                   }
                   readOnly
@@ -496,7 +516,7 @@ function App() {
               <div className="column is-full">
                 <label className="label is-small">% of Syringe Left</label>
                 <progress className="progress is-primary is-small" value={100 - (espOutputs.syringeUsed || 0)} max="100">
-                  {(100 - (espOutputs.syringeUsed || 0)).toFixed(2)}%
+                  {(100 - (espOutputs.syringeUsed || 0)).toFixed(2)}% (ESP: {espOutputs.syringeUsed || 0})
                 </progress>
               </div>
               <div className="column is-full">
