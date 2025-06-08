@@ -254,7 +254,7 @@ app.get('/api/serverIP', (req, res) => {
   
   res.json({ 
     serverIP: serverIP,
-    serverAddress: `${serverIP}:${PORT}`
+    serverAddress: `${serverIP}:5174`
   });
 });
 
