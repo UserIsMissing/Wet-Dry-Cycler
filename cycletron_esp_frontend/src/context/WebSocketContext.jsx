@@ -251,6 +251,7 @@ export function WebSocketProvider({ children }) {
         recoveryState,
         currentTemp,
         espOutputs,
+        setEspOutputs,
         sendParameters,
         sendButtonCommand,
         sendRecoveryUpdate,

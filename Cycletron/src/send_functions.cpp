@@ -130,8 +130,8 @@ void sendSyringeResetInfo()
 void sendExtractionReady() 
 {
     ArduinoJson::JsonDocument doc;
-    doc["type"] = "extractionReady";
-    doc["status"] = true;
+    doc["type"] = "status";
+    doc["extractionReady"] = "ready";
 
     char buffer[100];
     serializeJson(doc, buffer);

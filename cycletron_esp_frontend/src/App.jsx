@@ -74,6 +74,7 @@ function App() {
     recoveryState,
     currentTemp,
     espOutputs,
+    setEspOutputs,
     sendParameters,
     sendButtonCommand,
     sendRecoveryUpdate,
@@ -212,6 +213,23 @@ function App() {
     sendButtonCommand('extract', !isCanceling); // send "on" if starting, "off" if canceling
     setCycleState(isCanceling ? 'started' : 'extract');
     setActiveButton(isCanceling ? null : 'extract');
+    
+    // When Extract is clicked the first time (starting), set extraction ready to 'N/A' (waiting)
+    // When Extract is clicked the second time (canceling), also set extraction ready back to 'N/A'
+    if (!isCanceling) {
+      // Starting extraction - set to waiting state
+      setEspOutputs((prev) => ({
+        ...prev,
+        extractionReady: 'N/A'
+      }));
+    } else {
+      // Canceling extraction - reset to default state
+      setEspOutputs((prev) => ({
+        ...prev,
+        extractionReady: 'N/A'
+      }));
+    }
+    
     sendRecoveryUpdate({
       parameters,
       machineStep: isCanceling ? 'started' : 'extract',
@@ -254,6 +272,8 @@ function App() {
 
     if (cycleState === 'paused' && id !== 'pauseCycle') return true;
 
+    // Extract button is disabled when it's active (green) but extraction is not ready yet
+    if (id === 'extract' && activeButton === 'extract' && espOutputs.extractionReady !== 'ready') return true;
 
     if (activeButton && activeButton !== id) return true;
     if (cycleState === 'idle' && id !== 'startCycle') return true;
