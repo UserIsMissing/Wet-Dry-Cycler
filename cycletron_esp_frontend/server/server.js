@@ -317,15 +317,14 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.type === 'button' && msg.name === 'vialSetup') {
-        console.log(`Vial setup status received: ${msg.status}`);
-        // Forward the vial setup status to all ESP32 clients
+        console.log(`Vial setup state received: ${msg.state}`);
+        // Forward the vial setup state to all ESP32 clients
         for (const esp of espClients) {
           if (esp.readyState === WebSocket.OPEN) {
             try {
-              esp.send(JSON.stringify({ type: 'vialSetup', status: msg.status }));
+              esp.send(JSON.stringify({ name: 'vialSetup', state: msg.state })); // Changed type to name
             } catch (sendError) {
               console.error(`Failed to send vial setup to ESP32:`, sendError);
-              // Remove broken ESP client
               espClients.delete(esp);
               clients.delete(esp);
             }

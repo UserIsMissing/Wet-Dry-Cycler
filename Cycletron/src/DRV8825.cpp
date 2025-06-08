@@ -149,13 +149,13 @@
 
 // Rehydration motor instance
 DRV8825_t testMotor = {
-    .step_pin = 1,     // Replace with your actual ESP32 GPIOs
-    .dir_pin = 2,
-    .fault_pin = 42,
-    .mode0_pin = 41,
-    .mode1_pin = 40,
-    .mode2_pin = 39,
-    .enable_pin = 38
+    .step_pin = 6,     // Replace with your actual ESP32 GPIOs
+    .dir_pin = 7,
+    .fault_pin = 15,
+    .mode0_pin = 16,
+    .mode1_pin = 17,
+    .mode2_pin = 18,
+    .enable_pin = 8
 };
 
 void setup() {
@@ -175,5 +175,4 @@ void setup() {
 void loop() {
   // Empty because all actions are handled in setup()
 }
-
 #endif // DRV8825_TEST

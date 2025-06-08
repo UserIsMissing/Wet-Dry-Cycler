@@ -148,4 +148,8 @@ void REHYDRATION_HandleInterrupts();
 void Rehydration_BackUntilBumper();
 
 
+int R_CheckBumpers();
+
+
+
 #endif // REHYDRATION_H

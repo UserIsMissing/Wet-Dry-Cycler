@@ -249,19 +249,19 @@ function App() {
   const handleVialSetupStep = (step) => {
     setVialSetupStep(step);
     sendRecoveryUpdate({ vialSetupStep: step });
-  
+
     // Send vial setup packet to ESP32
     if (step === 'continue') {
       // First dialog: "Yes" to needing vial preparation
-      sendButtonCommand('vialSetup', true, { status: 'yes' }); // Send "yes" to ESP32
+      sendButtonCommand('vialSetup', true, { state: 'yes' }); // Changed status to state
     } else if (step === null) {
       // This could be either "No" from first dialog or "Continue" from second dialog
       if (vialSetupStep === 'prompt') {
         // Coming from first dialog: "No" to vial preparation
-        sendButtonCommand('vialSetup', true, { status: 'no' }); // Send "no" to ESP32
+        sendButtonCommand('vialSetup', true, { state: 'no' }); // Changed status to state
       } else {
         // Coming from second dialog: "Continue" after vial setup
-        sendButtonCommand('vialSetup', true, { status: 'continue' }); // Send "continue" to ESP32
+        sendButtonCommand('vialSetup', true, { state: 'continue' }); // Changed status to state
       }
     }
   };

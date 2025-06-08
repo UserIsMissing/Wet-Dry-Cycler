@@ -6,17 +6,6 @@
 #include "REHYDRATION.h"
 
 // Use globals from globals.h
-extern WebSocketsClient webSocket;
-extern unsigned long heatingStartTime;
-extern float durationOfHeating;
-extern unsigned long mixingStartTime;
-extern float durationOfMixing;
-extern int numberOfCycles;
-extern int completedCycles;
-extern SystemState currentState;
-
-extern int sampleZoneCount;
-extern int sampleZonesArray[];
 
 void sendHeartbeat()
 {

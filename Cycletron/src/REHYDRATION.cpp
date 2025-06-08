@@ -33,8 +33,8 @@ DRV8825_t rehydrationMotor = {
     .enable_pin = 38};
 
 BUMPER_t bumpers_r = {
-    .front_bumper_pin = 9,
-    .back_bumper_pin = 46,
+    .front_bumper_pin = 46,
+    .back_bumper_pin = 9,
 };
 
 
@@ -185,26 +185,17 @@ void IRAM_ATTR onRehydrationBackLimit() {
  */
 void REHYDRATION_ConfigureInterrupts() {
     // Configure GPIO pins with pull-up resistors
-    pinMode(bumpers_r.front_bumper_pin, INPUT_PULLUP);
-    pinMode(bumpers_r.back_bumper_pin, INPUT_PULLUP);
+    pinMode(bumpers_r.front_bumper_pin, INPUT_PULLDOWN);
+    pinMode(bumpers_r.back_bumper_pin, INPUT_PULLDOWN);
 
     // Clear any previous state
     rehydrationFrontTriggered = false;
     rehydrationBackTriggered = false;
 
-    // Attach front bumper ISR if the pin is not LOW on boot
-    if (digitalRead(bumpers_r.front_bumper_pin) == HIGH) {
-        attachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin), onRehydrationFrontLimit, FALLING);
-    } else {
-        Serial.println("[REHYDRATION] Skipping front interrupt attach — pin LOW despite pullup");
-    }
 
-    // Attach back bumper ISR if the pin is not LOW on boot
-    if (digitalRead(bumpers_r.back_bumper_pin) == HIGH) {
-        attachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin), onRehydrationBackLimit, FALLING);
-    } else {
-        Serial.println("[REHYDRATION] Skipping back interrupt attach — pin LOW despite pullup");
-    }
+        attachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin), onRehydrationFrontLimit, RISING);
+
+        attachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin), onRehydrationBackLimit, RISING);
 }
 
 /**
@@ -215,33 +206,7 @@ void REHYDRATION_ConfigureInterrupts() {
  * to prevent rapid re-triggering. Also stops the motor.
  */
 void REHYDRATION_HandleInterrupts() {
-    if (rehydrationFrontTriggered) {
-        rehydrationFrontTriggered = false;
-
-        // Detach interrupt to prevent bouncing or re-entry
-        detachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin));
-        Serial.println("[INTERRUPT] Rehydration front limit triggered");
-        Rehydration_Stop();
-
-        // Re-attach only if the pin is HIGH again
-        if (digitalRead(bumpers_r.front_bumper_pin) == HIGH) {
-            attachInterrupt(digitalPinToInterrupt(bumpers_r.front_bumper_pin), onRehydrationFrontLimit, FALLING);
-        }
-    }
-
-    if (rehydrationBackTriggered) {
-        rehydrationBackTriggered = false;
-
-        // Detach interrupt to prevent bouncing or re-entry
-        detachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin));
-        Serial.println("[INTERRUPT] Rehydration back limit triggered");
-        Rehydration_Stop();
-
-        // Re-attach only if the pin is HIGH again
-        if (digitalRead(bumpers_r.back_bumper_pin) == HIGH) {
-            attachInterrupt(digitalPinToInterrupt(bumpers_r.back_bumper_pin), onRehydrationBackLimit, FALLING);
-        }
-    }
+    
 }
 
 /**
@@ -253,15 +218,60 @@ void REHYDRATION_HandleInterrupts() {
  */
 void Rehydration_BackUntilBumper() {
     DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_QUARTER_STEP); // precise and slower
+    R_CheckBumpers();
 
-    rehydrationBackTriggered = false;
     Serial.println("[REHYDRATION] Moving backward until bumper is triggered...");
 
-    while (!rehydrationBackTriggered) {
+      while (BUMPER_STATE != 2){
         DRV8825_Move(&rehydrationMotor, 1, DRV8825_BACKWARD, 500); // one step at a time
-        delayMicroseconds(200); // small delay to allow interrupt detection
+        R_CheckBumpers();
+
     }
 
     Rehydration_Stop();
     Serial.println("[REHYDRATION] Back bumper triggered — motion stopped.");
+}
+
+
+
+/**
+ * @brief Reads bumper interrupt flags and updates global BUMPER_STATE.
+ * Now includes software debouncing to prevent false triggers.
+ *
+ * @return 1 = front bumper triggered, 2 = back bumper triggered, 0 = none
+ */
+int R_CheckBumpers()
+{
+  static unsigned long lastFrontTriggerTime = 0;
+  static unsigned long lastBackTriggerTime = 0;
+  unsigned long now = millis();
+  
+  if (rehydrationFrontTriggered)
+  {
+    // Software debouncing: ignore triggers within 50ms of last trigger
+    if (now - lastFrontTriggerTime > 50) {
+      rehydrationFrontTriggered = false; // Reset flag
+      lastFrontTriggerTime = now;
+      BUMPER_STATE = 1;
+      Serial.println("[Rehydration] Front bumper triggered.");
+      return 1;
+    } else {
+      rehydrationFrontTriggered = false; // Reset flag but ignore trigger
+    }
+  }
+  if (rehydrationBackTriggered)
+  {
+    // Software debouncing: ignore triggers within 50ms of last trigger
+    if (now - lastBackTriggerTime > 50) {
+      rehydrationBackTriggered = false; // Reset flag
+      lastBackTriggerTime = now;
+      BUMPER_STATE = 2;
+      Serial.println("[Rehydration] Back bumper triggered.");
+      return 2;
+    } else {
+      rehydrationBackTriggered = false; // Reset flag but ignore trigger
+    }
+  }
+  BUMPER_STATE = 0;
+  return 0;
 }

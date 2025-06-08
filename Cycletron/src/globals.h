@@ -3,7 +3,7 @@
 #define GLOBALS_H
 
 #include <Arduino.h>
-
+#include <WebSocketsClient.h>
 // === State Machine ===
 enum class SystemState
 {
@@ -23,56 +23,48 @@ enum class SystemState
 };
 
 
-// === Parameters set by frontend or recovery ===
+extern SystemState currentState;
+extern SystemState previousState;
+extern void setState(SystemState newState);
+
+
+extern WebSocketsClient webSocket;
+
+
+// === Parameters set by frontend or recovery basaed on wether it is a fresh setup or a recovery ===
 extern float volumeAddedPerCycle;
 extern float syringeDiameter;
 extern float desiredHeatingTemperature;
 extern float durationOfHeating;
 extern float durationOfMixing;
-
 extern int numberOfCycles;
-extern int syringeStepCount;
+extern int sampleZonesArray[3];
+extern int sampleZoneCount;
 
+
+//Globals variables used for recovery and updated with the frontend
+// These are used to track the state of the system and the progress of operations
+extern int syringeStepCount;
 extern unsigned long heatingStartTime;
 extern unsigned long mixingStartTime;
-
-// === Runtime state tracking ===
 extern bool heatingStarted;
 extern bool mixingStarted;
-extern bool refillingStarted;
-
 extern int completedCycles;
 extern int currentCycle;
-
 extern float heatingProgressPercent;
 extern float mixingProgressPercent;
+extern bool refillingStarted; // Flag to track if refilling has started
 
+
+//flags used for back-and-forth movement in both vial setup and extraction
 extern bool shouldMoveForward; // Flag for back-and-forth movement
 extern bool shouldMoveBack; // Flag for back-and-forth movement
 extern bool movementForwardDone;
 extern bool movementBackDone;
 
-// Use globals from globals.h
-extern float volumeAddedPerCycle;
-extern float syringeDiameter;
-extern float desiredHeatingTemperature;
-extern float durationOfHeating;
-extern float durationOfMixing;
-extern int numberOfCycles;
-extern int syringeStepCount;
-extern unsigned long heatingStartTime;
-extern unsigned long mixingStartTime;
-extern bool heatingStarted;
-extern bool mixingStarted;
-extern int completedCycles;
-extern int currentCycle;
-extern float heatingProgressPercent;
-extern float mixingProgressPercent;
-extern int sampleZonesArray[3];
-extern int sampleZoneCount;
-extern SystemState currentState;
-extern SystemState previousState;
-extern void setState(SystemState newState);
+// Add these to the extern declarations
+extern float heatingDurationRemaining;
+extern float mixingDurationRemaining;
 
 
 

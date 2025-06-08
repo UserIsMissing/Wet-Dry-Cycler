@@ -90,6 +90,13 @@ void MOVEMENT_Init()
         {
             DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US);
             CheckBumpers();
+            
+            // Yield control every few steps to prevent WebSocket timeouts during init
+            static int initStepCount = 0;
+            if (++initStepCount >= 10) {
+              initStepCount = 0;
+              yield(); // Allow WiFi/WebSocket processing
+            }
         }
         DRV8825_Disable(&movementMotor);
     }
@@ -99,24 +106,41 @@ void MOVEMENT_Init()
 
 /**
  * @brief Reads bumper interrupt flags and updates global BUMPER_STATE.
+ * Now includes software debouncing to prevent false triggers.
  *
  * @return 1 = front bumper triggered, 2 = back bumper triggered, 0 = none
  */
 int CheckBumpers()
 {
+  static unsigned long lastFrontTriggerTime = 0;
+  static unsigned long lastBackTriggerTime = 0;
+  unsigned long now = millis();
+  
   if (movementFrontTriggered)
   {
-    movementFrontTriggered = false; // Reset flag
-    BUMPER_STATE = 1;
-    Serial.println("[MOVEMENT] Front bumper triggered.");
-    return 1;
+    // Software debouncing: ignore triggers within 50ms of last trigger
+    if (now - lastFrontTriggerTime > 50) {
+      movementFrontTriggered = false; // Reset flag
+      lastFrontTriggerTime = now;
+      BUMPER_STATE = 1;
+      Serial.println("[MOVEMENT] Front bumper triggered.");
+      return 1;
+    } else {
+      movementFrontTriggered = false; // Reset flag but ignore trigger
+    }
   }
   if (movementBackTriggered)
   {
-    movementBackTriggered = false; // Reset flag
-    BUMPER_STATE = 2;
-    Serial.println("[MOVEMENT] Back bumper triggered.");
-    return 2;
+    // Software debouncing: ignore triggers within 50ms of last trigger
+    if (now - lastBackTriggerTime > 50) {
+      movementBackTriggered = false; // Reset flag
+      lastBackTriggerTime = now;
+      BUMPER_STATE = 2;
+      Serial.println("[MOVEMENT] Back bumper triggered.");
+      return 2;
+    } else {
+      movementBackTriggered = false; // Reset flag but ignore trigger
+    }
   }
   BUMPER_STATE = 0;
   return 0;
@@ -128,6 +152,7 @@ int CheckBumpers()
  * If front bumper is pressed, move backward until back is pressed.
  * If back bumper is pressed, move forward until front is pressed.
  * Movement stops immediately if target bumper is hit.
+ * Updated to yield control for WebSocket stability.
  */
 void MOVEMENT_Move_FORWARD()
 {
@@ -170,32 +195,22 @@ void MOVEMENT_Stop()
  * @brief Interrupt handler for front bumper trigger.
  *
  * Sets the global movementFrontTriggered flag to true.
+ * Keep minimal to avoid watchdog resets and WebSocket issues.
  */
 void IRAM_ATTR onMovementFrontLimit()
 {
-  static volatile unsigned long lastFrontInterruptTime = 0;
-  unsigned long currentTime = millis();
-  if (currentTime - lastFrontInterruptTime > 50)
-  { // Debounce threshold: 50 ms
-    movementFrontTriggered = true;
-    lastFrontInterruptTime = currentTime;
-  }
+  movementFrontTriggered = true;
 }
 
 /**
  * @brief Interrupt handler for back bumper trigger.
  *
  * Sets a flag indicating the back bumper has been triggered.
+ * Keep minimal to avoid watchdog resets and WebSocket issues.
  */
 void IRAM_ATTR onMovementBackLimit()
 {
-  static volatile unsigned long lastBackInterruptTime = 0;
-  unsigned long currentTime = millis();
-  if (currentTime - lastBackInterruptTime > 50)
-  { // Debounce threshold: 50 ms
-    movementBackTriggered = true;
-    lastBackInterruptTime = currentTime;
-  }
+  movementBackTriggered = true;
 }
 
 /**
@@ -222,23 +237,12 @@ void MOVEMENT_ConfigureInterrupts()
 /**
  * @brief Handles interrupts for front and back bumpers.
  *
- * Checks the global flags and stops the motor if either bumper is triggered.
- * Interrupts are detached temporarily to prevent repeated firing and
- * re-attached only if the pin returns to HIGH state.
+ * Simplified version that just checks flags without detaching/reattaching interrupts
+ * to prevent WebSocket timing issues.
  */
 void MOVEMENT_HandleInterrupts()
 {
-  if (movementFrontTriggered)
-  {
-    movementFrontTriggered = false;
-    detachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin));
-    attachInterrupt(digitalPinToInterrupt(bumpers_m.front_bumper_pin), onMovementFrontLimit, FALLING);
-  }
-
-  if (movementBackTriggered)
-  {
-    movementBackTriggered = false;
-    detachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin));
-    attachInterrupt(digitalPinToInterrupt(bumpers_m.back_bumper_pin), onMovementBackLimit, FALLING);
-  }
+  // The actual interrupt handling is now done in CheckBumpers() 
+  // which provides software debouncing and is called from main loop
+  // This function is kept for compatibility but could be removed
 }
