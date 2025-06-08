@@ -104,6 +104,11 @@ export function WebSocketProvider({ children }) {
                         }));
                         console.log(`Updated cycle progress: ${msg.completed}/${msg.total} (${msg.percent}%)`);
                         break;
+                    case 'endOfCycles':
+                        console.log('ESP32 signaled end of cycles - triggering automatic cycle logging');
+                        // Trigger endOfCycles event for App component to handle
+                        window.dispatchEvent(new CustomEvent('espEndOfCycles', { detail: msg }));
+                        break;
                     case 'syringePercentage':
                         setEspOutputs((prev) => ({
                             ...prev,

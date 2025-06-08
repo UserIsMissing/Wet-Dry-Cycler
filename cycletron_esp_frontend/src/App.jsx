@@ -132,6 +132,46 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vialSetupStep]);
 
+  // Listen for ESP32 endOfCycles events
+  useEffect(() => {
+    const handleEspEndOfCycles = (event) => {
+      console.log('Received ESP32 endOfCycles event:', event.detail);
+      // Call handleLogCycle and then handleEndCycle directly
+      // Exclude extractionReady from espOutputs (syringeLeft is calculated, so no need to exclude)
+      const { extractionReady, ...filteredEspOutputs } = espOutputs;
+      sendButtonCommand('logCycle', true, {
+        parameters,
+        espOutputs: filteredEspOutputs,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Wait a moment for the log to complete, then end the cycle
+      setTimeout(() => {
+        sendButtonCommand('endCycle', true); // Send 'on' to the server
+        setCycleState('idle'); // Reset the cycle state to 'idle'
+        setActiveButton(null); // Reset the active button
+        setIsPaused(false); // Ensure the paused state is reset
+        sendRecoveryUpdate({
+          parameters,
+          machineStep: 'idle',
+          cycleState: 'idle',
+          lastAction: 'endCycle',
+          progress: 0,
+          activeTab: 'parameters',
+        });
+        setVialSetupStep('prompt'); // Reset the vial setup step
+        setShowVialSetup(true); // Show the vial setup prompt again
+        setActiveTab('parameters'); // Switch to the "Set Parameters" tab
+      }, 500);
+    };
+
+    window.addEventListener('espEndOfCycles', handleEspEndOfCycles);
+
+    return () => {
+      window.removeEventListener('espEndOfCycles', handleEspEndOfCycles);
+    };
+  }, [espOutputs, parameters, sendButtonCommand, sendRecoveryUpdate, setCycleState, setActiveButton, setIsPaused, setVialSetupStep, setShowVialSetup, setActiveTab]);
+
   const handleParameterChange = (key, value) => {
     if (value === '' || Number(value) > 0) {
       setParameters((prev) => ({ ...prev, [key]: value }));
@@ -189,6 +229,9 @@ function App() {
   };
 
   const handleEndCycle = () => {
+    // Automatically log the cycle before ending
+    handleLogCycle();
+    
     sendButtonCommand('endCycle', true); // Send 'on' to the server
     setCycleState('idle'); // Reset the cycle state to 'idle'
     setActiveButton(null); // Reset the active button
