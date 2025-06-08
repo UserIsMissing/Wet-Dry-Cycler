@@ -15,7 +15,7 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.166"
+#define ServerIP "10.0.0.203"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
@@ -300,6 +300,7 @@ void loop()
       Serial.println("[EXTRACTING] Moving forward...");
       MOVEMENT_Move_FORWARD();
       movementForwardDone = true; // Mark forward movement as done
+      sendExtractionReady(); // Notify frontend that extraction is ready
     }
     else if (shouldMoveBack && !movementBackDone)
     {

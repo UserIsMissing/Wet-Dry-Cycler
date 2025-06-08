@@ -5,7 +5,6 @@
 #include "send_functions.h"
 #include "REHYDRATION.h"
 
-// Use globals from globals.h
 
 void sendHeartbeat()
 {
@@ -33,7 +32,7 @@ void sendTemperature()
 
 void sendSyringePercentage()
 {
-  float percentUsed = (float)syringeStepCount / (float)MAX_SYRINGE_STEPS * 100.0;
+  float percentUsed = ((float)syringeStepCount / (float)MAX_SYRINGE_STEPS * 100.0);
 
   ArduinoJson::JsonDocument doc;
   doc["type"] = "syringePercentage";
@@ -42,7 +41,7 @@ void sendSyringePercentage()
   char buffer[100];
   serializeJson(doc, buffer);
   webSocket.sendTXT(buffer);
-  Serial.printf("[WS] Sent syringe percentage: %.2f%%\n", percentUsed);
+  Serial.printf("[WS] Sent syringe percentage remaining: %.2f%%\n", percentUsed);
 }
 
 void sendHeatingProgress()
@@ -128,60 +127,75 @@ void sendSyringeResetInfo()
   Serial.println("[WS] Sent syringe reset info");
 }
 
-void sendCurrentState()
+void sendExtractionReady() 
 {
-    const char *stateStr;
-    switch (currentState)
-    {
-    case SystemState::IDLE:
-        stateStr = "IDLE";
-        break;
-    case SystemState::WAITING:
-        stateStr = "WAITING";
-        break;
-    case SystemState::READY:
-        stateStr = "READY";
-        break;
-    case SystemState::REHYDRATING:
-        stateStr = "REHYDRATING";
-        break;
-    case SystemState::HEATING:
-        stateStr = "HEATING";
-        break;
-    case SystemState::MIXING:
-        stateStr = "MIXING";
-        break;
-    case SystemState::REFILLING:
-        stateStr = "REFILLING";
-        break;
-    case SystemState::EXTRACTING:
-        stateStr = "EXTRACTING";
-        break;
-    case SystemState::LOGGING:
-        stateStr = "LOGGING";
-        break;
-    case SystemState::PAUSED:
-        stateStr = "PAUSED";
-        break;
-    case SystemState::ENDED:
-        stateStr = "ENDED";
-        break;
-    case SystemState::ERROR:
-        stateStr = "ERROR";
-        break;
-    default:
-        stateStr = "UNKNOWN";
-        break;
-    }
-
     ArduinoJson::JsonDocument doc;
-    doc["type"] = "currentState";
-    doc["value"] = stateStr;
+    doc["type"] = "extractionReady";
+    doc["status"] = true;
 
     char buffer[100];
     serializeJson(doc, buffer);
     webSocket.sendTXT(buffer);
-    Serial.printf("[WS] Sent current state: %s\n", stateStr);
+    Serial.println("[WS] Sent extraction ready notification");
+}
+
+void sendCurrentState()
+{
+  const char *stateStr;
+  switch (currentState)
+  {
+  case SystemState::VIAL_SETUP:
+    stateStr = "VIAL_SETUP";
+    break;
+  case SystemState::IDLE:
+    stateStr = "IDLE";
+    break;
+  case SystemState::WAITING:
+    stateStr = "WAITING";
+    break;
+  case SystemState::READY:
+    stateStr = "READY";
+    break;
+  case SystemState::REHYDRATING:
+    stateStr = "REHYDRATING";
+    break;
+  case SystemState::HEATING:
+    stateStr = "HEATING";
+    break;
+  case SystemState::MIXING:
+    stateStr = "MIXING";
+    break;
+  case SystemState::REFILLING:
+    stateStr = "REFILLING";
+    break;
+  case SystemState::EXTRACTING:
+    stateStr = "EXTRACTING";
+    break;
+  case SystemState::LOGGING:
+    stateStr = "LOGGING";
+    break;
+  case SystemState::PAUSED:
+    stateStr = "PAUSED";
+    break;
+  case SystemState::ENDED:
+    stateStr = "ENDED";
+    break;
+  case SystemState::ERROR:
+    stateStr = "ERROR";
+    break;
+  default:
+    stateStr = "UNKNOWN";
+    break;
+  }
+
+  ArduinoJson::JsonDocument doc;
+  doc["type"] = "currentState";
+  doc["value"] = stateStr;
+
+  char buffer[100];
+  serializeJson(doc, buffer);
+  webSocket.sendTXT(buffer);
+  Serial.printf("[WS] Sent current state: %s\n", stateStr);
 }
 
 // Add this function to send a recovery packet to the server
@@ -191,19 +205,44 @@ void sendRecoveryPacketToServer()
   doc["type"] = "espRecoveryState";
   JsonObject data = doc["data"].to<JsonObject>();
   // Save current state and all relevant parameters
-  switch (currentState) {
-    case SystemState::IDLE: data["currentState"] = "IDLE"; break;
-    case SystemState::READY: data["currentState"] = "READY"; break;
-    case SystemState::REHYDRATING: data["currentState"] = "REHYDRATING"; break;
-    case SystemState::HEATING: data["currentState"] = "HEATING"; break;
-    case SystemState::MIXING: data["currentState"] = "MIXING"; break;
-    case SystemState::REFILLING: data["currentState"] = "REFILLING"; break;
-    case SystemState::EXTRACTING: data["currentState"] = "EXTRACTING"; break;
-    case SystemState::LOGGING: data["currentState"] = "LOGGING"; break;
-    case SystemState::PAUSED: data["currentState"] = "PAUSED"; break;
-    case SystemState::ENDED: data["currentState"] = "ENDED"; break;
-    case SystemState::ERROR: data["currentState"] = "ERROR"; break;
-    default: data["currentState"] = "UNKNOWN"; break;
+  switch (currentState)
+  {
+  case SystemState::IDLE:
+    data["currentState"] = "IDLE";
+    break;
+  case SystemState::READY:
+    data["currentState"] = "READY";
+    break;
+  case SystemState::REHYDRATING:
+    data["currentState"] = "REHYDRATING";
+    break;
+  case SystemState::HEATING:
+    data["currentState"] = "HEATING";
+    break;
+  case SystemState::MIXING:
+    data["currentState"] = "MIXING";
+    break;
+  case SystemState::REFILLING:
+    data["currentState"] = "REFILLING";
+    break;
+  case SystemState::EXTRACTING:
+    data["currentState"] = "EXTRACTING";
+    break;
+  case SystemState::LOGGING:
+    data["currentState"] = "LOGGING";
+    break;
+  case SystemState::PAUSED:
+    data["currentState"] = "PAUSED";
+    break;
+  case SystemState::ENDED:
+    data["currentState"] = "ENDED";
+    break;
+  case SystemState::ERROR:
+    data["currentState"] = "ERROR";
+    break;
+  default:
+    data["currentState"] = "UNKNOWN";
+    break;
   }
   JsonObject parameters = data["parameters"].to<JsonObject>();
   parameters["volumeAddedPerCycle"] = volumeAddedPerCycle;
@@ -222,7 +261,8 @@ void sendRecoveryPacketToServer()
   parameters["heatingProgress"] = heatingProgressPercent;
   parameters["mixingProgress"] = mixingProgressPercent;
   JsonArray zones = parameters["sampleZonesToMix"].to<JsonArray>();
-  for (int i = 0; i < sampleZoneCount; i++) {
+  for (int i = 0; i < sampleZoneCount; i++)
+  {
     zones.add(sampleZonesArray[i]);
   }
   // Send to server
@@ -231,10 +271,6 @@ void sendRecoveryPacketToServer()
   webSocket.sendTXT(message);
   Serial.println("[WS] Sent ESP recovery packet to server");
 }
-
-
-
-
 
 // CYCLE PROGRESS COMMUNICATION
 

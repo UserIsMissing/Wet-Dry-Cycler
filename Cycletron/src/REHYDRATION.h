@@ -28,7 +28,7 @@
  */
 extern int BUMPER_STATE;
 // === SYRINGE PUMP Max Steps ===
-#define MAX_SYRINGE_STEPS 100000000000  // or a more realistic value based on your hardware
+#define MAX_SYRINGE_STEPS 159251  // or a more realistic value based on your hardware
 
 
 // === Syringe & Motion Parameters ===
@@ -150,6 +150,13 @@ void Rehydration_BackUntilBumper();
 
 int R_CheckBumpers();
 
+
+
+/**
+ * @brief Performs calibration test to measure syringe travel range
+ * @return Total number of 1/16th steps between bumpers
+ */
+uint32_t Rehydration_CalibrationTest();
 
 
 #endif // REHYDRATION_H

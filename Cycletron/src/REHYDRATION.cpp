@@ -19,6 +19,8 @@
 volatile bool rehydrationFrontTriggered = false;
 volatile bool rehydrationBackTriggered = false;
 
+
+// #define REHYDRATION_TEST
 // === Global State ===
 int BUMPER_STATE = 0;
 
@@ -275,3 +277,82 @@ int R_CheckBumpers()
   BUMPER_STATE = 0;
   return 0;
 }
+
+/**
+ * @brief Test function to measure total syringe travel in steps
+ * 
+ * Moves syringe back until back bumper, then forward in 1/16th steps
+ * until front bumper to count total steps in travel range.
+ * 
+ * @return Total number of steps between bumpers
+ */
+uint32_t Rehydration_CalibrationTest() {
+    uint32_t stepCount = 0;
+    
+    // First move back until bumper
+    Serial.println("[CALIBRATION] Moving to back bumper...");
+    DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_QUARTER_STEP);
+    R_CheckBumpers();
+    while (BUMPER_STATE != 2) {
+        DRV8825_Move(&rehydrationMotor, 1, DRV8825_BACKWARD, 500);
+        R_CheckBumpers();
+        yield(); // Allow WebSocket processing
+    }
+    
+    // Switch to 1/16th stepping for precise measurement
+    DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_SIXTEENTH_STEP);
+    delay(100); // Short pause between direction changes
+    
+    // Move forward counting steps until front bumper
+    Serial.println("[CALIBRATION] Counting steps to front bumper...");
+    R_CheckBumpers();
+    while (BUMPER_STATE != 1) {
+        DRV8825_Move(&rehydrationMotor, 1, DRV8825_FORWARD, 500);
+        stepCount++;
+        R_CheckBumpers();
+        
+        // Progress update every 1000 steps
+        if (stepCount % 1000 == 0) {
+            Serial.printf("[CALIBRATION] Steps so far: %lu\n", stepCount);
+            yield(); // Allow WebSocket processing
+        }
+    }
+    
+    Serial.printf("[CALIBRATION] Total steps (1/16th): %lu\n", stepCount);
+    Serial.printf("[CALIBRATION] Approximate full steps: %lu\n", stepCount/16);
+    
+    Rehydration_Stop();
+    return stepCount;
+}
+
+#ifdef REHYDRATION_TEST
+
+void setup() {
+    Serial.begin(115200);
+    delay(2000); // Allow USB Serial to connect
+    
+    Serial.println("\n=== REHYDRATION SYSTEM TEST ===");
+    
+    // Initialize system
+    REHYDRATION_ConfigureInterrupts();
+    Rehydration_InitAndDisable();
+    
+    // Run calibration test
+    Serial.println("\nStarting calibration test...");
+    uint32_t total_steps = Rehydration_CalibrationTest();
+    
+    Serial.println("\n=== TEST RESULTS ===");
+    Serial.printf("Total travel: %lu sixteenth steps\n", total_steps);
+    Serial.printf("Full steps equivalent: %lu\n", total_steps/16);
+    Serial.printf("Estimated travel distance: %.2f mm\n", 
+        (float)(total_steps/16) * STEP_TRAVEL_IN * 25.4);
+    
+    Serial.println("\nTest complete. System halted.");
+    while(true) { delay(1000); } // Hold here
+}
+
+void loop() {
+    // Empty - all work done in setup()
+}
+
+#endif // REHYDRATION_TEST
