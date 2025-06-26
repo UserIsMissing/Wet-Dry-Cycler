@@ -16,6 +16,7 @@ export function WebSocketProvider({ children }) {
     const [isConnected, setIsConnected] = useState(false);
     const [recoveryState, setRecoveryState] = useState(null);
     const [currentTemp, setCurrentTemp] = useState(null);
+    const [currentState, setCurrentState] = useState('UNKNOWN');
     const [espOutputs, setEspOutputs] = useState({
         syringeLimit: 0,
         extractionReady: 'N/A',
@@ -114,6 +115,10 @@ export function WebSocketProvider({ children }) {
                             ...prev,
                             syringeUsed: msg.value || 0,
                         }));
+                        break;
+                    case 'currentState':
+                        setCurrentState(msg.value || 'UNKNOWN');
+                        console.log(`ESP32 state updated: ${msg.value}`);
                         break;
                     case 'status':
                         setEspOutputs((prev) => ({
@@ -255,6 +260,7 @@ export function WebSocketProvider({ children }) {
         espOnline,
         recoveryState,
         currentTemp,
+        currentState,
         espOutputs,
         setEspOutputs,
         sendParameters,

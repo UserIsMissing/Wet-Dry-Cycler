@@ -73,6 +73,7 @@ function App() {
     espOnline,
     recoveryState,
     currentTemp,
+    currentState,
     espOutputs,
     setEspOutputs,
     sendParameters,
@@ -547,6 +548,26 @@ function App() {
           <div className="box" style={{ maxWidth: 400 }}>
             <h2 className="title is-5">ESP32 Outputs</h2>
             <div className="columns is-full is-multiline">
+              <div className="column is-full">
+                <label className="label is-small">Current ESP32 State</label>
+                <div className="field">
+                  <div className="control">
+                    <input
+                      type="text"
+                      className="input is-small"
+                      value={currentState || 'UNKNOWN'}
+                      readOnly
+                      style={{
+                        backgroundColor: currentState === 'UNKNOWN' ? '#ffdd57' : 
+                                       currentState === 'ERROR' ? '#ff3860' :
+                                       currentState === 'IDLE' ? '#dbdbdb' :
+                                       currentState === 'READY' ? '#48c78e' :
+                                       '#3298dc'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="column is-full">
                 <label className="label is-small">Cycle Progress</label>
                 <progress className="progress is-info is-small" value={espOutputs.cycleProgress || 0} max="100">
