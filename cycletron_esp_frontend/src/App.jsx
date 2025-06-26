@@ -74,12 +74,14 @@ function App() {
     recoveryState,
     currentTemp,
     currentState,
+    systemErrors,
     espOutputs,
     setEspOutputs,
     sendParameters,
     sendButtonCommand,
     sendRecoveryUpdate,
     resetRecoveryState,
+    clearSystemErrors,
   } = useWebSocket();
 
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
@@ -622,19 +624,40 @@ function App() {
         </div>
       </div>
 
-      {/* Recovery State (Debug) at the bottom */}
+      {/* System Errors at the bottom */}
       <div style={{ position: 'relative', marginTop: '2rem' }}>
         <section className="box mt-4">
           <div className="is-flex is-align-items-center mb-2">
-            <h2 className="title is-5 mb-0 mr-3" style={{ marginBottom: 0 }}>Recovery State (Debug)</h2>
-            <button className="button is-small mr-2" onClick={() => sendRecoveryUpdate({ cycleStatus: 'paused' })}>
-              Send Recovery Update
-            </button>
-            <button className="button is-small is-danger" onClick={resetRecoveryData}>
+            <h2 className="title is-5 mb-0 mr-3" style={{ marginBottom: 0 }}>System Errors</h2>
+            <button className="button is-small is-danger mr-2" onClick={resetRecoveryData}>
               Reset Recovery Data & Restart ESP32
             </button>
+            {systemErrors.length > 0 && (
+              <button className="button is-small is-warning" onClick={clearSystemErrors}>
+                Clear Errors ({systemErrors.length})
+              </button>
+            )}
           </div>
-          <pre>{JSON.stringify(recoveryState, null, 2)}</pre>
+          
+          {/* System Errors Display */}
+          {systemErrors.length > 0 ? (
+            <div className="box has-background-danger-light">
+              {systemErrors.map((error) => (
+                <div key={error.id} className="notification is-danger is-light mb-2">
+                  <div className="is-flex is-justify-content-space-between">
+                    <div>
+                      <strong>{error.timestamp}</strong>
+                      <p>{error.message}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="box has-background-success-light">
+              <p className="has-text-success has-text-weight-semibold">No system errors detected</p>
+            </div>
+          )}
         </section>
       </div>
     </div>

@@ -17,6 +17,7 @@ export function WebSocketProvider({ children }) {
     const [recoveryState, setRecoveryState] = useState(null);
     const [currentTemp, setCurrentTemp] = useState(null);
     const [currentState, setCurrentState] = useState('UNKNOWN');
+    const [systemErrors, setSystemErrors] = useState([]);
     const [espOutputs, setEspOutputs] = useState({
         syringeLimit: 0,
         extractionReady: 'N/A',
@@ -65,7 +66,7 @@ export function WebSocketProvider({ children }) {
                 const isEspMessage = msg.from === 'esp32' || 
                     ['heartbeat', 'temperature', 'temperatureUpdate', 'cycleProgress', 
                      'status', 'mixingProgress', 'heatingProgress', 'syringePercentage', 
-                     'endOfCycles', 'currentState', 'syringeReset'].includes(msg.type);
+                     'endOfCycles', 'currentState', 'syringeReset', 'system_error'].includes(msg.type);
                 
                 if (isEspMessage) {
                     console.log(`🤖 ESP32 message detected: ${msg.type} from: ${msg.from} value: ${msg.value}`);
@@ -119,6 +120,15 @@ export function WebSocketProvider({ children }) {
                     case 'currentState':
                         setCurrentState(msg.value || 'UNKNOWN');
                         console.log(`ESP32 state updated: ${msg.value}`);
+                        break;
+                    case 'system_error':
+                        const newError = {
+                            id: Date.now(),
+                            timestamp: new Date().toLocaleString(),
+                            message: msg.message || 'Unknown system error'
+                        };
+                        setSystemErrors(prev => [newError, ...prev].slice(0, 10)); // Keep last 10 errors
+                        console.error(`ESP32 System Error: ${newError.message}`);
                         break;
                     case 'status':
                         setEspOutputs((prev) => ({
@@ -200,6 +210,8 @@ export function WebSocketProvider({ children }) {
             .catch((err) => console.error('Failed to reset recovery state:', err));
     };
 
+    const clearSystemErrors = () => setSystemErrors([]);
+
     // Initialize connection on mount
     useEffect(() => {
         mountedRef.current = true;
@@ -261,6 +273,7 @@ export function WebSocketProvider({ children }) {
         recoveryState,
         currentTemp,
         currentState,
+        systemErrors,
         espOutputs,
         setEspOutputs,
         sendParameters,
@@ -269,6 +282,7 @@ export function WebSocketProvider({ children }) {
         isConnected,
         sendMessage,
         resetRecoveryState,
+        clearSystemErrors,
     };
 
     return (
