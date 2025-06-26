@@ -4,6 +4,7 @@
 #include "globals.h"
 #include "send_functions.h"
 #include "REHYDRATION.h"
+#include "state_websocket.h"
 
 
 void sendHeartbeat()
@@ -288,43 +289,29 @@ void sendRecoveryPacketToServer()
 //   Serial.println("[WS] Sent syringe reset info");
 // }
 
-// void sendExtractReady(int)
-// {
-//   float temp = HEATING_Measure_Temp_Avg();
-//   ArduinoJson::DynamicJsonDocument doc(100);
-//   doc["type"] = "temperature";
-//   doc["value"] = temp;
 
-//   char buffer[100];
-//   serializeJson(doc, buffer);
-//   webSocket.sendTXT(buffer);
-//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-// }
+// Helper to map enum to string
+const char* systemErrorTypeToString(SystemErrorType errorType) {
+    switch (errorType) {
+        case ERROR_MOVEMENT_MAX_STEPS_FORWARD:
+            return "Exceeded max steps moving forward";
+        case ERROR_MOVEMENT_MAX_STEPS_BACKWARD:
+            return "Exceeded max steps moving backward";
+        case ERROR_SYRINGE_MAX_STEPS:
+            return "Syringe step count would exceed safe range";
+        case ERROR_DRV8825_FAULT:
+            return "DRV8825 fault pin is active! Check wiring or wall power for the DRV8825s.";
+        // Add more cases as needed
+        default:
+            return "Unknown system error";
+    }
+}
 
-// void sendRecovery(int)
-// {
-//   float temp = HEATING_Measure_Temp_Avg();
-//   ArduinoJson::DynamicJsonDocument doc(100);
-//   doc["type"] = "temperature";
-//   doc["value"] = temp;
-
-//   char buffer[100];
-//   serializeJson(doc, buffer);
-//   webSocket.sendTXT(buffer);
-//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-// }
-
-// ERROR ENUM CODEs
-
-// void sendError(int)
-// {
-//   float temp = HEATING_Measure_Temp_Avg();
-//   ArduinoJson::DynamicJsonDocument doc(100);
-//   doc["type"] = "temperature";
-//   doc["value"] = temp;
-
-//   char buffer[100];
-//   serializeJson(doc, buffer);
-//   webSocket.sendTXT(buffer);
-//   Serial.printf("Sent temp: %.2f \u00b0C\n", temp);
-// }
+void sendSystemError(SystemErrorType errorType) {
+    StaticJsonDocument<256> doc;
+    doc["type"] = "system_error";
+    doc["message"] = systemErrorTypeToString(errorType);
+    String json;
+    serializeJson(doc, json);
+    webSocket.sendTXT(json);
+}

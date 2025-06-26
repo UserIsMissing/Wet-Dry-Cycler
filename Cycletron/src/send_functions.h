@@ -16,6 +16,8 @@
 #ifndef SEND_FUNCTIONS_H
 #define SEND_FUNCTIONS_H
 
+#include "globals.h"
+
 /**
  * @brief Sends heartbeat packet to frontend
  * 
@@ -86,5 +88,14 @@ void sendCurrentState();
  * after completing a cycle or reaching extraction point
  */
 void sendExtractionReady();
+
+/**
+ * @brief Sends movement error notification to frontend
+ * 
+ * Notifies the frontend of any movement errors with an error message
+ * 
+ * @param message Error message to be sent to the frontend
+ */
+void sendSystemError(SystemErrorType errorType);
 
 #endif // SEND_FUNCTIONS_H

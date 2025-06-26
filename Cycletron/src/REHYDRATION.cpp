@@ -14,6 +14,8 @@
 #include "REHYDRATION.h"
 #include "MOVEMENT.h"
 #include "DRV8825.h"
+#include "globals.h"
+#include "send_functions.h"
 #include <math.h>
 
 volatile bool rehydrationFrontTriggered = false;
@@ -120,8 +122,18 @@ void Rehydration_Push(uint32_t uL, float syringeDiameterInches)
     float uL_per_step = calculate_uL_per_step(syringeDiameterInches);
     uint32_t steps = (uint32_t)(uL / uL_per_step);
 
+    // Error check: will this exceed max steps?
+    extern int syringeStepCount;
+    if (syringeStepCount + (int)steps > MAX_SYRINGE_STEPS) {
+        Serial.println("[ERROR] Syringe step count would exceed safe range! Aborting push.");
+        currentState = SystemState::ERROR;
+        sendSystemError(ERROR_SYRINGE_MAX_STEPS);
+        return;
+    }
+
     Serial.printf("[REHYDRATION] Pushing %lu uL (%lu steps)\n", uL, steps);
     DRV8825_Move(&rehydrationMotor, steps, DRV8825_FORWARD, 500); // Push plunger
+    syringeStepCount += steps;
 }
 
 /**
@@ -139,8 +151,18 @@ void Rehydration_Pull(uint32_t uL, float syringeDiameterInches)
     float uL_per_step = calculate_uL_per_step(syringeDiameterInches);
     uint32_t steps = (uint32_t)(uL / uL_per_step);
 
+    // Error check: don't allow negative step count
+    extern int syringeStepCount;
+    if (syringeStepCount - (int)steps < 0) {
+        Serial.println("[ERROR] Syringe step count would go negative! Aborting pull.");
+        currentState = SystemState::ERROR;
+        sendSystemError(ERROR_SYRINGE_MAX_STEPS);
+        return;
+    }
+
     Serial.printf("[REHYDRATION] Retracting %lu uL (%lu steps)\n", uL, steps);
     DRV8825_Move(&rehydrationMotor, steps, DRV8825_BACKWARD, DRV8825_DEFAULT_STEP_DELAY_US);
+    syringeStepCount -= steps;
 }
 
 /**

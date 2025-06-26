@@ -57,16 +57,6 @@ void MOVEMENT_InitAndDisable();
  */
 void MOVEMENT_Init(void);
 
-/**
- * @brief Moves the motor a small amount in reverse to “unstick” the system.
- *
- * This function is typically used during initialization to apply a short
- * backward or forward motion to free the mechanism before larger moves.
- *
- * @param InitialSmallSteps Number of microsteps to take
- * @param UndoDirection Direction (DRV8825_FORWARD or DRV8825_BACKWARD)
- */
-void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection);
 
 /**
  * @brief Checks for DRV8825 fault condition.

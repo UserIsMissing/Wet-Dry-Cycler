@@ -15,7 +15,7 @@
 #define TESTING_MAIN
 
 #define Serial0 Serial
-#define ServerIP "10.0.0.203"
+#define ServerIP "10.0.0.30"
 #define ServerPort 5175
 
 // === Wi-Fi Credentials ===
@@ -31,7 +31,8 @@ const char *password = "guessthepassword";
 // const char *ssid = "UCSC-Guest";
 // const char *password = "";
 
-
+// const char *ssid = "ESP32";
+// const char *password = "DontWorry";
 
 
 unsigned long lastSent = 0; // Last time a message was sent to the server
@@ -62,7 +63,7 @@ void setup()
   HEATING_Init();
   MIXING_Init();
   Rehydration_InitAndDisable();
-  // MOVEMENT_InitAndDisable();
+  MOVEMENT_InitAndDisable();// TEST 
 
   MOVEMENT_ConfigureInterrupts();
   REHYDRATION_ConfigureInterrupts();
@@ -155,14 +156,6 @@ void loop()
 
     Serial.printf("[REHYDRATION] Dispensing %.2f uL of water using a %.2f inch diameter syringe (%d steps).\n",
                   volumeAddedPerCycle, syringeDiameter, stepsToMove);
-
-    if (syringeStepCount + stepsToMove > MAX_SYRINGE_STEPS)
-    {
-      Serial.println("[ERROR] Syringe step count would exceed safe range! Aborting push.");
-      currentState = SystemState::ERROR;
-      sendCurrentState(); // Notify state change to ERROR
-      break;
-    }
 
     syringeStepCount += stepsToMove;
     Rehydration_Push((uint32_t)volumeAddedPerCycle, syringeDiameter);
@@ -286,11 +279,6 @@ void loop()
       // Stay in REFILLING state until we receive a "no" command
       // The state transition will be handled by handleStateCommand when
       // it receives "refill":"no" from the frontend
-    }
-    if (now - lastSent >= 1000)
-    {
-      sendTemperature();
-      lastSent = now;
     }
     break;
 

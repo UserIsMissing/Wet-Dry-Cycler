@@ -12,6 +12,7 @@
 
  #include <Arduino.h>
  #include "DRV8825.h"
+ #include "send_functions.h"
  
 //  #define DRV8825_TEST
  
@@ -35,6 +36,10 @@
    digitalWrite(motor->step_pin, LOW);
    digitalWrite(motor->dir_pin, DRV8825_FORWARD);
    DRV8825_Disable(motor);  // Ensure motor starts disabled
+
+   if (DRV8825_Check_Fault(motor)) {
+     sendSystemError(ERROR_DRV8825_FAULT);
+   }
  }
  
  /**
@@ -118,13 +123,8 @@
   *        Calls both direction-setting and stepping functions.
   */
  void DRV8825_Move(DRV8825_t *motor, int steps, int direction, int delay_us) {
-  //  if (DRV8825_Check_Fault(motor)) {
-  //    Serial.println("[DRV8825] Fault detected before move. Aborting.");
-  //    return;
-  //  }
- 
-   DRV8825_Set_Direction(motor, direction);      // Set rotation direction
-   DRV8825_Step_N(motor, steps, delay_us);       // Execute movement
+    DRV8825_Set_Direction(motor, direction);      // Set rotation direction
+    DRV8825_Step_N(motor, steps, delay_us);       // Execute movement
  }
  
  /**
