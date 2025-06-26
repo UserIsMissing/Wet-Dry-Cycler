@@ -49,12 +49,11 @@ extern unsigned long heatingStartTime;
 extern unsigned long mixingStartTime;
 extern bool heatingStarted;
 extern bool mixingStarted;
+extern bool refillingStarted; // Flag to track if refilling has started
 extern int completedCycles;
 extern int currentCycle;
 extern float heatingProgressPercent;
 extern float mixingProgressPercent;
-extern bool refillingStarted; // Flag to track if refilling has started
-
 
 //flags used for back-and-forth movement in both vial setup and extraction
 extern bool shouldMoveForward; // Flag for back-and-forth movement
@@ -65,6 +64,14 @@ extern bool movementBackDone;
 // Add these to the extern declarations
 extern float heatingDurationRemaining;
 extern float mixingDurationRemaining;
+
+typedef enum {
+    ERROR_MOVEMENT_MAX_STEPS_FORWARD,
+    ERROR_MOVEMENT_MAX_STEPS_BACKWARD,
+    ERROR_SYRINGE_MAX_STEPS, // Add this for syringe overstep errors
+    ERROR_DRV8825_FAULT, // Add this for DRV8825 fault pin error
+    // Add more error types as needed
+} SystemErrorType;
 
 
 

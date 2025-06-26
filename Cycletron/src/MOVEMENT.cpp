@@ -6,16 +6,19 @@
  * mixing, extraction). It includes bumper detection, safe startup handling,
  * and DRV8825 stepper driver integration.
  *
- * Author: Cole Schreiner
+ * Author: Cole Schreiner/Rafael Delwart
  * Date:   14 Apr 2025 adapted for ESP 13 May 2025
  */
 
 #include <Arduino.h>
 #include "MOVEMENT.h"
 #include "globals.h"
+#include "send_functions.h"
+
 
 // === Constants ===
 #define MOVEMENT_STEP_DELAY_US 1000 // Delay between microsteps
+#define MOVEMENT_MAX_STEPS 10000 // Set your safety threshold here // needs to be found and changed
 
 // === Global State ===
 volatile bool movementFrontTriggered = false;
@@ -36,18 +39,13 @@ BUMPER_t bumpers_m = {
     .back_bumper_pin = 10,
 };
 
-/**
- * @brief Applies small reverse motion to unstuck the mechanism.
- *
- * Used during initialization to nudge the system out of an uncertain
- * state before entering normal operation.
- */
-void MOVEMENT_First_Steps(int InitialSmallSteps, int UndoDirection)
-{
-  DRV8825_Set_Step_Mode(&movementMotor, DRV8825_HALF_STEP); // Use half-step for precision
-  DRV8825_Move(&movementMotor, InitialSmallSteps, UndoDirection, MOVEMENT_STEP_DELAY_US);
-  DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP); // Return to full step mode
-}
+enum MovementInitState {
+  INIT_IDLE,
+  INIT_MOVING_BACK,
+  INIT_DONE
+};
+
+MovementInitState movementInitState = INIT_IDLE;
 
 /**
  * @brief Initializes the movement motor and immediately disables it.
@@ -156,27 +154,40 @@ int CheckBumpers()
  */
 void MOVEMENT_Move_FORWARD()
 {
-  // MOVEMENT_First_Steps(); //may need to add to unstick mechanism
   DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP);
   CheckBumpers();
+  int stepCount = 0;
   while (BUMPER_STATE != 1)
   {
     DRV8825_Move(&movementMotor, 1, DRV8825_FORWARD, MOVEMENT_STEP_DELAY_US);
     CheckBumpers();
+    stepCount++;
+    if (stepCount > MOVEMENT_MAX_STEPS) {
+      MOVEMENT_Stop();
+      currentState = SystemState::ERROR;
+      sendSystemError(ERROR_MOVEMENT_MAX_STEPS_FORWARD);
+      return;
+    }
   }
   MOVEMENT_Stop();
 }
 
 void MOVEMENT_Move_BACKWARD()
 {
-  // MOVEMENT_First_Steps(); //may need to add to unstick mechanism
   DRV8825_Set_Step_Mode(&movementMotor, DRV8825_FULL_STEP);
   CheckBumpers();
-
+  int stepCount = 0;
   while (BUMPER_STATE != 2)
   {
     DRV8825_Move(&movementMotor, 1, DRV8825_BACKWARD, MOVEMENT_STEP_DELAY_US);
     CheckBumpers();
+    stepCount++;
+    if (stepCount > MOVEMENT_MAX_STEPS) {
+      MOVEMENT_Stop();
+      currentState = SystemState::ERROR;
+      sendSystemError(ERROR_MOVEMENT_MAX_STEPS_BACKWARD);
+      return;
+    }
   }
   MOVEMENT_Stop();
 }
