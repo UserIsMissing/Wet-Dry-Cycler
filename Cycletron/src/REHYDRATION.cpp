@@ -23,6 +23,8 @@ volatile bool rehydrationBackTriggered = false;
 
 
 // #define REHYDRATION_TEST
+// #define REHYDRATION_TEST_2
+
 // === Global State ===
 int BUMPER_STATE = 0;
 
@@ -118,7 +120,7 @@ void Rehydration_Init(float syringeDiameterInches)
 void Rehydration_Push(uint32_t uL, float syringeDiameterInches)
 {
     DRV8825_Set_Step_Mode(&rehydrationMotor, DRV8825_SIXTEENTH_STEP);
-
+    uL = uL * 0.909; //Scale factor to calibrate syringe pump
     float uL_per_step = calculate_uL_per_step(syringeDiameterInches);
     uint32_t steps = (uint32_t)(uL / uL_per_step);
 
@@ -132,7 +134,7 @@ void Rehydration_Push(uint32_t uL, float syringeDiameterInches)
     }
 
     Serial.printf("[REHYDRATION] Pushing %lu uL (%lu steps)\n", uL, steps);
-    DRV8825_Move(&rehydrationMotor, steps, DRV8825_FORWARD, 500); // Push plunger
+    DRV8825_Move(&rehydrationMotor, steps, DRV8825_FORWARD, 50); // Push plunger
     syringeStepCount += steps;
 }
 
@@ -378,3 +380,50 @@ void loop() {
 }
 
 #endif // REHYDRATION_TEST
+
+
+#ifdef REHYDRATION_TEST_2
+
+void setup() {
+    Serial.begin(115200);
+    delay(2000); // Allow USB Serial to connect
+
+    Serial.println("\n=== REHYDRATION SYSTEM TEST ===");
+
+    // Initialize system
+    REHYDRATION_ConfigureInterrupts();
+    Rehydration_InitAndDisable();
+
+    Serial.println("Type 'p' to push 1200uL, 'r' to retract 1200uL, or 'b' to back until bumper.");
+    Serial.println("Ready for commands...");
+}
+
+void loop() {
+    if (Serial.available()) {
+        char cmd = Serial.read();
+        float syringeDiameter = 0.5; // 3/4 inch syringe
+        switch (cmd) {
+            case 'p':
+            case 'P':
+                Serial.println("[TEST] Pushing 1200uL...");
+                Rehydration_Push(1200, syringeDiameter);
+                break;
+            case 'r':
+            case 'R':
+                Serial.println("[TEST] Retracting 1200uL...");
+                Rehydration_Pull(1200, syringeDiameter);
+                break;
+            case 'b':
+            case 'B':
+                Serial.println("[TEST] Moving back until bumper...");
+                Rehydration_BackUntilBumper();
+                break;
+            default:
+                Serial.println("[TEST] Unknown command. Use 'p' (push), 'r' (retract), or 'b' (back until bumper).");
+                break;
+        }
+    }
+    delay(10);
+}
+
+#endif // REHYDRATION_TEST_2
