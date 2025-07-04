@@ -24,6 +24,8 @@ export function WebSocketProvider({ children }) {
         cyclesCompleted: 0,
         cycleProgress: 0,
         syringeUsed: 0,
+        heatingProgress: 0,
+        mixingProgress: 0,
     });
 
     const connectWebSocket = () => {
@@ -105,6 +107,20 @@ export function WebSocketProvider({ children }) {
                             cycleProgress: msg.percent || 0,
                         }));
                         console.log(`Updated cycle progress: ${msg.completed}/${msg.total} (${msg.percent}%)`);
+                        break;
+                    case 'heatingProgress':
+                        setEspOutputs((prev) => ({
+                            ...prev,
+                            heatingProgress: msg.value || 0,
+                        }));
+                        console.log(`Updated heating progress: ${msg.value}%`);
+                        break;
+                    case 'mixingProgress':
+                        setEspOutputs((prev) => ({
+                            ...prev,
+                            mixingProgress: msg.value || 0,
+                        }));
+                        console.log(`Updated mixing progress: ${msg.value}%`);
                         break;
                     case 'endOfCycles':
                         console.log('ESP32 signaled end of cycles - triggering automatic cycle logging');

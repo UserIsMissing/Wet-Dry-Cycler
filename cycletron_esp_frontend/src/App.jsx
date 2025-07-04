@@ -571,9 +571,23 @@ function App() {
                 </div>
               </div>
               <div className="column is-full">
-                <label className="label is-small">Cycle Progress</label>
-                <progress className="progress is-info is-small" value={espOutputs.cycleProgress || 0} max="100">
-                  {espOutputs.cycleProgress || 0}%
+                <label className="label is-small">Current State Progress</label>
+                <progress 
+                  className="progress is-info is-small" 
+                  value={
+                    currentState === 'HEATING' ? (espOutputs.heatingProgress || 0) :
+                    currentState === 'MIXING' ? (espOutputs.mixingProgress || 0) :
+                    currentState === 'REHYDRATING' ? 100 : // Rehydration is typically instant
+                    0
+                  } 
+                  max="100"
+                >
+                  {
+                    currentState === 'HEATING' ? (espOutputs.heatingProgress || 0) :
+                    currentState === 'MIXING' ? (espOutputs.mixingProgress || 0) :
+                    currentState === 'REHYDRATING' ? 100 :
+                    0
+                  }%
                 </progress>
               </div>
               <div className="column is-three-quarters">
