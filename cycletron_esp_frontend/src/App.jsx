@@ -19,7 +19,7 @@ const parameterFields = [
   { label: "Volume Added Per Cycle (uL)", key: "volumeAddedPerCycle", placeholder: "e.g., 10" },
   { label: "Syringe Diameter (in)", key: "syringeDiameter", placeholder: "e.g., 5" },
   { label: "Desired Heating Temperature (°C)", key: "desiredHeatingTemperature", placeholder: "e.g., 90" },
-  { label: "Duration of Heating (seconds)", key: "durationOfHeating", placeholder: "e.g., 120" },
+  { label: "Duration of Heating (minutes)", key: "durationOfHeating", placeholder: "e.g., 2" },
   { label: "Duration of Mixing (seconds)", key: "durationOfMixing", placeholder: "e.g., 15" },
   { label: "Number of Cycles", key: "numberOfCycles", placeholder: "e.g., 5" },
 ];
@@ -176,7 +176,7 @@ function App() {
   }, [espOutputs, parameters, sendButtonCommand, sendRecoveryUpdate, setCycleState, setActiveButton, setIsPaused, setVialSetupStep, setShowVialSetup, setActiveTab]);
 
   const handleParameterChange = (key, value) => {
-    if (value === '' || Number(value) > 0) {
+    if (value === '' || Number(value) >= 0) {
       setParameters((prev) => ({ ...prev, [key]: value }));
     }
   };
@@ -600,10 +600,16 @@ function App() {
                 />
               </div>
               <div className="column is-full">
-                <label className="label is-small">% of Syringe Left</label>
-                <progress className="progress is-primary is-small" value={100 - (espOutputs.syringeUsed || 0)} max="100">
-                  {(100 - (espOutputs.syringeUsed || 0)).toFixed(2)}% (ESP: {espOutputs.syringeUsed || 0})
-                </progress>
+                <label className="label is-small">Syringe Status</label>
+                <span
+                  className="tag is-medium"
+                  style={{
+                    backgroundColor: (espOutputs.syringeUsed || 0) < 100 ? 'green' : 'red',
+                    color: 'white',
+                  }}
+                >
+                  {(espOutputs.syringeUsed || 0) < 100 ? 'Syringe Ready' : 'Syringe Empty'}
+                </span>
               </div>
               <div className="column is-full">
                 <label className="label is-small">Extraction Ready</label>
